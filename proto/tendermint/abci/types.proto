@@ -212,6 +212,7 @@ message ResponseCheckTx {
   repeated Event events     = 7
       [(gogoproto.nullable) = false, (gogoproto.jsontag) = "events,omitempty"];
   string codespace = 8;
+  bool is_oracle_tx = 9 [(gogoproto.jsontag) = "is_oracle_tx,omitempty"]; // mempool logic
 }
 
 message ResponseDeliverTx {
