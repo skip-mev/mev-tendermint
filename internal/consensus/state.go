@@ -1462,17 +1462,19 @@ func (cs *State) defaultDoPrevote(ctx context.Context, height int64, round int32
 		liveness properties. Please see PrepareProposal-ProcessProposal coherence and determinism
 		properties in the ABCI++ specification.
 	*/
-	isAppValid, err := cs.blockExec.ProcessProposal(ctx, cs.ProposalBlock, cs.state)
-	if err != nil {
-		panic(fmt.Sprintf("ProcessProposal: %v", err))
-	}
+	if cs.isProposer(cs.privValidatorPubKey.Address()) {
+		isAppValid, err := cs.blockExec.ProcessProposal(ctx, cs.ProposalBlock, cs.state)
+		if err != nil {
+			panic(fmt.Sprintf("ProcessProposal: %v", err))
+		}
 
-	// Vote nil if the Application rejected the block
-	if !isAppValid {
-		logger.Error("prevote step: state machine rejected a proposed block; this should not happen:"+
+		// Vote nil if the Application rejected the block
+		if !isAppValid {
+			logger.Error("prevote step: state machine rejected a proposed block; this should not happen:"+
 			"the proposer may be misbehaving; prevoting nil", "err", err)
-		cs.signAddVote(ctx, tmproto.PrevoteType, nil, types.PartSetHeader{})
-		return
+			cs.signAddVote(ctx, tmproto.PrevoteType, nil, types.PartSetHeader{})
+			return
+		}
 	}
 
 	/*
