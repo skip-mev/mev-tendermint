@@ -47,7 +47,7 @@ finalize_block_delay_ms = 500
     persist_interval = 5
     snapshot_interval = 3
     retain_blocks = 0
-    perturb = ["kill", "restart", "restart", "restart", "restart", "restart", "restart", "restart"]
+    perturb = ["kill", "restart", "restart", "restart", "restart", "restart", "restart", "restart", "restart", "restart", "restart", "restart", "restart", "restart"]
     log_level = ""
   [node.validator03]
     mode = "validator"
