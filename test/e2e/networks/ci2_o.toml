@@ -1,0 +1,77 @@
+ipv6 = true
+initial_height = 0
+key_type = "secp256k1"
+evidence = 0
+log_level = ""
+queue_type = "priority"
+tx_size = 1024
+vote_extensions_enable_height = 100
+abci_protocol = "builtin"
+prepare_proposal_delay_ms = 200
+process_proposal_delay_ms = 200
+check_tx_delay_ms = 20
+vote_extension_delay_ms = 100
+finalize_block_delay_ms = 500
+
+[initial_state]
+
+[validators]
+  validator01 = 39
+  validator02 = 76
+  validator03 = 62
+
+[validator_update]
+  [validator_update.10]
+    validator04 = 49
+
+[node]
+  [node.validator01]
+    mode = "validator"
+    database = "badgerdb"
+    privval_protocol = "file"
+    start_at = 0
+    mempool_version = ""
+    state_sync = ""
+    persist_interval = 0
+    snapshot_interval = 3
+    retain_blocks = 0
+    perturb = ["pause"]
+    log_level = ""
+  [node.validator02]
+    mode = "validator"
+    database = "goleveldb"
+    privval_protocol = "tcp"
+    start_at = 0
+    mempool_version = ""
+    state_sync = ""
+    persist_interval = 5
+    snapshot_interval = 3
+    retain_blocks = 0
+    perturb = ["kill", "restart"]
+    log_level = ""
+  [node.validator03]
+    mode = "validator"
+    persistent_peers = ["validator01", "validator02"]
+    database = "rocksdb"
+    privval_protocol = "file"
+    start_at = 0
+    mempool_version = ""
+    state_sync = ""
+    persist_interval = 28
+    snapshot_interval = 5
+    retain_blocks = 28
+    perturb = []
+    log_level = ""
+  [node.validator04]
+    mode = "validator"
+    persistent_peers = ["validator03", "validator01", "validator02"]
+    database = "rocksdb"
+    privval_protocol = "grpc"
+    start_at = 5
+    mempool_version = ""
+    state_sync = "p2p"
+    persist_interval = 5
+    snapshot_interval = 0
+    retain_blocks = 14
+    perturb = ["restart"]
+    log_level = ""
