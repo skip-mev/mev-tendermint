@@ -2,11 +2,60 @@ package mempool
 
 import (
 	"fmt"
+	"sync"
 
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/p2p"
 	"github.com/tendermint/tendermint/types"
 )
+
+// Sidecar is a dummy version of a mempool only gossipeed through
+// the SidecarChannel with the Sentinel
+type PriorityTxSidecar interface {
+
+	// AddTx takes in a transaction and adds to the sidecar, no checks
+	// given by CheckTx
+	AddTx(tx types.Tx, txInfo TxInfo) error
+
+	// ReapMaxTxs reaps up to max transactions from the mempool.
+	// If max is negative, there is no cap on the size of all returned
+	// transactions (~ all available transactions).
+	ReapMaxTxs() []*MempoolTx
+
+	// Lock locks the mempool. The consensus must be able to hold lock to safely update.
+	Lock()
+
+	// Flush removes all transactions from the mempool and cache
+	Flush()
+
+	// Unlock unlocks the mempool.
+	Unlock()
+
+	// Update informs the sidecar that the given txs were reaped and can be discarded.
+	// NOTE: this should be called *after* block is committed by consensus.
+	// NOTE: Lock/Unlock must be managed by caller
+	Update(
+		blockHeight int64,
+		blockTxs types.Txs,
+		deliverTxResponses []*abci.ResponseDeliverTx,
+	) error
+
+	// TxsAvailable returns a channel which fires once for every height,
+	// and only when transactions are available in the mempool.
+	// NOTE: the returned channel may be nil if EnableTxsAvailable was not called.
+	TxsAvailable() <-chan struct{}
+
+	HeightForFiringAuction() int64
+
+	// EnableTxsAvailable initializes the TxsAvailable channel, ensuring it will
+	// trigger once every height when transactions are available.
+
+	// Size returns the number of transactions in the mempool.
+	Size() int
+
+	// TxsBytes returns the total size of all txs in the mempool.
+	TxsBytes() int64
+}
 
 // Mempool defines the mempool interface.
 //
@@ -22,7 +71,7 @@ type Mempool interface {
 	// maxGas.
 	// If both maxes are negative, there is no cap on the size of all returned
 	// transactions (~ all available transactions).
-	ReapMaxBytesMaxGas(maxBytes, maxGas int64) types.Txs
+	ReapMaxBytesMaxGas(maxBytes, maxGas int64, sidecarTxs []*MempoolTx) types.Txs
 
 	// ReapMaxTxs reaps up to max transactions from the mempool.
 	// If max is negative, there is no cap on the size of all returned
@@ -92,12 +141,58 @@ type PostCheckFunc func(types.Tx, *abci.ResponseCheckTx) error
 
 // TxInfo are parameters that get passed when attempting to add a tx to the
 // mempool.
+// TODO: does adding order here ruin consensus somehow?
 type TxInfo struct {
 	// SenderID is the internal peer ID used in the mempool to identify the
 	// sender, storing 2 bytes with each tx instead of 20 bytes for the p2p.ID.
 	SenderID uint16
 	// SenderP2PID is the actual p2p.ID of the sender, used e.g. for logging.
 	SenderP2PID p2p.ID
+	// ordering for sidecar tx
+	BundleId int64
+	// auction height desired for tx
+	DesiredHeight int64
+	// order desired within bundle (i.e. per BundleID)
+	BundleOrder int64
+	// total size of bundle
+	BundleSize int64
+}
+
+// MempoolTx is a transaction that successfully ran
+type MempoolTx struct {
+	height    int64    // height of state that this tx had been validated against
+	gasWanted int64    // amount of gas this tx states it will require
+	tx        types.Tx //
+
+	// ids of peers who've sent us this tx (as a map for quick lookups).
+	// senders: PeerID -> bool
+	senders sync.Map
+}
+
+// MempoolTx is a transaction that successfully ran
+type SidecarTx struct {
+	desiredHeight int64 // height that this tx wants to be included in
+	bundleId      int64 // ordered id of bundle
+	bundleOrder   int64 // order of tx within bundle
+	bundleSize    int64 // total size of bundle
+
+	gasWanted int64    // amount of gas this tx states it will require
+	tx        types.Tx // tx bytes
+
+	// ids of peers who've sent us this tx (as a map for quick lookups).
+	// senders: PeerID -> bool
+	senders sync.Map
+}
+
+// Bundle stores information about a sidecar bundle
+type Bundle struct {
+	desiredHeight int64 // height that this bundle wants to be included in
+	bundleId      int64 // ordered id of bundle
+	currSize      int64 // total size of bundle
+	enforcedSize  int64 // total size of bundle
+
+	gasWanted     int64     // amount of gas this tx states it will require
+	orderedTxsMap *sync.Map // map from bundleOrder to *mempoolTx
 }
 
 //--------------------------------------------------------------------------------

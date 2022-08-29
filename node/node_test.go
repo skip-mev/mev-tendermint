@@ -253,6 +253,11 @@ func TestCreateProposalBlock(t *testing.T) {
 	)
 	mempool.SetLogger(logger)
 
+	// Make Sidecar
+	sidecar := mempl.NewCListSidecar(
+		state.LastBlockHeight,
+	)
+
 	// Make EvidencePool
 	evidenceDB := dbm.NewMemDB()
 	blockStore := store.NewBlockStore(dbm.NewMemDB())
@@ -289,6 +294,7 @@ func TestCreateProposalBlock(t *testing.T) {
 		proxyApp.Consensus(),
 		mempool,
 		evidencePool,
+		sidecar,
 	)
 
 	commit := types.NewCommit(height-1, 0, types.BlockID{}, nil)
@@ -345,6 +351,11 @@ func TestMaxProposalBlockSize(t *testing.T) {
 	)
 	mempool.SetLogger(logger)
 
+	// Make Sidecar
+	sidecar := mempl.NewCListSidecar(
+		state.LastBlockHeight,
+	)
+
 	// fill the mempool with one txs just below the maximum size
 	txLength := int(types.MaxDataBytesNoEvidence(maxBytes, 1))
 	tx := tmrand.Bytes(txLength - 4) // to account for the varint
@@ -357,6 +368,7 @@ func TestMaxProposalBlockSize(t *testing.T) {
 		proxyApp.Consensus(),
 		mempool,
 		sm.EmptyEvidencePool{},
+		sidecar,
 	)
 
 	commit := types.NewCommit(height-1, 0, types.BlockID{}, nil)
