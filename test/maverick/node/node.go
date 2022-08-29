@@ -377,8 +377,8 @@ func onlyValidatorIsUs(state sm.State, pubKey crypto.PubKey) bool {
 	return bytes.Equal(pubKey.Address(), addr)
 }
 
-func createMempoolAndMempoolReactor(config *cfg.Config, proxyApp proxy.AppConns,
-	state sm.State, memplMetrics *mempl.Metrics, logger log.Logger) (*mempl.Reactor, *mempl.CListMempool) {
+func createMempoolAndSidecarAndMempoolReactor(config *cfg.Config, proxyApp proxy.AppConns,
+	state sm.State, memplMetrics *mempl.Metrics, logger log.Logger) (*mempl.Reactor, *mempl.CListMempool, *mempl.CListPriorityTxSidecar) {
 
 	mempool := mempl.NewCListMempool(
 		config.Mempool,
@@ -389,13 +389,17 @@ func createMempoolAndMempoolReactor(config *cfg.Config, proxyApp proxy.AppConns,
 		mempl.WithPostCheck(sm.TxPostCheck(state)),
 	)
 	mempoolLogger := logger.With("module", "mempool")
-	mempoolReactor := mempl.NewReactor(config.Mempool, mempool)
+
+	sidecar := mempl.NewCListSidecar(
+		state.LastBlockHeight,
+	)
+	mempoolReactor := mempl.NewReactor(config.Mempool, mempool, sidecar)
 	mempoolReactor.SetLogger(mempoolLogger)
 
 	if config.Consensus.WaitForTxs() {
 		mempool.EnableTxsAvailable()
 	}
-	return mempoolReactor, mempool
+	return mempoolReactor, mempool, sidecar
 }
 
 func createEvidenceReactor(config *cfg.Config, dbProvider DBProvider,
@@ -768,7 +772,7 @@ func NewNode(config *cfg.Config,
 	csMetrics, p2pMetrics, memplMetrics, smMetrics := metricsProvider(genDoc.ChainID)
 
 	// Make MempoolReactor
-	mempoolReactor, mempool := createMempoolAndMempoolReactor(config, proxyApp, state, memplMetrics, logger)
+	mempoolReactor, mempool, sidecar := createMempoolAndSidecarAndMempoolReactor(config, proxyApp, state, memplMetrics, logger)
 
 	// Make Evidence Reactor
 	evidenceReactor, evidencePool, err := createEvidenceReactor(config, dbProvider, stateDB, blockStore, logger)
@@ -783,6 +787,7 @@ func NewNode(config *cfg.Config,
 		proxyApp.Consensus(),
 		mempool,
 		evidencePool,
+		sidecar,
 		sm.BlockExecutorWithMetrics(smMetrics),
 	)
 
@@ -1322,7 +1327,7 @@ func makeNodeInfo(
 		Channels: []byte{
 			bcChannel,
 			cs.StateChannel, cs.DataChannel, cs.VoteChannel, cs.VoteSetBitsChannel,
-			mempl.MempoolChannel,
+			mempl.MempoolChannel, mempl.SidecarChannel,
 			evidence.EvidenceChannel,
 			statesync.SnapshotChannel, statesync.ChunkChannel,
 		},

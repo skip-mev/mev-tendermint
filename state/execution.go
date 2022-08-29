@@ -36,6 +36,7 @@ type BlockExecutor struct {
 	// and update both with block results after commit.
 	mempool mempl.Mempool
 	evpool  EvidencePool
+	sidecar mempl.PriorityTxSidecar
 
 	logger log.Logger
 
@@ -58,6 +59,7 @@ func NewBlockExecutor(
 	proxyApp proxy.AppConnConsensus,
 	mempool mempl.Mempool,
 	evpool EvidencePool,
+	sidecar mempl.PriorityTxSidecar,
 	options ...BlockExecutorOption,
 ) *BlockExecutor {
 	res := &BlockExecutor{
@@ -66,6 +68,7 @@ func NewBlockExecutor(
 		eventBus: types.NopEventBus{},
 		mempool:  mempool,
 		evpool:   evpool,
+		sidecar:  sidecar,
 		logger:   logger,
 		metrics:  NopMetrics(),
 	}
@@ -105,7 +108,14 @@ func (blockExec *BlockExecutor) CreateProposalBlock(
 	// Fetch a limited amount of valid txs
 	maxDataBytes := types.MaxDataBytes(maxBytes, evSize, state.Validators.Size())
 
-	txs := blockExec.mempool.ReapMaxBytesMaxGas(maxDataBytes, maxGas)
+	blockExec.logger.Info(
+		"entering reap",
+		"height", height,
+		"sidecar_size", blockExec.sidecar.Size(),
+		"mempool_size", blockExec.mempool.Size(),
+	)
+	sidecarTxs := blockExec.sidecar.ReapMaxTxs()
+	txs := blockExec.mempool.ReapMaxBytesMaxGas(maxDataBytes, maxGas, sidecarTxs)
 
 	return state.MakeBlock(height, txs, commit, evidence, proposerAddr)
 }
@@ -237,6 +247,13 @@ func (blockExec *BlockExecutor) Commit(
 		"height", block.Height,
 		"num_txs", len(block.Txs),
 		"app_hash", fmt.Sprintf("%X", res.Data),
+	)
+
+	// Update the sidecar
+	blockExec.sidecar.Update(
+		block.Height,
+		block.Txs,
+		deliverTxResponses,
 	)
 
 	// Update mempool.

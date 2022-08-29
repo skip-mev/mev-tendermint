@@ -44,7 +44,7 @@ func TestApplyBlock(t *testing.T) {
 	stateStore := sm.NewStore(stateDB)
 
 	blockExec := sm.NewBlockExecutor(stateStore, log.TestingLogger(), proxyApp.Consensus(),
-		mmock.Mempool{}, sm.EmptyEvidencePool{})
+		mmock.Mempool{}, sm.EmptyEvidencePool{}, mmock.PriorityTxSidecar{})
 
 	block := makeBlock(state, 1)
 	blockID := types.BlockID{Hash: block.Hash(), PartSetHeader: block.MakePartSet(testPartSize).Header()}
@@ -199,7 +199,7 @@ func TestBeginBlockByzantineValidators(t *testing.T) {
 	evpool.On("CheckEvidence", mock.AnythingOfType("types.EvidenceList")).Return(nil)
 
 	blockExec := sm.NewBlockExecutor(stateStore, log.TestingLogger(), proxyApp.Consensus(),
-		mmock.Mempool{}, evpool)
+		mmock.Mempool{}, evpool, mmock.PriorityTxSidecar{})
 
 	block := makeBlock(state, 1)
 	block.Evidence = types.EvidenceData{Evidence: ev}
@@ -362,6 +362,7 @@ func TestEndBlockValidatorUpdates(t *testing.T) {
 		proxyApp.Consensus(),
 		mmock.Mempool{},
 		sm.EmptyEvidencePool{},
+		mmock.PriorityTxSidecar{},
 	)
 
 	eventBus := types.NewEventBus()
@@ -432,6 +433,7 @@ func TestEndBlockValidatorUpdatesResultingInEmptySet(t *testing.T) {
 		proxyApp.Consensus(),
 		mmock.Mempool{},
 		sm.EmptyEvidencePool{},
+		mmock.PriorityTxSidecar{},
 	)
 
 	block := makeBlock(state, 1)
