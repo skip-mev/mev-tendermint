@@ -63,8 +63,8 @@ type PriorityTxSidecar struct{}
 
 var _ mempl.PriorityTxSidecar = PriorityTxSidecar{}
 
-func (PriorityTxSidecar) AddTx(_ types.Tx, _ mempl.TxInfo) error { return nil }
-func (PriorityTxSidecar) ReapMaxTxs() []*mempl.MempoolTx         { return []*mempl.MempoolTx{} }
+func (PriorityTxSidecar) AddTx(_ *mempl.SidecarTx, _ mempl.TxInfo) error { return nil }
+func (PriorityTxSidecar) ReapMaxTxs() []*mempl.MempoolTx                 { return []*mempl.MempoolTx{} }
 
 func (PriorityTxSidecar) Lock()   {}
 func (PriorityTxSidecar) Unlock() {}

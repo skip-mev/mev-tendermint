@@ -42,7 +42,7 @@ type testBundleInfo struct {
 }
 
 var (
-	ZeroedTxInfoForSidecar = TxInfo{DesiredHeight: 1, BundleId: 0, BundleOrder: 0, BundleSize: 1}
+	ZeroedTxInfoForSidecar = TxInfo{} //TxInfo{DesiredHeight: 1, BundleId: 0, BundleOrder: 0, BundleSize: 1}
 )
 
 func newMempoolWithApp(cc proxy.ClientCreator) (*CListMempool, *CListPriorityTxSidecar, cleanupFunc) {
@@ -100,7 +100,14 @@ func checkTxs(t *testing.T, mempool Mempool, count int, peerID uint16, sidecar P
 			t.Fatalf("CheckTx failed: %v while checking #%d tx", err, i)
 		}
 		if addToSidecar {
-			sidecar.AddTx(txBytes, txInfo)
+			scTx := &SidecarTx{
+				desiredHeight: 1,
+				bundleId:      0,
+				bundleSize:    1,
+				bundleOrder:   0,
+				tx:            txBytes,
+			}
+			sidecar.AddTx(scTx, txInfo)
 		}
 	}
 	return txs
@@ -122,7 +129,14 @@ func addSpecificTxsToSidecarOneBundle(t *testing.T, sidecar PriorityTxSidecar, t
 
 	bInfo := testBundleInfo{BundleSize: int64(len(txs)), PeerId: peerID, DesiredHeight: sidecar.HeightForFiringAuction(), BundleId: 0}
 	for i := 0; i < len(txs); i++ {
-		sidecar.AddTx(txs[i], TxInfo{SenderID: bInfo.PeerId, BundleSize: bInfo.BundleSize, BundleId: bInfo.BundleId, DesiredHeight: bInfo.DesiredHeight, BundleOrder: int64(i)})
+		scTx := &SidecarTx{
+			desiredHeight: bInfo.DesiredHeight,
+			bundleId:      bInfo.BundleId,
+			bundleSize:    bInfo.BundleSize,
+			bundleOrder:   int64(i),
+			tx:            txs[i],
+		}
+		sidecar.AddTx(scTx, TxInfo{SenderID: bInfo.PeerId})
 	}
 	return txs
 }
@@ -139,13 +153,21 @@ func addNumTxsToSidecarOneBundle(t *testing.T, sidecar PriorityTxSidecar, numTxs
 }
 
 func addTxToSidecar(t *testing.T, sidecar PriorityTxSidecar, bInfo testBundleInfo, bundleOrder int64) types.Tx {
-	txInfo := TxInfo{SenderID: bInfo.PeerId, BundleSize: bInfo.BundleSize, BundleId: bInfo.BundleId, DesiredHeight: bInfo.DesiredHeight, BundleOrder: bundleOrder}
+	txInfo := TxInfo{SenderID: bInfo.PeerId}
 	txBytes := make([]byte, 20)
+	scTx := &SidecarTx{
+		desiredHeight: bInfo.DesiredHeight,
+		bundleId:      bInfo.BundleId,
+		bundleSize:    bInfo.BundleSize,
+		bundleOrder:   bundleOrder,
+		tx:            txBytes,
+	}
+	sidecar.AddTx(scTx, TxInfo{SenderID: bInfo.PeerId})
 	_, err := rand.Read(txBytes)
 	if err != nil {
 		t.Error(err)
 	}
-	sidecar.AddTx(txBytes, txInfo)
+	sidecar.AddTx(scTx, txInfo)
 	return txBytes
 }
 

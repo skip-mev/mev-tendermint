@@ -15,7 +15,7 @@ type PriorityTxSidecar interface {
 
 	// AddTx takes in a transaction and adds to the sidecar, no checks
 	// given by CheckTx
-	AddTx(tx types.Tx, txInfo TxInfo) error
+	AddTx(scTx *SidecarTx, txInfo TxInfo) error
 
 	// ReapMaxTxs reaps up to max transactions from the mempool.
 	// If max is negative, there is no cap on the size of all returned
@@ -147,16 +147,6 @@ type TxInfo struct {
 	SenderID uint16
 	// SenderP2PID is the actual p2p.ID of the sender, used e.g. for logging.
 	SenderP2PID p2p.ID
-	// ordering for sidecar tx
-	BundleId int64
-	// auction height desired for tx
-	DesiredHeight int64
-	// order desired within bundle (i.e. per BundleID)
-	BundleOrder int64
-	// total size of bundle
-	BundleSize int64
-	// amount of gas this bundle states it will require
-	TotalGasWanted int64
 }
 
 // MempoolTx is a transaction that successfully ran
@@ -189,10 +179,11 @@ type SidecarTx struct {
 
 // Bundle stores information about a sidecar bundle
 type Bundle struct {
-	desiredHeight  int64 // height that this bundle wants to be included in
-	bundleId       int64 // ordered id of bundle
-	currSize       int64 // total size of bundle
-	enforcedSize   int64 // total size of bundle
+	desiredHeight int64 // height that this bundle wants to be included in
+	bundleId      int64 // ordered id of bundle
+	currSize      int64 // total size of bundle
+	enforcedSize  int64 // total size of bundle
+
 	totalGasWanted int64 // amount of gas this bundle states it will require
 
 	orderedTxsMap *sync.Map // map from bundleOrder to *mempoolTx

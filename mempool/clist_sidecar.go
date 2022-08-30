@@ -114,25 +114,25 @@ func (sc *CListPriorityTxSidecar) notifyTxsAvailable() {
 //--------------------------------------------------------------------------------
 
 // TODO: Update to AddTx(tx types.Tx, txInfo TxInfo, order int64) error
-func (sc *CListPriorityTxSidecar) AddTx(tx types.Tx, txInfo TxInfo) error {
+func (sc *CListPriorityTxSidecar) AddTx(scTx *SidecarTx, txInfo TxInfo) error {
 
 	sc.updateMtx.RLock()
 	// use defer to unlock mutex because application (*local client*) might panic
 	defer sc.updateMtx.RUnlock()
 
-	fmt.Println(fmt.Sprintf("ADDING TRANSACTION %s TO SIDECAR! with bundleId %d, bundleOrder %d, desiredHeight %d, bundleSize %d", tx, txInfo.BundleId, txInfo.BundleOrder, txInfo.DesiredHeight, txInfo.BundleSize))
+	fmt.Println(fmt.Sprintf("ADDING TRANSACTION %s TO SIDECAR! with bundleId %d, bundleOrder %d, desiredHeight %d, bundleSize %d", scTx.tx, scTx.bundleId, scTx.bundleOrder, scTx.desiredHeight, scTx.bundleSize))
 
 	// don't add any txs already in cache
-	if !sc.cache.Push(tx) {
+	if !sc.cache.Push(scTx.tx) {
 		fmt.Println("trying to add tx to sidecar AddTx - but already in cache!")
-		fmt.Println(tx)
+		fmt.Println(scTx.tx)
 		// Record a new sender for a tx we've already seen.
 		// Note it's possible a tx is still in the cache but no longer in the mempool
 		// (eg. after committing a block, txs are removed from mempool but not cache),
 		// so we only record the sender for txs still in the mempool.
 		// Record a new sender for a tx we've already seen.
 
-		if e, ok := sc.txsMap.Load(TxKey(tx)); ok {
+		if e, ok := sc.txsMap.Load(TxKey(scTx.tx)); ok {
 			scTx := e.(*clist.CElement).Value.(*SidecarTx)
 			scTx.senders.LoadOrStore(txInfo.SenderID, true)
 		}
@@ -140,35 +140,25 @@ func (sc *CListPriorityTxSidecar) AddTx(tx types.Tx, txInfo TxInfo) error {
 		return ErrTxInCache
 	}
 
-	scTx := &SidecarTx{
-		desiredHeight:  txInfo.DesiredHeight,
-		tx:             tx,
-		bundleId:       txInfo.BundleId,
-		bundleOrder:    txInfo.BundleOrder,
-		bundleSize:     txInfo.BundleSize,
-		totalGasWanted: txInfo.TotalGasWanted,
-		// TODO: individual gas
-	}
-
 	// -------- BASIC CHECKS ON TX INFO ---------
 
 	// Can't add transactions asking to be included in a height for auction we're not on
-	if txInfo.DesiredHeight != sc.heightForFiringAuction {
-		fmt.Println(fmt.Sprintf("AddTx() skip: trying to add a tx for height %d whereas height for curr auction is %d", txInfo.DesiredHeight, sc.heightForFiringAuction))
+	if scTx.desiredHeight != sc.heightForFiringAuction {
+		fmt.Println(fmt.Sprintf("AddTx() skip: trying to add a tx for height %d whereas height for curr auction is %d", scTx.desiredHeight, sc.heightForFiringAuction))
 		return ErrWrongHeight{
-			int(txInfo.DesiredHeight),
+			int(scTx.desiredHeight),
 			int(sc.heightForFiringAuction),
 		}
 	}
 
 	// revert if tx asking to be included has an order greater/equal to size
-	if txInfo.BundleOrder >= txInfo.BundleSize {
+	if scTx.bundleOrder >= scTx.bundleSize {
 		fmt.Println("AddTx{} skip...: trying to insert a tx for bundle at an order greater than the size of the bundle... THIS IS PROBABLY A FATAL ERROR")
 		return ErrTxMalformedForBundle{
-			txInfo.BundleId,
-			txInfo.BundleSize,
-			txInfo.DesiredHeight,
-			txInfo.BundleOrder,
+			scTx.bundleId,
+			scTx.bundleSize,
+			scTx.desiredHeight,
+			scTx.bundleOrder,
 		}
 	}
 
@@ -176,11 +166,11 @@ func (sc *CListPriorityTxSidecar) AddTx(tx types.Tx, txInfo TxInfo) error {
 
 	var bundle *Bundle
 	// load existing bundle, or MAKE NEW if not
-	existingBundle, _ := sc.bundles.LoadOrStore(txInfo.BundleId, &Bundle{
-		desiredHeight: txInfo.DesiredHeight,
-		bundleId:      txInfo.BundleId,
+	existingBundle, _ := sc.bundles.LoadOrStore(scTx.bundleId, &Bundle{
+		desiredHeight: scTx.desiredHeight,
+		bundleId:      scTx.bundleId,
 		currSize:      int64(0),
-		enforcedSize:  txInfo.BundleSize,
+		enforcedSize:  scTx.bundleSize,
 		// TODO: add from gossip info?
 		totalGasWanted: int64(0),
 		orderedTxsMap:  &sync.Map{},
@@ -190,13 +180,13 @@ func (sc *CListPriorityTxSidecar) AddTx(tx types.Tx, txInfo TxInfo) error {
 	// -------- BUNDLE SIZE CHECKS ---------
 
 	// check if bundle is asking for a different size than one already stored
-	if txInfo.BundleSize != bundle.enforcedSize {
+	if scTx.bundleSize != bundle.enforcedSize {
 		fmt.Println("AddTx{} skip...: Trying to insert a tx with a size different than what's said by other txs for this bundle?? ... THIS IS PROBABLY A FATAL ERROR")
 		return ErrTxMalformedForBundle{
-			txInfo.BundleId,
-			txInfo.BundleSize,
-			txInfo.DesiredHeight,
-			txInfo.BundleOrder,
+			scTx.bundleId,
+			scTx.bundleSize,
+			scTx.desiredHeight,
+			scTx.bundleOrder,
 		}
 	}
 
@@ -205,8 +195,8 @@ func (sc *CListPriorityTxSidecar) AddTx(tx types.Tx, txInfo TxInfo) error {
 	if bundle.currSize >= bundle.enforcedSize {
 		fmt.Println("AddTx{} skip...: already full for this BundleId... THIS IS PROBABLY A FATAL ERROR")
 		return ErrBundleFull{
-			txInfo.BundleId,
-			txInfo.BundleSize,
+			scTx.bundleId,
+			scTx.bundleSize,
 		}
 	}
 

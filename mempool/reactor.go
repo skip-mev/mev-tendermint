@@ -206,7 +206,7 @@ func (memR *Reactor) Receive(chID byte, src p2p.Peer, msgBytes []byte) {
 			return
 		}
 		// memR.Logger.Debug("Receive Sidecar Tx", "src", src, "chId", chID, "msg", msg)
-		txInfo := TxInfo{SenderID: memR.ids.GetForPeer(src), DesiredHeight: msg.DesiredHeight, BundleId: msg.BundleId, BundleOrder: msg.BundleOrder, BundleSize: msg.BundleSize}
+		txInfo := TxInfo{SenderID: memR.ids.GetForPeer(src)} //DesiredHeight: msg.DesiredHeight, BundleId: msg.BundleId, BundleOrder: msg.BundleOrder, BundleSize: msg.BundleSize}
 		if src != nil {
 			txInfo.SenderP2PID = src.ID()
 		}
@@ -214,7 +214,17 @@ func (memR *Reactor) Receive(chID byte, src p2p.Peer, msgBytes []byte) {
 			fmt.Println(fmt.Sprintf("received sidecar tx! desiredHeight %d, bundleId %d, bundleOrder %d, bundleSize %d", msg.DesiredHeight, msg.BundleId, msg.BundleOrder, msg.BundleSize))
 			fmt.Println(tx)
 
-			err = memR.sidecar.AddTx(tx, txInfo)
+			scTx := &SidecarTx{
+				desiredHeight:  msg.DesiredHeight,
+				tx:             tx,
+				bundleId:       msg.BundleId,
+				bundleOrder:    msg.BundleOrder,
+				bundleSize:     msg.BundleSize,
+				totalGasWanted: msg.TotalGasWanted,
+				// TODO: individual gas
+			}
+
+			err = memR.sidecar.AddTx(scTx, txInfo)
 			if err == ErrTxInCache {
 				memR.Logger.Debug("SidecarTx already exists in cache", "tx", txID(tx))
 			} else if err != nil {

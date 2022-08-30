@@ -52,8 +52,8 @@ type emptySidecar struct{}
 
 var _ mempl.PriorityTxSidecar = emptySidecar{}
 
-func (emptySidecar) AddTx(_ types.Tx, _ mempl.TxInfo) error { return nil }
-func (emptySidecar) ReapMaxTxs() []*mempl.MempoolTx         { return []*mempl.MempoolTx{} }
+func (emptySidecar) AddTx(_ *mempl.SidecarTx, _ mempl.TxInfo) error { return nil }
+func (emptySidecar) ReapMaxTxs() []*mempl.MempoolTx                 { return []*mempl.MempoolTx{} }
 
 func (emptySidecar) Lock()   {}
 func (emptySidecar) Unlock() {}
