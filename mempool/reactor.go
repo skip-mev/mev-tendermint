@@ -286,10 +286,11 @@ func (memR *Reactor) broadcastTxRoutine(peer p2p.Peer) {
 					Sum: &protomem.MEVMessage_Txs{
 						Txs: &protomem.Txs{Txs: [][]byte{scTx.tx}},
 					},
-					DesiredHeight: scTx.desiredHeight,
-					BundleId:      scTx.bundleId,
-					BundleOrder:   scTx.bundleOrder,
-					BundleSize:    scTx.bundleSize,
+					DesiredHeight:  scTx.desiredHeight,
+					BundleId:       scTx.bundleId,
+					BundleOrder:    scTx.bundleOrder,
+					BundleSize:     scTx.bundleSize,
+					TotalGasWanted: scTx.totalGasWanted,
 				}
 				bz, err := msg.Marshal()
 				if err != nil {
@@ -365,11 +366,12 @@ func (memR *Reactor) decodeBundleMsg(bz []byte) (MEVTxsMessage, error) {
 		}
 
 		message = MEVTxsMessage{
-			Txs:           decoded,
-			DesiredHeight: msg.GetDesiredHeight(),
-			BundleId:      msg.GetBundleId(),
-			BundleOrder:   msg.GetBundleOrder(),
-			BundleSize:    msg.GetBundleSize(),
+			Txs:            decoded,
+			DesiredHeight:  msg.GetDesiredHeight(),
+			BundleId:       msg.GetBundleId(),
+			BundleOrder:    msg.GetBundleOrder(),
+			BundleSize:     msg.GetBundleSize(),
+			TotalGasWanted: msg.GetTotalGasWanted(),
 		}
 		return message, nil
 	}
@@ -414,11 +416,12 @@ type TxsMessage struct {
 
 // TxsMessage is a Message containing transactions.
 type MEVTxsMessage struct {
-	Txs           []types.Tx
-	DesiredHeight int64
-	BundleId      int64
-	BundleOrder   int64
-	BundleSize    int64
+	Txs            []types.Tx
+	DesiredHeight  int64
+	BundleId       int64
+	BundleOrder    int64
+	BundleSize     int64
+	TotalGasWanted int64
 }
 
 // String returns a string representation of the TxsMessage.

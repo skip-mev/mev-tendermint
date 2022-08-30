@@ -141,12 +141,13 @@ func (sc *CListPriorityTxSidecar) AddTx(tx types.Tx, txInfo TxInfo) error {
 	}
 
 	scTx := &SidecarTx{
-		desiredHeight: txInfo.DesiredHeight,
-		tx:            tx,
-		bundleId:      txInfo.BundleId,
-		bundleOrder:   txInfo.BundleOrder,
-		bundleSize:    txInfo.BundleSize,
-		// TODO: gas
+		desiredHeight:  txInfo.DesiredHeight,
+		tx:             tx,
+		bundleId:       txInfo.BundleId,
+		bundleOrder:    txInfo.BundleOrder,
+		bundleSize:     txInfo.BundleSize,
+		totalGasWanted: txInfo.TotalGasWanted,
+		// TODO: individual gas
 	}
 
 	// -------- BASIC CHECKS ON TX INFO ---------
@@ -181,8 +182,8 @@ func (sc *CListPriorityTxSidecar) AddTx(tx types.Tx, txInfo TxInfo) error {
 		currSize:      int64(0),
 		enforcedSize:  txInfo.BundleSize,
 		// TODO: add from gossip info?
-		gasWanted:     int64(0),
-		orderedTxsMap: &sync.Map{},
+		totalGasWanted: int64(0),
+		orderedTxsMap:  &sync.Map{},
 	})
 	bundle = existingBundle.(*Bundle)
 

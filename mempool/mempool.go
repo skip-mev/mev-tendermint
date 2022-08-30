@@ -140,8 +140,7 @@ type PreCheckFunc func(types.Tx) error
 type PostCheckFunc func(types.Tx, *abci.ResponseCheckTx) error
 
 // TxInfo are parameters that get passed when attempting to add a tx to the
-// mempool.
-// TODO: does adding order here ruin consensus somehow?
+// mempool or sidecar
 type TxInfo struct {
 	// SenderID is the internal peer ID used in the mempool to identify the
 	// sender, storing 2 bytes with each tx instead of 20 bytes for the p2p.ID.
@@ -156,6 +155,8 @@ type TxInfo struct {
 	BundleOrder int64
 	// total size of bundle
 	BundleSize int64
+	// amount of gas this bundle states it will require
+	TotalGasWanted int64
 }
 
 // MempoolTx is a transaction that successfully ran
@@ -169,15 +170,17 @@ type MempoolTx struct {
 	senders sync.Map
 }
 
-// MempoolTx is a transaction that successfully ran
+// SidecarTx defined with redundant bundle params to help with gossipping
 type SidecarTx struct {
 	desiredHeight int64 // height that this tx wants to be included in
 	bundleId      int64 // ordered id of bundle
 	bundleOrder   int64 // order of tx within bundle
 	bundleSize    int64 // total size of bundle
 
-	gasWanted int64    // amount of gas this tx states it will require
-	tx        types.Tx // tx bytes
+	gasWanted      int64 // amount of gas this tx states it will require
+	totalGasWanted int64 // amount of gas this bundle states it will require
+
+	tx types.Tx // tx bytes
 
 	// ids of peers who've sent us this tx (as a map for quick lookups).
 	// senders: PeerID -> bool
@@ -186,12 +189,12 @@ type SidecarTx struct {
 
 // Bundle stores information about a sidecar bundle
 type Bundle struct {
-	desiredHeight int64 // height that this bundle wants to be included in
-	bundleId      int64 // ordered id of bundle
-	currSize      int64 // total size of bundle
-	enforcedSize  int64 // total size of bundle
+	desiredHeight  int64 // height that this bundle wants to be included in
+	bundleId       int64 // ordered id of bundle
+	currSize       int64 // total size of bundle
+	enforcedSize   int64 // total size of bundle
+	totalGasWanted int64 // amount of gas this bundle states it will require
 
-	gasWanted     int64     // amount of gas this tx states it will require
 	orderedTxsMap *sync.Map // map from bundleOrder to *mempoolTx
 }
 

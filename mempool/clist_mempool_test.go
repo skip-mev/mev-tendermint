@@ -217,62 +217,6 @@ func TestReapMaxBytesMaxGasMempool(t *testing.T) {
 	}
 }
 
-// TODO: broken
-func TestReapMaxBytesMaxGasWithTxsFromSidecar(t *testing.T) {
-	app := kvstore.NewApplication()
-	cc := proxy.NewLocalClientCreator(app)
-	mempool, sidecar, cleanup := newMempoolWithApp(cc)
-	defer cleanup()
-
-	// // Ensure gas calculation behaves as expected
-	// checkTxs(t, mempool, 1, UnknownPeerID, sidecar, false)
-	// tx0 := mempool.TxsFront().Value.(*MempoolTx)
-	// // assert that kv store has gas wanted = 1.
-	// require.Equal(t, app.CheckTx(abci.RequestCheckTx{Tx: tx0.tx}).GasWanted, int64(1), "KVStore had a gas value neq to 1")
-	// require.Equal(t, tx0.gasWanted, int64(1), "transactions gas was set incorrectly")
-	// // ensure each tx is 20 bytes long
-	// require.Equal(t, len(tx0.tx), 20, "Tx is longer than 20 bytes")
-	// mempool.Flush()
-
-	// each table driven test creates numTxsToCreate txs with checkTx, and at the end clears all remaining txs.
-	// each tx has 20 bytes
-	tests := []struct {
-		numTxsToCreate int
-		maxBytes       int64
-		maxGas         int64
-		expectedNumTxs int
-	}{
-		{1, 100, 100, 1},
-		// {20, -1, -1, 20},
-		// {20, -1, 0, 0},
-		// {20, -1, 10, 10},
-		// {20, -1, 30, 20},
-		// {20, 0, -1, 0},
-		// {20, 0, 10, 0},
-		// {20, 10, 10, 0},
-		// {20, 24, 10, 1},
-		// {20, 240, 5, 5},
-		// {20, 240, -1, 10},
-		// {20, 240, 10, 10},
-		// {20, 240, 15, 10},
-		// {20, 20000, -1, 20},
-		// {20, 20000, 5, 5},
-		// {20, 20000, 30, 20},
-	}
-	for tcIndex, tt := range tests {
-		txs := checkTxs(t, mempool, tt.numTxsToCreate, UnknownPeerID, sidecar, false)
-		// addNumTxsToSidecarOneBundle(t, sidecar, tt.numTxsToCreate, UnknownPeerID)
-		addSpecificTxsToSidecarOneBundle(t, sidecar, txs, UnknownPeerID)
-
-		got := mempool.ReapMaxBytesMaxGas(tt.maxBytes, tt.maxGas, sidecar.ReapMaxTxs())
-
-		assert.Equal(t, tt.expectedNumTxs, len(got), "Got %d txs, expected %d, tc #%d",
-			len(got), tt.expectedNumTxs, tcIndex)
-		mempool.Flush()
-		sidecar.Flush()
-	}
-}
-
 func TestBasicAddMultipleBundles(t *testing.T) {
 	app := kvstore.NewApplication()
 	cc := proxy.NewLocalClientCreator(app)
@@ -360,7 +304,7 @@ func TestSpecificAddTxsToMultipleBundles(t *testing.T) {
 	}
 }
 
-// TODO: shorten
+// TODO: shorten this test
 func TestReapSidecarWithTxsOutOfOrder(t *testing.T) {
 	app := kvstore.NewApplication()
 	cc := proxy.NewLocalClientCreator(app)
