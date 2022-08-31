@@ -176,7 +176,7 @@ func (memR *Reactor) RemovePeer(peer p2p.Peer, reason interface{}) {
 // Receive implements Reactor.
 // It adds any received transactions to the mempool.
 func (memR *Reactor) Receive(chID byte, src p2p.Peer, msgBytes []byte) {
-
+	isSidecarPeer := src.IsSidecarPeer()
 	if chID == MempoolChannel {
 		msg, err := memR.decodeMsg(msgBytes)
 		if err != nil {
@@ -198,7 +198,7 @@ func (memR *Reactor) Receive(chID byte, src p2p.Peer, msgBytes []byte) {
 				memR.Logger.Info("Could not check tx", "tx", txID(tx), "err", err)
 			}
 		}
-	} else if chID == SidecarChannel {
+	} else if chID == SidecarChannel && isSidecarPeer {
 		msg, err := memR.decodeBundleMsg(msgBytes)
 		if err != nil {
 			memR.Logger.Error("Error decoding message", "src", src, "chId", chID, "err", err)
@@ -233,6 +233,7 @@ type PeerState interface {
 // Send new mempool txs to peer.
 func (memR *Reactor) broadcastTxRoutine(peer p2p.Peer) {
 	peerID := memR.ids.GetForPeer(peer)
+	isSidecarPeer := peer.IsSidecarPeer()
 	var next *clist.CElement
 
 	isSidecarTxReceived := false
@@ -277,7 +278,7 @@ func (memR *Reactor) broadcastTxRoutine(peer p2p.Peer) {
 			continue
 		}
 
-		if isSidecarTxReceived {
+		if isSidecarTxReceived && isSidecarPeer {
 			// Allow for a lag of 1 block.
 			scTx := next.Value.(*SidecarTx)
 
@@ -302,7 +303,7 @@ func (memR *Reactor) broadcastTxRoutine(peer p2p.Peer) {
 				}
 			}
 
-		} else {
+		} else if !isSidecarTxReceived {
 			// Allow for a lag of 1 block.
 			memTx := next.Value.(*MempoolTx)
 			if peerState.GetHeight() < memTx.Height()-1 {

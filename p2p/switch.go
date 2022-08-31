@@ -89,7 +89,8 @@ type Switch struct {
 
 	rng *rand.Rand // seed for randomizing dial times and orders
 
-	metrics *Metrics
+	metrics      *Metrics
+	sidecarPeers SidecarPeers
 }
 
 // NetAddress returns the address the switch is listening on.
@@ -101,14 +102,33 @@ func (sw *Switch) NetAddress() *NetAddress {
 // SwitchOption sets an optional parameter on the Switch.
 type SwitchOption func(*Switch)
 
+type SidecarPeers map[ID]struct{}
+
+// create map of sidecar peers that will privately gossip
+// auction-winning txs among themselves
+func NewSidecarPeers(pl []string) (SidecarPeers, error) {
+	var sp SidecarPeers = make(SidecarPeers)
+	for _, pid := range pl {
+		vid := ID(pid)
+		if err := validateID(vid); err != nil {
+			return nil, err
+		}
+		sp[vid] = struct{}{}
+	}
+	return sp, nil
+}
+
 // NewSwitch creates a new Switch with the given config.
 func NewSwitch(
 	cfg *config.P2PConfig,
+	sidecarPeers SidecarPeers,
 	transport Transport,
 	options ...SwitchOption,
 ) *Switch {
+
 	sw := &Switch{
 		config:               cfg,
+		sidecarPeers:         sidecarPeers,
 		reactors:             make(map[string]Reactor),
 		chDescs:              make([]*conn.ChannelDescriptor, 0),
 		reactorsByCh:         make(map[byte]Reactor),
@@ -606,6 +626,13 @@ func (sw *Switch) AddPrivatePeerIDs(ids []string) error {
 	return nil
 }
 
+// Check whether a particular PID is a skip peer
+// and should receive private auction-winning txs
+func (sw *Switch) IsSidecarPeer(pid ID) bool {
+	_, isPeer := sw.sidecarPeers[pid]
+	return isPeer
+}
+
 func (sw *Switch) IsPeerPersistent(na *NetAddress) bool {
 	for _, pa := range sw.persistentPeersAddrs {
 		if pa.Equals(na) {
@@ -618,11 +645,12 @@ func (sw *Switch) IsPeerPersistent(na *NetAddress) bool {
 func (sw *Switch) acceptRoutine() {
 	for {
 		p, err := sw.transport.Accept(peerConfig{
-			chDescs:      sw.chDescs,
-			onPeerError:  sw.StopPeerForError,
-			reactorsByCh: sw.reactorsByCh,
-			metrics:      sw.metrics,
-			isPersistent: sw.IsPeerPersistent,
+			chDescs:       sw.chDescs,
+			onPeerError:   sw.StopPeerForError,
+			reactorsByCh:  sw.reactorsByCh,
+			metrics:       sw.metrics,
+			isPersistent:  sw.IsPeerPersistent,
+			isSidecarPeer: sw.IsSidecarPeer,
 		})
 		if err != nil {
 			switch err := err.(type) {
@@ -721,11 +749,12 @@ func (sw *Switch) addOutboundPeerWithConfig(
 	}
 
 	p, err := sw.transport.Dial(*addr, peerConfig{
-		chDescs:      sw.chDescs,
-		onPeerError:  sw.StopPeerForError,
-		isPersistent: sw.IsPeerPersistent,
-		reactorsByCh: sw.reactorsByCh,
-		metrics:      sw.metrics,
+		chDescs:       sw.chDescs,
+		onPeerError:   sw.StopPeerForError,
+		isPersistent:  sw.IsPeerPersistent,
+		isSidecarPeer: sw.IsSidecarPeer,
+		reactorsByCh:  sw.reactorsByCh,
+		metrics:       sw.metrics,
 	})
 	if err != nil {
 		if e, ok := err.(ErrRejected); ok {

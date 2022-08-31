@@ -65,6 +65,34 @@ func TestReactorBroadcastTxsMessage(t *testing.T) {
 	waitForTxsOnReactors(t, txs, reactors, false)
 }
 
+func TestReactorBroadcastSidecarOnly(t *testing.T) {
+	config := cfg.TestConfig()
+	const N = 8
+	reactors := makeAndConnectReactorsEvensSidecar(config, N)
+	defer func() {
+		for _, r := range reactors {
+			if err := r.Stop(); err != nil {
+				assert.NoError(t, err)
+			}
+		}
+	}()
+	for _, r := range reactors {
+		for _, peer := range r.Switch.Peers().List() {
+			peer.Set(types.PeerStateKey, peerState{1})
+		}
+	}
+	txs := addNumBundlesToSidecar(t, reactors[0].sidecar, 5, 10, UnknownPeerID)
+	time.Sleep(2000)
+	reactors[0].sidecar.PrettyPrintBundles()
+	waitForTxsOnReactors(t, txs, reactors[2:3], true)
+	waitForTxsOnReactors(t, txs, reactors[4:5], true)
+	waitForTxsOnReactors(t, txs, reactors[6:7], true)
+	assert.Equal(t, 0, reactors[1].sidecar.Size())
+	assert.Equal(t, 0, reactors[5].sidecar.Size())
+	assert.Equal(t, 0, reactors[7].sidecar.Size())
+	assert.Equal(t, 0, reactors[3].sidecar.Size())
+}
+
 // Send a bunch of txs to the first reactor's sidecar and wait for them all to
 // be received in the others, IN THE RIGHT ORDER
 func TestReactorBroadcastSidecarTxsMessage(t *testing.T) {
@@ -345,6 +373,32 @@ func mempoolLogger() log.Logger {
 }
 
 // connect N mempool reactors through N switches
+// can add additional logic to set which ones should be treated as sidecar
+// peers in p2p.Connect2Switches, including based on index
+func makeAndConnectReactorsEvensSidecar(config *cfg.Config, n int) []*Reactor {
+	reactors := make([]*Reactor, n)
+	logger := mempoolLogger()
+	for i := 0; i < n; i++ {
+		app := kvstore.NewApplication()
+		cc := proxy.NewLocalClientCreator(app)
+		mempool, sidecar, cleanup := newMempoolWithApp(cc)
+		defer cleanup()
+
+		reactors[i] = NewReactor(config.Mempool, mempool, sidecar) // so we dont start the consensus states
+		reactors[i].SetLogger(logger.With("validator", i))
+	}
+
+	p2p.MakeConnectedSwitches(config.P2P, n, func(i int, s *p2p.Switch) *p2p.Switch {
+		s.AddReactor("MEMPOOL", reactors[i])
+		return s
+
+	}, p2p.Connect2SwitchesEvensSidecar)
+	return reactors
+}
+
+// connect N mempool reactors through N switches
+// can add additional logic to set which ones should be treated as Sidecar
+// peers in p2p.Connect2Switches, including based on index
 func makeAndConnectReactors(config *cfg.Config, n int) []*Reactor {
 	reactors := make([]*Reactor, n)
 	logger := mempoolLogger()

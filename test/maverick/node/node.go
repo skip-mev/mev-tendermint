@@ -560,6 +560,7 @@ func createSwitch(config *cfg.Config,
 
 	sw := p2p.NewSwitch(
 		config.P2P,
+		make(p2p.SidecarPeers, 0),
 		transport,
 		p2p.WithMetrics(p2pMetrics),
 		p2p.SwitchPeerFilters(peerFilters...),
