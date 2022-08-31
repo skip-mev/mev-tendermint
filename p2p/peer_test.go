@@ -43,6 +43,9 @@ func TestPeerBasic(t *testing.T) {
 	assert.False(p.IsPersistent())
 	p.persistent = true
 	assert.True(p.IsPersistent())
+	assert.True(p.IsSidecarPeer())
+	p.isSidecarPeer = false
+	assert.False(p.IsSidecarPeer())
 	assert.Equal(rp.Addr().DialString(), p.RemoteAddr().String())
 	assert.Equal(rp.ID(), p.ID())
 }
@@ -94,7 +97,7 @@ func createOutboundPeerAndPerformHandshake(
 		return nil, err
 	}
 
-	p := newPeer(pc, mConfig, peerNodeInfo, reactorsByCh, chDescs, func(p Peer, r interface{}) {})
+	p := newPeer(pc, mConfig, peerNodeInfo, reactorsByCh, chDescs, true, func(p Peer, r interface{}) {})
 	p.SetLogger(log.TestingLogger().With("peer", addr))
 	return p, nil
 }

@@ -40,9 +40,10 @@ func (mp mockPeer) ID() p2p.ID           { return mp.id }
 func (mp mockPeer) RemoteIP() net.IP     { return net.IP{} }
 func (mp mockPeer) RemoteAddr() net.Addr { return &net.TCPAddr{IP: mp.RemoteIP(), Port: 8800} }
 
-func (mp mockPeer) IsOutbound() bool   { return true }
-func (mp mockPeer) IsPersistent() bool { return true }
-func (mp mockPeer) CloseConn() error   { return nil }
+func (mp mockPeer) IsOutbound() bool    { return true }
+func (mp mockPeer) IsPersistent() bool  { return true }
+func (mp mockPeer) IsSidecarPeer() bool { return true }
+func (mp mockPeer) CloseConn() error    { return nil }
 
 func (mp mockPeer) NodeInfo() p2p.NodeInfo {
 	return p2p.DefaultNodeInfo{

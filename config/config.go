@@ -71,6 +71,7 @@ type Config struct {
 	Consensus       *ConsensusConfig       `mapstructure:"consensus"`
 	TxIndex         *TxIndexConfig         `mapstructure:"tx_index"`
 	Instrumentation *InstrumentationConfig `mapstructure:"instrumentation"`
+	Sidecar         *SidecarConfig         `mapstructure:"sidecar"`
 }
 
 // DefaultConfig returns a default configuration for a Tendermint node
@@ -85,6 +86,7 @@ func DefaultConfig() *Config {
 		Consensus:       DefaultConsensusConfig(),
 		TxIndex:         DefaultTxIndexConfig(),
 		Instrumentation: DefaultInstrumentationConfig(),
+		Sidecar:         DefaultSidecarConfig(),
 	}
 }
 
@@ -100,6 +102,7 @@ func TestConfig() *Config {
 		Consensus:       TestConsensusConfig(),
 		TxIndex:         TestTxIndexConfig(),
 		Instrumentation: TestInstrumentationConfig(),
+		Sidecar:         TestSidecarConfig(),
 	}
 }
 
@@ -110,6 +113,7 @@ func (cfg *Config) SetRoot(root string) *Config {
 	cfg.P2P.RootDir = root
 	cfg.Mempool.RootDir = root
 	cfg.Consensus.RootDir = root
+	cfg.Sidecar.RootDir = root
 	return cfg
 }
 
@@ -139,6 +143,9 @@ func (cfg *Config) ValidateBasic() error {
 	}
 	if err := cfg.Instrumentation.ValidateBasic(); err != nil {
 		return fmt.Errorf("error in [instrumentation] section: %w", err)
+	}
+	if err := cfg.Sidecar.ValidateBasic(); err != nil {
+		return fmt.Errorf("error in [Sidecar] section: %w", err)
 	}
 	return nil
 }
@@ -1075,6 +1082,36 @@ func DefaultTxIndexConfig() *TxIndexConfig {
 // TestTxIndexConfig returns a default configuration for the transaction indexer.
 func TestTxIndexConfig() *TxIndexConfig {
 	return DefaultTxIndexConfig()
+}
+
+//-----------------------------------------------------------------------------
+// SidecarConfig
+
+// Sidecar defines configuration for gossiping the private sidecar
+// mempool among the relayer and the nodes that belong to a particular proposer
+type SidecarConfig struct {
+	RootDir         string `mapstructure:"home"`
+	RelayerID       string `mapstructure:"relayer_id"`
+	PersonalPeerIDs string `mapstructure:"personal_peer_ids"`
+}
+
+func DefaultSidecarConfig() *SidecarConfig {
+	return &SidecarConfig{
+		RelayerID:       "",
+		PersonalPeerIDs: "",
+	}
+}
+
+func TestSidecarConfig() *SidecarConfig {
+	return &SidecarConfig{
+		RelayerID:       "",
+		PersonalPeerIDs: "",
+	}
+}
+
+// no-op validation
+func (s *SidecarConfig) ValidateBasic() error {
+	return nil
 }
 
 //-----------------------------------------------------------------------------

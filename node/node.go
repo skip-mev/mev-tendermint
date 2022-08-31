@@ -527,6 +527,15 @@ func createTransport(
 
 	return transport, peerFilters
 }
+func contains(s []string, str string) bool {
+	for _, v := range s {
+		if v == str {
+			return true
+		}
+	}
+
+	return false
+}
 
 func createSwitch(config *cfg.Config,
 	transport p2p.Transport,
@@ -540,9 +549,18 @@ func createSwitch(config *cfg.Config,
 	nodeInfo p2p.NodeInfo,
 	nodeKey *p2p.NodeKey,
 	p2pLogger log.Logger) *p2p.Switch {
+	peerList := splitAndTrimEmpty(config.Sidecar.PersonalPeerIDs, ",", " ")
+	if !contains(peerList, config.Sidecar.RelayerID) {
+		peerList = append(peerList, config.Sidecar.RelayerID)
+	}
+	sidecarPeers, err := p2p.NewSidecarPeers(peerList)
+	if err != nil {
+		panic("Problem with peer initialization")
+	}
 
 	sw := p2p.NewSwitch(
 		config.P2P,
+		sidecarPeers,
 		transport,
 		p2p.WithMetrics(p2pMetrics),
 		p2p.SwitchPeerFilters(peerFilters...),
@@ -898,6 +916,24 @@ func NewNode(config *cfg.Config,
 	return node, nil
 }
 
+// Adds sidecar relayer id to the list of private peer ids if it exists
+// and isn't already there
+func (n *Node) getPrivateIds() []string {
+	// Add private IDs to addrbook to block those peers being added
+	privateIDs := splitAndTrimEmpty(n.config.P2P.PrivatePeerIDs, ",", " ")
+	relayerID := n.config.Sidecar.RelayerID
+	if len(relayerID) > 0 {
+		contains := false
+		for _, v := range privateIDs {
+			contains = v == relayerID || contains
+		}
+		if contains {
+			privateIDs = append(privateIDs, relayerID)
+		}
+	}
+	return privateIDs
+}
+
 // OnStart starts the Node. It implements service.Service.
 func (n *Node) OnStart() error {
 	now := tmtime.Now()
@@ -907,8 +943,8 @@ func (n *Node) OnStart() error {
 		time.Sleep(genTime.Sub(now))
 	}
 
-	// Add private IDs to addrbook to block those peers being added
-	n.addrBook.AddPrivateIDs(splitAndTrimEmpty(n.config.P2P.PrivatePeerIDs, ",", " "))
+	// set private peer ids
+	n.addrBook.AddPrivateIDs(n.getPrivateIds())
 
 	// Start the RPC server before the P2P server
 	// so we can eg. receive txs for the first block

@@ -26,6 +26,7 @@ func (mp *mockPeer) Status() ConnectionStatus                { return Connection
 func (mp *mockPeer) ID() ID                                  { return mp.id }
 func (mp *mockPeer) IsOutbound() bool                        { return false }
 func (mp *mockPeer) IsPersistent() bool                      { return true }
+func (mp *mockPeer) IsSidecarPeer() bool                     { return true }
 func (mp *mockPeer) Get(s string) interface{}                { return s }
 func (mp *mockPeer) Set(string, interface{})                 {}
 func (mp *mockPeer) RemoteIP() net.IP                        { return mp.ip }
