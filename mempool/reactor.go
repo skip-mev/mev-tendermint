@@ -250,6 +250,7 @@ func (memR *Reactor) broadcastTxRoutine(peer p2p.Peer) {
 			select {
 			case <-memR.mempool.TxsWaitChan(): // Wait until a tx is available in mempool
 				// fmt.Println("mempool tx wait chan entered!")
+				isSidecarTxReceived = false
 				if next = memR.mempool.TxsFront(); next == nil {
 					continue
 				}
@@ -278,10 +279,8 @@ func (memR *Reactor) broadcastTxRoutine(peer p2p.Peer) {
 			continue
 		}
 
-		if isSidecarTxReceived && isSidecarPeer {
-			// Allow for a lag of 1 block.
-			scTx := next.Value.(*SidecarTx)
-
+		if scTx, okConv := next.Value.(*SidecarTx); okConv && isSidecarTxReceived && isSidecarPeer {
+			fmt.Println("Broadcasting tx as sidecarTx to peer", peerID)
 			if _, ok := scTx.senders.Load(peerID); !ok {
 				msg := protomem.MEVMessage{
 					Sum: &protomem.MEVMessage_Txs{
@@ -301,31 +300,36 @@ func (memR *Reactor) broadcastTxRoutine(peer p2p.Peer) {
 					time.Sleep(peerCatchupSleepIntervalMS * time.Millisecond)
 					continue
 				}
+			} else {
+				fmt.Println("[mev-tendermint]: reactor broadcast, thought we had a sidecar Tx, but couldn't cast it!")
 			}
-
-		} else if !isSidecarTxReceived {
+		} else {
+			fmt.Println("Broadcasting tx as mempoolTx to peer", peerID)
 			// Allow for a lag of 1 block.
-			memTx := next.Value.(*MempoolTx)
-			if peerState.GetHeight() < memTx.Height()-1 {
-				time.Sleep(peerCatchupSleepIntervalMS * time.Millisecond)
-				continue
-			}
-
-			if _, ok := memTx.senders.Load(peerID); !ok {
-				msg := protomem.Message{
-					Sum: &protomem.Message_Txs{
-						Txs: &protomem.Txs{Txs: [][]byte{memTx.tx}},
-					},
-				}
-				bz, err := msg.Marshal()
-				if err != nil {
-					panic(err)
-				}
-				success := peer.Send(MempoolChannel, bz)
-				if !success {
+			if memTx, okConv := next.Value.(*MempoolTx); okConv {
+				if peerState.GetHeight() < memTx.Height()-1 {
 					time.Sleep(peerCatchupSleepIntervalMS * time.Millisecond)
 					continue
 				}
+
+				if _, ok := memTx.senders.Load(peerID); !ok {
+					msg := protomem.Message{
+						Sum: &protomem.Message_Txs{
+							Txs: &protomem.Txs{Txs: [][]byte{memTx.tx}},
+						},
+					}
+					bz, err := msg.Marshal()
+					if err != nil {
+						panic(err)
+					}
+					success := peer.Send(MempoolChannel, bz)
+					if !success {
+						time.Sleep(peerCatchupSleepIntervalMS * time.Millisecond)
+						continue
+					}
+				}
+			} else {
+				fmt.Println("[mev-tendermint]: reactor broadcast, thought we had a mempool Tx, but couldn't cast it!")
 			}
 		}
 

@@ -99,7 +99,7 @@ func (sc *CListPriorityTxSidecar) TxsAvailable() <-chan struct{} {
 
 func (sc *CListPriorityTxSidecar) notifyTxsAvailable() {
 	if sc.Size() == 0 {
-		panic("notified txs available but sidecar is empty!")
+		panic("[mev-tendermint]: notified txs available but sidecar is empty!")
 	}
 	if sc.txsAvailable != nil && !sc.notifiedTxsAvailable {
 		// channel cap is 1, so this will send once
@@ -392,6 +392,8 @@ func (sc *CListPriorityTxSidecar) removeTx(tx types.Tx, elem *clist.CElement, re
 func (sc *CListPriorityTxSidecar) ReapMaxTxs() []*MempoolTx {
 	sc.updateMtx.RLock()
 	defer sc.updateMtx.RUnlock()
+
+	fmt.Println(fmt.Sprintf("REAPING SIDECAR via ReapMaxTxs(): sidecar size at this time is %d", sc.Size()))
 
 	memTxs := make([]*MempoolTx, 0, sc.txs.Len())
 
