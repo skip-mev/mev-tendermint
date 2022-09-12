@@ -120,11 +120,11 @@ func (sc *CListPriorityTxSidecar) AddTx(tx types.Tx, txInfo TxInfo) error {
 	// use defer to unlock mutex because application (*local client*) might panic
 	defer sc.updateMtx.RUnlock()
 
-	fmt.Println(fmt.Sprintf("ADDING TRANSACTION %s TO SIDECAR! with bundleId %d, bundleOrder %d, desiredHeight %d, bundleSize %d", tx, txInfo.BundleId, txInfo.BundleOrder, txInfo.DesiredHeight, txInfo.BundleSize))
+	fmt.Println(fmt.Sprintf("[mev-tendermint]: STARTING TO ADD TRANSACTION %s TO SIDECAR! with bundleId %d, bundleOrder %d, desiredHeight %d, bundleSize %d", tx, txInfo.BundleId, txInfo.BundleOrder, txInfo.DesiredHeight, txInfo.BundleSize))
 
 	// don't add any txs already in cache
 	if !sc.cache.Push(tx) {
-		fmt.Println("trying to add tx to sidecar AddTx - but already in cache!")
+		fmt.Println("[mev-tendermint]: trying to add tx to sidecar AddTx - but already in cache!")
 		fmt.Println(tx)
 		// Record a new sender for a tx we've already seen.
 		// Note it's possible a tx is still in the cache but no longer in the mempool
@@ -153,7 +153,7 @@ func (sc *CListPriorityTxSidecar) AddTx(tx types.Tx, txInfo TxInfo) error {
 
 	// Can't add transactions asking to be included in a height for auction we're not on
 	if txInfo.DesiredHeight != sc.heightForFiringAuction {
-		fmt.Println(fmt.Sprintf("AddTx() skip: trying to add a tx for height %d whereas height for curr auction is %d", txInfo.DesiredHeight, sc.heightForFiringAuction))
+		fmt.Println(fmt.Sprintf("[mev-tendermint]: AddTx() skip tx... trying to add a tx for height %d whereas height for curr auction is %d", txInfo.DesiredHeight, sc.heightForFiringAuction))
 		return ErrWrongHeight{
 			int(txInfo.DesiredHeight),
 			int(sc.heightForFiringAuction),
@@ -162,7 +162,7 @@ func (sc *CListPriorityTxSidecar) AddTx(tx types.Tx, txInfo TxInfo) error {
 
 	// revert if tx asking to be included has an order greater/equal to size
 	if txInfo.BundleOrder >= txInfo.BundleSize {
-		fmt.Println("AddTx{} skip...: trying to insert a tx for bundle at an order greater than the size of the bundle... THIS IS PROBABLY A FATAL ERROR")
+		fmt.Println("[mev-tendermint]: AddTx() skip tx... trying to insert a tx for bundle at an order greater than the size of the bundle... THIS IS PROBABLY A FATAL ERROR")
 		return ErrTxMalformedForBundle{
 			txInfo.BundleId,
 			txInfo.BundleSize,
@@ -190,7 +190,7 @@ func (sc *CListPriorityTxSidecar) AddTx(tx types.Tx, txInfo TxInfo) error {
 
 	// check if bundle is asking for a different size than one already stored
 	if txInfo.BundleSize != bundle.enforcedSize {
-		fmt.Println("AddTx{} skip...: Trying to insert a tx with a size different than what's said by other txs for this bundle?? ... THIS IS PROBABLY A FATAL ERROR")
+		fmt.Println("[mev-tendermint]: AddTx() skip tx... Trying to insert a tx with a size different than what's said by other txs for this bundle?? ... THIS IS PROBABLY A FATAL ERROR")
 		return ErrTxMalformedForBundle{
 			txInfo.BundleId,
 			txInfo.BundleSize,
@@ -202,7 +202,7 @@ func (sc *CListPriorityTxSidecar) AddTx(tx types.Tx, txInfo TxInfo) error {
 	// Can't add transactions if the bundle is already full
 	// check if the current size of this bundle is greater than the expected size for the bundle, if so skip
 	if bundle.currSize >= bundle.enforcedSize {
-		fmt.Println("AddTx{} skip...: already full for this BundleId... THIS IS PROBABLY A FATAL ERROR")
+		fmt.Println("[mev-tendermint]: AddTx() skip tx... already full for this BundleId... THIS IS PROBABLY A FATAL ERROR")
 		return ErrBundleFull{
 			txInfo.BundleId,
 			txInfo.BundleSize,
@@ -219,7 +219,7 @@ func (sc *CListPriorityTxSidecar) AddTx(tx types.Tx, txInfo TxInfo) error {
 	if _, loaded := orderedTxsMap.LoadOrStore(txInfo.BundleOrder, scTx); loaded {
 		// if we had the tx already, then skip
 		// TODO: return error
-		fmt.Println(fmt.Sprintf("AddTx{} skip...: already have a tx for bundleId %d, height %d, bundleOrder %d", txInfo.BundleId, scTx.desiredHeight, txInfo.BundleOrder))
+		fmt.Println(fmt.Sprintf("[mev-tendermint]: AddTx() skip tx... already have a tx for bundleId %d, height %d, bundleOrder %d", txInfo.BundleId, scTx.desiredHeight, txInfo.BundleOrder))
 		return nil
 	} else {
 		// if we added, then increment bundle size for bundleId
@@ -229,7 +229,7 @@ func (sc *CListPriorityTxSidecar) AddTx(tx types.Tx, txInfo TxInfo) error {
 	// -------- UPDATE MAX BUNDLE ---------
 
 	if txInfo.BundleId > sc.maxBundleId {
-		fmt.Println("AddTx{}: updating maxBundleId to", txInfo.BundleId)
+		fmt.Println("[mev-tendermint]: AddTx(): updating maxBundleId to", txInfo.BundleId)
 		sc.maxBundleId = txInfo.BundleId
 	}
 
@@ -280,7 +280,7 @@ func (sc *CListPriorityTxSidecar) Update(
 
 	for i, tx := range txs {
 		if _, ok := sc.txsMap.Load(TxKey(tx)); ok {
-			fmt.Println("on sidecar update: found tx in sidecar!")
+			fmt.Println("[mev-tendermint]: on sidecar Update(), found tx in sidecar!")
 			if deliverTxResponses[i].Code == abci.CodeTypeOK {
 				fmt.Println("... and was valid!")
 			}
