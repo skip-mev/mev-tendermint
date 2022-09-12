@@ -163,7 +163,8 @@ func (memR *Reactor) GetChannels() []*p2p.ChannelDescriptor {
 // It starts a broadcast routine ensuring all txs are forwarded to the given peer.
 func (memR *Reactor) AddPeer(peer p2p.Peer) {
 	if memR.config.Broadcast {
-		go memR.broadcastTxRoutine(peer)
+		go memR.broadcastMempoolTxRoutine(peer)
+		go memR.broadcastSidecarTxRoutine(peer)
 	}
 }
 
@@ -211,8 +212,7 @@ func (memR *Reactor) Receive(chID byte, src p2p.Peer, msgBytes []byte) {
 			txInfo.SenderP2PID = src.ID()
 		}
 		for _, tx := range msg.Txs {
-			fmt.Println(fmt.Sprintf("received sidecar tx! desiredHeight %d, bundleId %d, bundleOrder %d, bundleSize %d", msg.DesiredHeight, msg.BundleId, msg.BundleOrder, msg.BundleSize))
-			fmt.Println(tx)
+			fmt.Println(fmt.Sprintf("[mev-tendermint] Reactor (receive): received sidecar tx %.20q! desiredHeight %d, bundleId %d, bundleOrder %d, bundleSize %d", tx, msg.DesiredHeight, msg.BundleId, msg.BundleOrder, msg.BundleSize))
 
 			err = memR.sidecar.AddTx(tx, txInfo)
 			if err == ErrTxInCache {
@@ -231,12 +231,78 @@ type PeerState interface {
 }
 
 // Send new mempool txs to peer.
-func (memR *Reactor) broadcastTxRoutine(peer p2p.Peer) {
+func (memR *Reactor) broadcastSidecarTxRoutine(peer p2p.Peer) {
 	peerID := memR.ids.GetForPeer(peer)
 	isSidecarPeer := peer.IsSidecarPeer()
 	var next *clist.CElement
 
-	isSidecarTxReceived := false
+	for {
+		// In case of both next.NextWaitChan() and peer.Quit() are variable at the same time
+		if !memR.IsRunning() || !peer.IsRunning() {
+			fmt.Println("memR or peer dead")
+			return
+		}
+		// This happens because the CElement we were looking at got garbage
+		// collected (removed). That is, .NextWait() returned nil. Go ahead and
+		// start from the beginning.
+		if next == nil {
+			select {
+			case <-memR.sidecar.TxsWaitChan(): // Wait until a tx is available in sidecar
+				// if a tx is available on sidecar, if fire is set too, then fire
+				fmt.Println("[mev-tendermint]: BroadcastSidecarTx() sidecar tx wait chan entered!")
+				if next = memR.sidecar.TxsFront(); next == nil {
+					fmt.Println("[mev-tendermint]: BroadcastSidecarTx() next is nil after sidecar txs front()")
+					continue
+				}
+			case <-peer.Quit():
+				return
+			case <-memR.Quit():
+				return
+			}
+		}
+
+		if scTx, okConv := next.Value.(*SidecarTx); okConv && isSidecarPeer {
+			fmt.Println("[mev-tendermint]: BroadcastSidecarTx() as sidecarTx to peer", peerID)
+			if _, ok := scTx.senders.Load(peerID); !ok {
+				msg := protomem.MEVMessage{
+					Sum: &protomem.MEVMessage_Txs{
+						Txs: &protomem.Txs{Txs: [][]byte{scTx.tx}},
+					},
+					DesiredHeight: scTx.desiredHeight,
+					BundleId:      scTx.bundleId,
+					BundleOrder:   scTx.bundleOrder,
+					BundleSize:    scTx.bundleSize,
+				}
+				bz, err := msg.Marshal()
+				if err != nil {
+					panic(err)
+				}
+				success := peer.Send(SidecarChannel, bz)
+				if !success {
+					time.Sleep(peerCatchupSleepIntervalMS * time.Millisecond)
+					continue
+				}
+			} else {
+				fmt.Println(fmt.Sprintf("[mev-tendermint]: BroadcastSidecarTx() failed: isSideCarPeer is %t, conversion was %t", isSidecarPeer, okConv))
+			}
+		}
+
+		select {
+		case <-next.NextWaitChan():
+			// see the start of the for loop for nil check
+			next = next.Next()
+		case <-peer.Quit():
+			return
+		case <-memR.Quit():
+			return
+		}
+	}
+}
+
+// Send new mempool txs to peer.
+func (memR *Reactor) broadcastMempoolTxRoutine(peer p2p.Peer) {
+	peerID := memR.ids.GetForPeer(peer)
+	var next *clist.CElement
 
 	for {
 		// In case of both next.NextWaitChan() and peer.Quit() are variable at the same time
@@ -249,14 +315,7 @@ func (memR *Reactor) broadcastTxRoutine(peer p2p.Peer) {
 		if next == nil {
 			select {
 			case <-memR.mempool.TxsWaitChan(): // Wait until a tx is available in mempool
-				// fmt.Println("mempool tx wait chan entered!")
 				if next = memR.mempool.TxsFront(); next == nil {
-					continue
-				}
-			case <-memR.sidecar.TxsWaitChan(): // Wait until a tx is available in sidecar
-				// if a tx is available on sidecar, if fire is set too, then fire
-				isSidecarTxReceived = true
-				if next = memR.sidecar.TxsFront(); next == nil {
 					continue
 				}
 			case <-peer.Quit():
@@ -277,35 +336,8 @@ func (memR *Reactor) broadcastTxRoutine(peer p2p.Peer) {
 			time.Sleep(peerCatchupSleepIntervalMS * time.Millisecond)
 			continue
 		}
-
-		if isSidecarTxReceived && isSidecarPeer {
-			// Allow for a lag of 1 block.
-			scTx := next.Value.(*SidecarTx)
-
-			if _, ok := scTx.senders.Load(peerID); !ok {
-				msg := protomem.MEVMessage{
-					Sum: &protomem.MEVMessage_Txs{
-						Txs: &protomem.Txs{Txs: [][]byte{scTx.tx}},
-					},
-					DesiredHeight: scTx.desiredHeight,
-					BundleId:      scTx.bundleId,
-					BundleOrder:   scTx.bundleOrder,
-					BundleSize:    scTx.bundleSize,
-				}
-				bz, err := msg.Marshal()
-				if err != nil {
-					panic(err)
-				}
-				success := peer.Send(SidecarChannel, bz)
-				if !success {
-					time.Sleep(peerCatchupSleepIntervalMS * time.Millisecond)
-					continue
-				}
-			}
-
-		} else if !isSidecarTxReceived {
-			// Allow for a lag of 1 block.
-			memTx := next.Value.(*MempoolTx)
+		// Allow for a lag of 1 block.
+		if memTx, okConv := next.Value.(*MempoolTx); okConv {
 			if peerState.GetHeight() < memTx.Height()-1 {
 				time.Sleep(peerCatchupSleepIntervalMS * time.Millisecond)
 				continue
@@ -327,6 +359,8 @@ func (memR *Reactor) broadcastTxRoutine(peer p2p.Peer) {
 					continue
 				}
 			}
+		} else {
+			fmt.Println("[mev-tendermint]: BroadcastMempoolTx() couldn't cast mempoolTx!")
 		}
 
 		select {
