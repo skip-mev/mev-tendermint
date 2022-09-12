@@ -304,7 +304,6 @@ func (memR *Reactor) broadcastTxRoutine(peer p2p.Peer) {
 				fmt.Println("[mev-tendermint]: reactor broadcast, thought we had a sidecar Tx, but couldn't cast it!")
 			}
 		} else {
-			fmt.Println("Broadcasting tx as mempoolTx to peer", peerID)
 			// Allow for a lag of 1 block.
 			if memTx, okConv := next.Value.(*MempoolTx); okConv {
 				if peerState.GetHeight() < memTx.Height()-1 {
