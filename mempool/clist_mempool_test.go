@@ -756,7 +756,7 @@ func TestSidecarUpdate(t *testing.T) {
 		bundleOrder = 1
 		addTxToSidecar(t, sidecar, bInfo, bundleOrder)
 
-		err := sidecar.Update(0, []types.Tx{[]byte{0x02}}, abciResponses(1, abci.CodeTypeOK))
+		err := sidecar.Update(sidecar.HeightForFiringAuction(), []types.Tx{[]byte{0x02}}, abciResponses(1, abci.CodeTypeOK))
 		require.NoError(t, err)
 		assert.Zero(t, sidecar.Size(sidecar.HeightForFiringAuction()))
 	}
@@ -861,45 +861,6 @@ func TestTxsAvailable(t *testing.T) {
 	checkTxs(t, mempool, 100, UnknownPeerID, sidecar, false)
 	ensureFire(t, mempool.TxsAvailable(), timeoutMS)
 	ensureNoFire(t, mempool.TxsAvailable(), timeoutMS)
-}
-
-func TestSidecarTxsAvailable(t *testing.T) {
-	app := kvstore.NewApplication()
-	cc := proxy.NewLocalClientCreator(app)
-	_, sidecar, cleanup := newMempoolWithApp(cc)
-	defer cleanup()
-	sidecar.EnableTxsAvailable()
-
-	timeoutMS := 500
-
-	// with no txs, it shouldnt fire
-	ensureNoFire(t, sidecar.TxsAvailable(), timeoutMS)
-
-	// send a bunch of txs, it should only fire once
-	txs := addNumBundlesToSidecar(t, sidecar, 100, 10, UnknownPeerID)
-	ensureFire(t, sidecar.TxsAvailable(), timeoutMS)
-	ensureNoFire(t, sidecar.TxsAvailable(), timeoutMS)
-
-	// call update with half the txs.
-	// it should fire once now for the new height
-	// since there are still txs left
-	committedTxs, txs := txs[:50], txs[50:]
-
-	// send a bunch more txs. we already fired for this height so it shouldnt fire again
-	moreTxs := addNumBundlesToSidecar(t, sidecar, 50, 10, UnknownPeerID)
-	ensureNoFire(t, sidecar.TxsAvailable(), timeoutMS)
-
-	// now call update with all the txs. it should not fire as there are no txs left
-	committedTxs = append(txs, moreTxs...) //nolint: gocritic
-	if err := sidecar.Update(2, committedTxs, abciResponses(len(committedTxs), abci.CodeTypeOK)); err != nil {
-		t.Error(err)
-	}
-	ensureNoFire(t, sidecar.TxsAvailable(), timeoutMS)
-
-	// send a bunch more txs, it should only fire once
-	addNumBundlesToSidecar(t, sidecar, 100, 10, UnknownPeerID)
-	ensureFire(t, sidecar.TxsAvailable(), timeoutMS)
-	ensureNoFire(t, sidecar.TxsAvailable(), timeoutMS)
 }
 
 func TestSerialReap(t *testing.T) {

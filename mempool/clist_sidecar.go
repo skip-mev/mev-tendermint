@@ -52,6 +52,10 @@ func NewCListSidecar(
 		maxBundleId: 0,
 		txs:         clist.New(),
 	})
+	sidecar.heightStates.Store(height+1, &HeightState{
+		maxBundleId: 0,
+		txs:         clist.New(),
+	})
 
 	return sidecar
 }

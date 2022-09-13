@@ -87,10 +87,10 @@ func TestReactorBroadcastSidecarOnly(t *testing.T) {
 	waitForTxsOnReactors(t, txs, reactors[2:3], true)
 	waitForTxsOnReactors(t, txs, reactors[4:5], true)
 	waitForTxsOnReactors(t, txs, reactors[6:7], true)
-	assert.Equal(t, 0, reactors[1].sidecar.Size(1))
-	assert.Equal(t, 0, reactors[5].sidecar.Size(1))
-	assert.Equal(t, 0, reactors[7].sidecar.Size(1))
-	assert.Equal(t, 0, reactors[3].sidecar.Size(1))
+	assert.Equal(t, 0, reactors[1].sidecar.Size(reactors[1].sidecar.HeightForFiringAuction()))
+	assert.Equal(t, 0, reactors[5].sidecar.Size(reactors[3].sidecar.HeightForFiringAuction()))
+	assert.Equal(t, 0, reactors[7].sidecar.Size(reactors[7].sidecar.HeightForFiringAuction()))
+	assert.Equal(t, 0, reactors[3].sidecar.Size(reactors[3].sidecar.HeightForFiringAuction()))
 }
 
 // Send a bunch of txs to the first reactor's sidecar and wait for them all to

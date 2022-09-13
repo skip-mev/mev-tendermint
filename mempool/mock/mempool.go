@@ -87,5 +87,5 @@ func (PriorityTxSidecar) TxsWaitChan(_ int64) <-chan struct{} { return nil }
 
 func (PriorityTxSidecar) TargetValidator() []byte { return []byte{} }
 
-func (PriorityTxSidecar) Size(_ int64) int { return 0 }
-func (PriorityTxSidecar) TxsBytes() int64  { return 0 }
+func (PriorityTxSidecar) Size(_ int64) int       { return 0 }
+func (PriorityTxSidecar) TxsBytes(_ int64) int64 { return 0 }

@@ -72,8 +72,8 @@ func (emptySidecar) Update(
 func (emptySidecar) TxsAvailable() <-chan struct{} { return make(chan struct{}) }
 func (emptySidecar) EnableTxsAvailable()           {}
 
-func (emptySidecar) Size(_ int64) int { return 0 }
-func (emptySidecar) TxsBytes() int64  { return 0 }
+func (emptySidecar) Size(_ int64) int       { return 0 }
+func (emptySidecar) TxsBytes(_ int64) int64 { return 0 }
 
 //-----------------------------------------------------------------------------
 // mockProxyApp uses ABCIResponses to give the right results.
