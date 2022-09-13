@@ -239,7 +239,6 @@ func (memR *Reactor) broadcastSidecarTxRoutine(peer p2p.Peer) {
 	for {
 		// In case of both next.NextWaitChan() and peer.Quit() are variable at the same time
 		if !memR.IsRunning() || !peer.IsRunning() {
-			fmt.Println("memR or peer dead")
 			return
 		}
 		// This happens because the CElement we were looking at got garbage
@@ -290,14 +289,16 @@ func (memR *Reactor) broadcastSidecarTxRoutine(peer p2p.Peer) {
 			fmt.Println(fmt.Sprintf("[mev-tendermint]: BroadcastSidecarTx() failed: isSideCarPeer is %t, conversion was %t", isSidecarPeer, okConv))
 		}
 
-		select {
-		case <-next.NextWaitChan():
-			// see the start of the for loop for nil check
-			next = next.Next()
-		case <-peer.Quit():
-			return
-		case <-memR.Quit():
-			return
+		if next != nil {
+			select {
+			case <-next.NextWaitChan():
+				// see the start of the for loop for nil check
+				next = next.Next()
+			case <-peer.Quit():
+				return
+			case <-memR.Quit():
+				return
+			}
 		}
 	}
 }
