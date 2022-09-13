@@ -64,14 +64,14 @@ type PriorityTxSidecar struct{}
 var _ mempl.PriorityTxSidecar = PriorityTxSidecar{}
 
 func (PriorityTxSidecar) AddTx(_ types.Tx, _ mempl.TxInfo) error { return nil }
-func (PriorityTxSidecar) ReapMaxTxs() []*mempl.MempoolTx         { return []*mempl.MempoolTx{} }
+func (PriorityTxSidecar) ReapMaxTxs(_ int64) []*mempl.MempoolTx  { return []*mempl.MempoolTx{} }
 
 func (PriorityTxSidecar) Lock()   {}
 func (PriorityTxSidecar) Unlock() {}
 
 func (PriorityTxSidecar) HeightForFiringAuction() int64 { return 0 }
 
-func (PriorityTxSidecar) Flush() {}
+func (PriorityTxSidecar) Flush(_ int64) {}
 func (PriorityTxSidecar) Update(
 	blockHeight int64,
 	blockTxs types.Txs,
@@ -83,9 +83,9 @@ func (PriorityTxSidecar) Update(
 func (PriorityTxSidecar) TxsAvailable() <-chan struct{} { return make(chan struct{}) }
 func (PriorityTxSidecar) EnableTxsAvailable()           {}
 
-func (PriorityTxSidecar) TxsWaitChan() <-chan struct{} { return nil }
+func (PriorityTxSidecar) TxsWaitChan(_ int64) <-chan struct{} { return nil }
 
 func (PriorityTxSidecar) TargetValidator() []byte { return []byte{} }
 
-func (PriorityTxSidecar) Size() int       { return 0 }
-func (PriorityTxSidecar) TxsBytes() int64 { return 0 }
+func (PriorityTxSidecar) Size(_ int64) int { return 0 }
+func (PriorityTxSidecar) TxsBytes() int64  { return 0 }

@@ -53,14 +53,14 @@ type emptySidecar struct{}
 var _ mempl.PriorityTxSidecar = emptySidecar{}
 
 func (emptySidecar) AddTx(_ types.Tx, _ mempl.TxInfo) error { return nil }
-func (emptySidecar) ReapMaxTxs() []*mempl.MempoolTx         { return []*mempl.MempoolTx{} }
+func (emptySidecar) ReapMaxTxs(_ int64) []*mempl.MempoolTx  { return []*mempl.MempoolTx{} }
 
 func (emptySidecar) Lock()   {}
 func (emptySidecar) Unlock() {}
 
 func (emptySidecar) HeightForFiringAuction() int64 { return 0 }
 
-func (emptySidecar) Flush() {}
+func (emptySidecar) Flush(_ int64) {}
 func (emptySidecar) Update(
 	blockHeight int64,
 	blockTxs types.Txs,
@@ -72,8 +72,8 @@ func (emptySidecar) Update(
 func (emptySidecar) TxsAvailable() <-chan struct{} { return make(chan struct{}) }
 func (emptySidecar) EnableTxsAvailable()           {}
 
-func (emptySidecar) Size() int       { return 0 }
-func (emptySidecar) TxsBytes() int64 { return 0 }
+func (emptySidecar) Size(_ int64) int { return 0 }
+func (emptySidecar) TxsBytes() int64  { return 0 }
 
 //-----------------------------------------------------------------------------
 // mockProxyApp uses ABCIResponses to give the right results.

@@ -210,7 +210,7 @@ func TestReapMaxBytesMaxGasMempool(t *testing.T) {
 	for tcIndex, tt := range tests {
 		checkTxs(t, mempool, tt.numTxsToCreate, UnknownPeerID, sidecar, false)
 
-		got := mempool.ReapMaxBytesMaxGas(tt.maxBytes, tt.maxGas, sidecar.ReapMaxTxs())
+		got := mempool.ReapMaxBytesMaxGas(tt.maxBytes, tt.maxGas, sidecar.ReapMaxTxs(sidecar.HeightForFiringAuction()))
 		assert.Equal(t, tt.expectedNumTxs, len(got), "Got %d txs, expected %d, tc #%d",
 			len(got), tt.expectedNumTxs, tcIndex)
 		mempool.Flush()
@@ -264,12 +264,12 @@ func TestReapMaxBytesMaxGasWithTxsFromSidecar(t *testing.T) {
 		// addNumTxsToSidecarOneBundle(t, sidecar, tt.numTxsToCreate, UnknownPeerID)
 		addSpecificTxsToSidecarOneBundle(t, sidecar, txs, UnknownPeerID)
 
-		got := mempool.ReapMaxBytesMaxGas(tt.maxBytes, tt.maxGas, sidecar.ReapMaxTxs())
+		got := mempool.ReapMaxBytesMaxGas(tt.maxBytes, tt.maxGas, sidecar.ReapMaxTxs(sidecar.HeightForFiringAuction()))
 
 		assert.Equal(t, tt.expectedNumTxs, len(got), "Got %d txs, expected %d, tc #%d",
 			len(got), tt.expectedNumTxs, tcIndex)
 		mempool.Flush()
-		sidecar.Flush()
+		sidecar.Flush(sidecar.HeightForFiringAuction())
 	}
 }
 
