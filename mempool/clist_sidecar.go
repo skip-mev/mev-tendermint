@@ -375,39 +375,11 @@ func (sc *CListPriorityTxSidecar) MaxBundleId(height int64) int64 {
 		hs := hs.(*HeightState)
 		return hs.maxBundleId
 	}
-	return 0
+	return -1
 }
 
 func (sc *CListPriorityTxSidecar) HeightForFiringAuction() int64 {
 	return sc.heightForFiringAuction
-}
-
-// Safe for concurrent use by multiple goroutines.
-func (sc *CListPriorityTxSidecar) GetEnforcedBundleSize(height int64, bundleId int64) int {
-	if hs, ok := sc.heightStates.Load(height); ok {
-		hs := hs.(*HeightState)
-		if bundle, ok := hs.bundles.Load(bundleId); ok {
-			bundle := bundle.(*Bundle)
-			return int(bundle.enforcedSize)
-		} else {
-			fmt.Println("Error GetEnforcedBundleSize(): Don't have a bundle for bundleId", bundleId)
-		}
-	}
-	return 0
-}
-
-// Safe for concurrent use by multiple goroutines.
-func (sc *CListPriorityTxSidecar) GetCurrBundleSize(height int64, bundleId int64) int {
-	if hs, ok := sc.heightStates.Load(height); ok {
-		hs := hs.(*HeightState)
-		if bundle, ok := hs.bundles.Load(bundleId); ok {
-			bundle := bundle.(*Bundle)
-			return int(bundle.currSize)
-		} else {
-			fmt.Println("Error GetBundleSize(): Don't have a bundle for bundleId", bundleId)
-		}
-	}
-	return 0
 }
 
 // Safe for concurrent use by multiple goroutines.
