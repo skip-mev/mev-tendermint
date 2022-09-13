@@ -252,10 +252,12 @@ func (sc *CListPriorityTxSidecar) AddTx(tx types.Tx, txInfo TxInfo) error {
 //
 // Safe for concurrent use by multiple goroutines.
 func (sc *CListPriorityTxSidecar) TxsWaitChan(height int64) <-chan struct{} {
+	fmt.Println("[mev-tendermint]: calling TxsWaitChan() with height", height)
 	if hs, ok := sc.heightStates.Load(height); ok {
 		hs := hs.(*HeightState)
 		return hs.txs.WaitChan()
 	}
+	fmt.Println("[mev-tendermint]: TxsWaitChan() - returning nil for height", height)
 	return nil
 }
 
@@ -265,10 +267,12 @@ func (sc *CListPriorityTxSidecar) TxsWaitChan(height int64) <-chan struct{} {
 //
 // Safe for concurrent use by multiple goroutines.
 func (sc *CListPriorityTxSidecar) TxsFront(height int64) *clist.CElement {
+	fmt.Println("[mev-tendermint]: calling TxsFront() with height", height)
 	if hs, ok := sc.heightStates.Load(height); ok {
 		hs := hs.(*HeightState)
 		return hs.txs.Front()
 	}
+	fmt.Println("[mev-tendermint]: TxsFront() - returning nil for height", height)
 	return nil
 }
 
