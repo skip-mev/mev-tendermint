@@ -33,6 +33,9 @@ type CListPriorityTxSidecar struct {
 
 	// map from height -> HeightState
 	heightStates sync.Map
+
+	// fires one per height
+	heightChan chan struct{}
 }
 
 var _ PriorityTxSidecar = &CListPriorityTxSidecar{}
@@ -56,6 +59,8 @@ func NewCListSidecar(
 		maxBundleId: 0,
 		txs:         clist.New(),
 	})
+
+	sidecar.heightChan = make(chan struct{}, 1)
 
 	return sidecar
 }
@@ -96,6 +101,20 @@ func (sc *CListPriorityTxSidecar) EnableTxsAvailable() {
 // Safe for concurrent use by multiple goroutines.
 func (sc *CListPriorityTxSidecar) TxsAvailable() <-chan struct{} {
 	return sc.txsAvailable
+}
+
+func (sc *CListPriorityTxSidecar) notifyNewHeight() {
+	if sc.heightChan != nil {
+		// channel cap is 1, so this will send once
+		select {
+		case sc.heightChan <- struct{}{}:
+		default:
+		}
+	}
+}
+
+func (sc *CListPriorityTxSidecar) NewHeightChan() <-chan struct{} {
+	return sc.heightChan
 }
 
 //--------------------------------------------------------------------------------
@@ -297,8 +316,10 @@ func (sc *CListPriorityTxSidecar) Update(
 
 	if hs, ok := sc.heightStates.Load(height); ok {
 		hs := hs.(*HeightState)
-		// pushing back nil to force new check
-		// hs.txs.PushBack(nil)
+
+		fmt.Println("notifying new height for height", height)
+		sc.notifyNewHeight()
+
 		for i, tx := range txs {
 			if _, ok := hs.txsMap.Load(TxKey(tx)); ok {
 				fmt.Println(fmt.Sprintf("[mev-tendermint]: on sidecar Update() for height %d, and heightToFire %d found tx in sidecar!", height, sc.heightForFiringAuction))
