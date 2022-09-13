@@ -773,7 +773,6 @@ func (nopTxCache) Push(types.Tx) bool { return true }
 func (nopTxCache) Remove(types.Tx)    {}
 
 //--------------------------------------------------------------------------------
-
 // TxKey is the fixed length array hash used as the key in maps.
 func TxKey(tx types.Tx) [TxKeySize]byte {
 	return sha256.Sum256(tx)

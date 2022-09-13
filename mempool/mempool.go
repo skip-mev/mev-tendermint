@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	abci "github.com/tendermint/tendermint/abci/types"
+	"github.com/tendermint/tendermint/libs/clist"
 	"github.com/tendermint/tendermint/p2p"
 	"github.com/tendermint/tendermint/types"
 )
@@ -20,13 +21,13 @@ type PriorityTxSidecar interface {
 	// ReapMaxTxs reaps up to max transactions from the mempool.
 	// If max is negative, there is no cap on the size of all returned
 	// transactions (~ all available transactions).
-	ReapMaxTxs() []*MempoolTx
+	ReapMaxTxs(height int64) []*MempoolTx
 
 	// Lock locks the mempool. The consensus must be able to hold lock to safely update.
 	Lock()
 
 	// Flush removes all transactions from the mempool and cache
-	Flush()
+	Flush(height int64)
 
 	// Unlock unlocks the mempool.
 	Unlock()
@@ -51,10 +52,10 @@ type PriorityTxSidecar interface {
 	// trigger once every height when transactions are available.
 
 	// Size returns the number of transactions in the mempool.
-	Size() int
+	Size(height int64) int
 
 	// TxsBytes returns the total size of all txs in the mempool.
-	TxsBytes() int64
+	TxsBytes(height int64) int64
 }
 
 // Mempool defines the mempool interface.
@@ -193,6 +194,23 @@ type Bundle struct {
 
 	gasWanted     int64     // amount of gas this tx states it will require
 	orderedTxsMap *sync.Map // map from bundleOrder to *mempoolTx
+}
+
+type HeightState struct {
+	maxBundleId int64
+	txsBytes    int64 // total size of sidecar, in bytes
+
+	// sync.Map: bundleId -> Bundle{
+	// // height int64
+	// // enforcedSize int64
+	// // currSize int64
+	// // bundleId int64
+	// // sync.Map bundleOrder -> *SidecarTx
+	// }
+	bundles sync.Map
+
+	txs    *clist.CList // concurrent linked-list of good SidecarTxs
+	txsMap sync.Map
 }
 
 //--------------------------------------------------------------------------------

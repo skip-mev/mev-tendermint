@@ -210,7 +210,7 @@ func TestReapMaxBytesMaxGasMempool(t *testing.T) {
 	for tcIndex, tt := range tests {
 		checkTxs(t, mempool, tt.numTxsToCreate, UnknownPeerID, sidecar, false)
 
-		got := mempool.ReapMaxBytesMaxGas(tt.maxBytes, tt.maxGas, sidecar.ReapMaxTxs())
+		got := mempool.ReapMaxBytesMaxGas(tt.maxBytes, tt.maxGas, sidecar.ReapMaxTxs(sidecar.HeightForFiringAuction()))
 		assert.Equal(t, tt.expectedNumTxs, len(got), "Got %d txs, expected %d, tc #%d",
 			len(got), tt.expectedNumTxs, tcIndex)
 		mempool.Flush()
@@ -264,12 +264,12 @@ func TestReapMaxBytesMaxGasWithTxsFromSidecar(t *testing.T) {
 		// addNumTxsToSidecarOneBundle(t, sidecar, tt.numTxsToCreate, UnknownPeerID)
 		addSpecificTxsToSidecarOneBundle(t, sidecar, txs, UnknownPeerID)
 
-		got := mempool.ReapMaxBytesMaxGas(tt.maxBytes, tt.maxGas, sidecar.ReapMaxTxs())
+		got := mempool.ReapMaxBytesMaxGas(tt.maxBytes, tt.maxGas, sidecar.ReapMaxTxs(sidecar.HeightForFiringAuction()))
 
 		assert.Equal(t, tt.expectedNumTxs, len(got), "Got %d txs, expected %d, tc #%d",
 			len(got), tt.expectedNumTxs, tcIndex)
 		mempool.Flush()
-		sidecar.Flush()
+		sidecar.Flush(sidecar.HeightForFiringAuction())
 	}
 }
 
@@ -291,10 +291,10 @@ func TestBasicAddMultipleBundles(t *testing.T) {
 	for tcIndex, tt := range tests {
 		fmt.Println("Num bundles to create: ", tt.numBundlesTxsToCreate)
 		addNumBundlesToSidecar(t, sidecar, tt.numBundlesTxsToCreate, 10, UnknownPeerID)
-		sidecar.ReapMaxTxs()
-		assert.Equal(t, tt.numBundlesTxsToCreate, sidecar.NumBundles(), "Got %d bundles, expected %d, tc #%d",
-			sidecar.NumBundles(), tt.numBundlesTxsToCreate, tcIndex)
-		sidecar.Flush()
+		sidecar.ReapMaxTxs(sidecar.HeightForFiringAuction())
+		assert.Equal(t, tt.numBundlesTxsToCreate, sidecar.NumBundles(sidecar.HeightForFiringAuction()), "Got %d bundles, expected %d, tc #%d",
+			sidecar.NumBundles(sidecar.HeightForFiringAuction()), tt.numBundlesTxsToCreate, tcIndex)
+		sidecar.Flush(sidecar.HeightForFiringAuction())
 	}
 }
 
@@ -312,9 +312,9 @@ func TestSpecificAddTxsToMultipleBundles(t *testing.T) {
 			{5, 1, 1, 0},
 		}
 		addBundlesToSidecar(t, sidecar, bundles, UnknownPeerID)
-		assert.Equal(t, 1, sidecar.NumBundles(), "Got %d bundles, expected %d",
-			sidecar.NumBundles(), 1)
-		sidecar.Flush()
+		assert.Equal(t, 1, sidecar.NumBundles(sidecar.HeightForFiringAuction()), "Got %d bundles, expected %d",
+			sidecar.NumBundles(sidecar.HeightForFiringAuction()), 1)
+		sidecar.Flush(sidecar.HeightForFiringAuction())
 	}
 
 	// only one for first since later two out of range
@@ -326,9 +326,9 @@ func TestSpecificAddTxsToMultipleBundles(t *testing.T) {
 			{5, 10, 1, 0},
 		}
 		addBundlesToSidecar(t, sidecar, bundles, UnknownPeerID)
-		assert.Equal(t, 1, sidecar.NumBundles(), "Got %d bundles, expected %d",
-			sidecar.NumBundles(), 1)
-		sidecar.Flush()
+		assert.Equal(t, 1, sidecar.NumBundles(sidecar.HeightForFiringAuction()), "Got %d bundles, expected %d",
+			sidecar.NumBundles(sidecar.HeightForFiringAuction()), 1)
+		sidecar.Flush(sidecar.HeightForFiringAuction())
 	}
 
 	// only one bundle since we already have all these bundleOrders
@@ -340,9 +340,9 @@ func TestSpecificAddTxsToMultipleBundles(t *testing.T) {
 			{5, 1, 0, 0},
 		}
 		addBundlesToSidecar(t, sidecar, bundles, UnknownPeerID)
-		assert.Equal(t, 1, sidecar.NumBundles(), "Got %d bundles, expected %d",
-			sidecar.NumBundles(), 1)
-		sidecar.Flush()
+		assert.Equal(t, 1, sidecar.NumBundles(sidecar.HeightForFiringAuction()), "Got %d bundles, expected %d",
+			sidecar.NumBundles(sidecar.HeightForFiringAuction()), 1)
+		sidecar.Flush(sidecar.HeightForFiringAuction())
 	}
 
 	// only one bundle since we already have all these bundleOrders
@@ -354,9 +354,9 @@ func TestSpecificAddTxsToMultipleBundles(t *testing.T) {
 			{5, 1, 5, 0},
 		}
 		addBundlesToSidecar(t, sidecar, bundles, UnknownPeerID)
-		assert.Equal(t, 3, sidecar.NumBundles(), "Got %d bundles, expected %d",
-			sidecar.NumBundles(), 3)
-		sidecar.Flush()
+		assert.Equal(t, 3, sidecar.NumBundles(sidecar.HeightForFiringAuction()), "Got %d bundles, expected %d",
+			sidecar.NumBundles(sidecar.HeightForFiringAuction()), 3)
+		sidecar.Flush(sidecar.HeightForFiringAuction())
 	}
 }
 
@@ -389,11 +389,11 @@ func TestReapSidecarWithTxsOutOfOrder(t *testing.T) {
 
 		sidecar.PrettyPrintBundles()
 
-		txs := sidecar.ReapMaxTxs()
+		txs := sidecar.ReapMaxTxs(sidecar.HeightForFiringAuction())
 		assert.Equal(t, 1, len(txs), "Got %d txs, expected %d",
 			len(txs), 1)
 
-		sidecar.Flush()
+		sidecar.Flush(sidecar.HeightForFiringAuction())
 	}
 
 	// 2. Same as before but now size is open to 2, so expect 2
@@ -416,11 +416,11 @@ func TestReapSidecarWithTxsOutOfOrder(t *testing.T) {
 		bundleOrder = 0
 		addTxToSidecar(t, sidecar, bInfo, bundleOrder)
 
-		txs := sidecar.ReapMaxTxs()
+		txs := sidecar.ReapMaxTxs(sidecar.HeightForFiringAuction())
 		assert.Equal(t, 2, len(txs), "Got %d txs, expected %d",
 			len(txs), 2)
 
-		sidecar.Flush()
+		sidecar.Flush(sidecar.HeightForFiringAuction())
 	}
 
 	// 3. Insert a bundle out of order and non sequential, so nothing should happen
@@ -443,11 +443,11 @@ func TestReapSidecarWithTxsOutOfOrder(t *testing.T) {
 		bundleOrder = 1
 		addTxToSidecar(t, sidecar, bInfo, bundleOrder)
 
-		txs := sidecar.ReapMaxTxs()
+		txs := sidecar.ReapMaxTxs(sidecar.HeightForFiringAuction())
 		assert.Equal(t, 0, len(txs), "Got %d txs, expected %d",
 			len(txs), 0)
 
-		sidecar.Flush()
+		sidecar.Flush(sidecar.HeightForFiringAuction())
 	}
 
 	// 4. Insert three successful bundles out of order
@@ -519,7 +519,7 @@ func TestReapSidecarWithTxsOutOfOrder(t *testing.T) {
 		bundleOrder = 0
 		addTxToSidecar(t, sidecar, bInfo, bundleOrder)
 
-		txs := sidecar.ReapMaxTxs()
+		txs := sidecar.ReapMaxTxs(sidecar.HeightForFiringAuction())
 		assert.Equal(t, 7, len(txs), "Got %d txs, expected %d",
 			len(txs), 7)
 		sidecar.PrettyPrintBundles()
@@ -530,7 +530,7 @@ func TestReapSidecarWithTxsOutOfOrder(t *testing.T) {
 		}
 		fmt.Println("----------")
 
-		sidecar.Flush()
+		sidecar.Flush(sidecar.HeightForFiringAuction())
 	}
 
 	// 5. Multiple unsuccessful bundles, nothing reaped
@@ -605,7 +605,7 @@ func TestReapSidecarWithTxsOutOfOrder(t *testing.T) {
 		bundleOrder = 0
 		addTxToSidecar(t, sidecar, bInfo, bundleOrder)
 
-		txs := sidecar.ReapMaxTxs()
+		txs := sidecar.ReapMaxTxs(sidecar.HeightForFiringAuction())
 		assert.Equal(t, 0, len(txs), "Got %d txs, expected %d",
 			len(txs), 0)
 		sidecar.PrettyPrintBundles()
@@ -616,7 +616,7 @@ func TestReapSidecarWithTxsOutOfOrder(t *testing.T) {
 		}
 		fmt.Println("----------")
 
-		sidecar.Flush()
+		sidecar.Flush(sidecar.HeightForFiringAuction())
 	}
 
 }
@@ -648,7 +648,7 @@ func TestMempoolConcurrency(t *testing.T) {
 
 	wg.Wait()
 
-	txs := sidecar.ReapMaxTxs()
+	txs := sidecar.ReapMaxTxs(sidecar.HeightForFiringAuction())
 	assert.Equal(t, (numBundlesToAddPerProcess * numTxPerBundle), len(txs), "Got %d txs, expected %d",
 		len(txs), (numBundlesToAddPerProcess * numTxPerBundle))
 }
@@ -756,9 +756,9 @@ func TestSidecarUpdate(t *testing.T) {
 		bundleOrder = 1
 		addTxToSidecar(t, sidecar, bInfo, bundleOrder)
 
-		err := sidecar.Update(0, []types.Tx{[]byte{0x02}}, abciResponses(1, abci.CodeTypeOK))
+		err := sidecar.Update(sidecar.HeightForFiringAuction(), []types.Tx{[]byte{0x02}}, abciResponses(1, abci.CodeTypeOK))
 		require.NoError(t, err)
-		assert.Zero(t, sidecar.Size())
+		assert.Zero(t, sidecar.Size(sidecar.HeightForFiringAuction()))
 	}
 }
 
@@ -863,45 +863,6 @@ func TestTxsAvailable(t *testing.T) {
 	ensureNoFire(t, mempool.TxsAvailable(), timeoutMS)
 }
 
-func TestSidecarTxsAvailable(t *testing.T) {
-	app := kvstore.NewApplication()
-	cc := proxy.NewLocalClientCreator(app)
-	_, sidecar, cleanup := newMempoolWithApp(cc)
-	defer cleanup()
-	sidecar.EnableTxsAvailable()
-
-	timeoutMS := 500
-
-	// with no txs, it shouldnt fire
-	ensureNoFire(t, sidecar.TxsAvailable(), timeoutMS)
-
-	// send a bunch of txs, it should only fire once
-	txs := addNumBundlesToSidecar(t, sidecar, 100, 10, UnknownPeerID)
-	ensureFire(t, sidecar.TxsAvailable(), timeoutMS)
-	ensureNoFire(t, sidecar.TxsAvailable(), timeoutMS)
-
-	// call update with half the txs.
-	// it should fire once now for the new height
-	// since there are still txs left
-	committedTxs, txs := txs[:50], txs[50:]
-
-	// send a bunch more txs. we already fired for this height so it shouldnt fire again
-	moreTxs := addNumBundlesToSidecar(t, sidecar, 50, 10, UnknownPeerID)
-	ensureNoFire(t, sidecar.TxsAvailable(), timeoutMS)
-
-	// now call update with all the txs. it should not fire as there are no txs left
-	committedTxs = append(txs, moreTxs...) //nolint: gocritic
-	if err := sidecar.Update(2, committedTxs, abciResponses(len(committedTxs), abci.CodeTypeOK)); err != nil {
-		t.Error(err)
-	}
-	ensureNoFire(t, sidecar.TxsAvailable(), timeoutMS)
-
-	// send a bunch more txs, it should only fire once
-	addNumBundlesToSidecar(t, sidecar, 100, 10, UnknownPeerID)
-	ensureFire(t, sidecar.TxsAvailable(), timeoutMS)
-	ensureNoFire(t, sidecar.TxsAvailable(), timeoutMS)
-}
-
 func TestSerialReap(t *testing.T) {
 	app := counter.NewApplication(true)
 	app.SetOption(abci.RequestSetOption{Key: "serial", Value: "on"})
@@ -939,7 +900,7 @@ func TestSerialReap(t *testing.T) {
 	}
 
 	reapCheck := func(exp int) {
-		txs := mempool.ReapMaxBytesMaxGas(-1, -1, sidecar.ReapMaxTxs())
+		txs := mempool.ReapMaxBytesMaxGas(-1, -1, sidecar.ReapMaxTxs(sidecar.HeightForFiringAuction()))
 		require.Equal(t, len(txs), exp, fmt.Sprintf("Expected to reap %v txs but got %v", exp, len(txs)))
 	}
 
