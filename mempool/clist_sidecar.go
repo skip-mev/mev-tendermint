@@ -234,7 +234,7 @@ func (sc *CListPriorityTxSidecar) AddTx(tx types.Tx, txInfo TxInfo) error {
 	hs.txsMap.Store(TxKey(scTx.tx), e)
 
 	atomic.AddInt64(&hs.txsBytes, int64(len(scTx.tx)))
-	fmt.Println("[mev-tendermint]: AddTx(): actually added the tx to the sc.txs CList, sidecar size is now", sc.Size(txInfo.DesiredHeight))
+	fmt.Println(fmt.Sprintf("[mev-tendermint]: AddTx(): actually added the tx to the sc.txs CList, sidecar size is now %d for height %d, and heightToFire is %d", sc.Size(txInfo.DesiredHeight), txInfo.DesiredHeight, sc.heightForFiringAuction))
 
 	// TODO: in the future, refactor to only notifyTxsAvailable when we have at least one full bundle
 	// if sc.Size() > 0 {
@@ -295,7 +295,7 @@ func (sc *CListPriorityTxSidecar) Update(
 		hs := hs.(*HeightState)
 		for i, tx := range txs {
 			if _, ok := hs.txsMap.Load(TxKey(tx)); ok {
-				fmt.Println("[mev-tendermint]: on sidecar Update(), found tx in sidecar!")
+				fmt.Println(fmt.Sprintf("[mev-tendermint]: on sidecar Update() for height %d, and heightToFire %d found tx in sidecar!", height, sc.heightForFiringAuction))
 				if deliverTxResponses[i].Code == abci.CodeTypeOK {
 					fmt.Println("... and was valid!")
 				}
