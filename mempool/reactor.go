@@ -260,6 +260,7 @@ func (memR *Reactor) broadcastSidecarTxRoutine(peer p2p.Peer) {
 				return
 			// TODO: not the best fix
 			default:
+				continue
 			}
 		}
 
