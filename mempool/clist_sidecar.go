@@ -297,7 +297,8 @@ func (sc *CListPriorityTxSidecar) Update(
 
 	if hs, ok := sc.heightStates.Load(height); ok {
 		hs := hs.(*HeightState)
-		hs.txs.PushBack(nil)
+		// pushing back nil to force new check
+		// hs.txs.PushBack(nil)
 		for i, tx := range txs {
 			if _, ok := hs.txsMap.Load(TxKey(tx)); ok {
 				fmt.Println(fmt.Sprintf("[mev-tendermint]: on sidecar Update() for height %d, and heightToFire %d found tx in sidecar!", height, sc.heightForFiringAuction))
