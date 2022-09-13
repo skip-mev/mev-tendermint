@@ -267,7 +267,7 @@ func (memR *Reactor) broadcastSidecarTxRoutine(peer p2p.Peer) {
 
 		if scTx, okConv := next.Value.(*SidecarTx); okConv && isSidecarPeer {
 			// if scTx, okConv := next.Value.(*SidecarTx); okConv {
-			fmt.Println("[mev-tendermint]: BroadcastSidecarTx() OK as sidecarTx to peer", peerID)
+			fmt.Println("[mev-tendermint]: BroadcastSidecarTx() OK as sidecarTx to peer", peer.ID())
 			if _, ok := scTx.senders.Load(peerID); !ok {
 				msg := protomem.MEVMessage{
 					Sum: &protomem.MEVMessage_Txs{
