@@ -211,8 +211,7 @@ func (memR *Reactor) Receive(chID byte, src p2p.Peer, msgBytes []byte) {
 			txInfo.SenderP2PID = src.ID()
 		}
 		for _, tx := range msg.Txs {
-			fmt.Println(fmt.Sprintf("received sidecar tx! desiredHeight %d, bundleId %d, bundleOrder %d, bundleSize %d", msg.DesiredHeight, msg.BundleId, msg.BundleOrder, msg.BundleSize))
-			fmt.Println(tx)
+			fmt.Println(fmt.Sprintf("[mev-tendermint] Reactor (receive): received sidecar tx %.20q! desiredHeight %d, bundleId %d, bundleOrder %d, bundleSize %d", tx, msg.DesiredHeight, msg.BundleId, msg.BundleOrder, msg.BundleSize))
 
 			err = memR.sidecar.AddTx(tx, txInfo)
 			if err == ErrTxInCache {
@@ -249,13 +248,13 @@ func (memR *Reactor) broadcastTxRoutine(peer p2p.Peer) {
 		if next == nil {
 			select {
 			case <-memR.mempool.TxsWaitChan(): // Wait until a tx is available in mempool
-				// fmt.Println("mempool tx wait chan entered!")
 				isSidecarTxReceived = false
 				if next = memR.mempool.TxsFront(); next == nil {
 					continue
 				}
 			case <-memR.sidecar.TxsWaitChan(): // Wait until a tx is available in sidecar
 				// if a tx is available on sidecar, if fire is set too, then fire
+				fmt.Println("sidecar tx wait chan entered!")
 				isSidecarTxReceived = true
 				if next = memR.sidecar.TxsFront(); next == nil {
 					continue
@@ -280,7 +279,7 @@ func (memR *Reactor) broadcastTxRoutine(peer p2p.Peer) {
 		}
 
 		if scTx, okConv := next.Value.(*SidecarTx); okConv && isSidecarTxReceived && isSidecarPeer {
-			fmt.Println("Broadcasting tx as sidecarTx to peer", peerID)
+			fmt.Println("[mev-tendermint]: BroadcastTx as sidecarTx to peer", peerID)
 			if _, ok := scTx.senders.Load(peerID); !ok {
 				msg := protomem.MEVMessage{
 					Sum: &protomem.MEVMessage_Txs{
@@ -301,9 +300,19 @@ func (memR *Reactor) broadcastTxRoutine(peer p2p.Peer) {
 					continue
 				}
 			} else {
-				fmt.Println("[mev-tendermint]: reactor broadcast, thought we had a sidecar Tx, but couldn't cast it!")
+				fmt.Println("[mev-tendermint]: BroadcastTx trying to send tx back to peer we received from")
 			}
 		} else {
+			if _, okConv := next.Value.(*SidecarTx); !okConv {
+				fmt.Println("[mev-tendermint]: BroadcastTx thought we had a sidecar tx but couldn't cast, trying as mempoolTx...")
+			} else {
+				if !isSidecarPeer {
+					fmt.Println("[mev-tendermint]: got a sidecar tx but not broadcasting, since we don't have sidecar peer for", peerID)
+				}
+				if !isSidecarTxReceived {
+					fmt.Println("[mev-tendermint]: got a sidecar tx but not broadcasting, since didn't set isSidecarTxReceived")
+				}
+			}
 			// Allow for a lag of 1 block.
 			if memTx, okConv := next.Value.(*MempoolTx); okConv {
 				if peerState.GetHeight() < memTx.Height()-1 {

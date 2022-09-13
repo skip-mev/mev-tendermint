@@ -120,7 +120,7 @@ func (sc *CListPriorityTxSidecar) AddTx(tx types.Tx, txInfo TxInfo) error {
 	// use defer to unlock mutex because application (*local client*) might panic
 	defer sc.updateMtx.RUnlock()
 
-	fmt.Println(fmt.Sprintf("[mev-tendermint]: STARTING TO ADD TRANSACTION %s TO SIDECAR! with bundleId %d, bundleOrder %d, desiredHeight %d, bundleSize %d", tx, txInfo.BundleId, txInfo.BundleOrder, txInfo.DesiredHeight, txInfo.BundleSize))
+	fmt.Println(fmt.Sprintf("[mev-tendermint]: STARTING TO ADD TRANSACTION %.20q TO SIDECAR! with bundleId %d, bundleOrder %d, desiredHeight %d, bundleSize %d", tx, txInfo.BundleId, txInfo.BundleOrder, txInfo.DesiredHeight, txInfo.BundleSize))
 
 	// don't add any txs already in cache
 	if !sc.cache.Push(tx) {
@@ -244,6 +244,8 @@ func (sc *CListPriorityTxSidecar) AddTx(tx types.Tx, txInfo TxInfo) error {
 	if sc.Size() > 0 {
 		sc.notifyTxsAvailable()
 	}
+
+	fmt.Println("[mev-tendermint]: ADDING SIDECAR TX FUNCTION COMPLETION")
 
 	return nil
 }
