@@ -288,10 +288,10 @@ func (memR *Reactor) broadcastSidecarTxRoutine(peer p2p.Peer) {
 					continue
 				}
 			} else {
-				fmt.Println(fmt.Sprintf("[mev-tendermint]: BroadcastSidecarTx() failed: trying to send back to a sidecar we've already sent it to %d", peerID))
+				fmt.Println(fmt.Sprintf("[mev-tendermint]: BroadcastSidecarTx() failed: trying to send back to a sidecar we've already sent it to %s", peer.ID()))
 			}
 		} else {
-			fmt.Println(fmt.Sprintf("[mev-tendermint]: BroadcastSidecarTx() failed: isSideCarPeer is %t for peer %d, conversion was %t", isSidecarPeer, peerID, okConv))
+			fmt.Println(fmt.Sprintf("[mev-tendermint]: BroadcastSidecarTx() failed: isSideCarPeer is %t for peer %s, conversion was %t", isSidecarPeer, peer.ID(), okConv))
 		}
 
 		if next != nil {
