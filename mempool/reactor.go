@@ -308,7 +308,6 @@ func (memR *Reactor) broadcastTxRoutine(peer p2p.Peer) {
 		} else {
 			if _, okConv := next.Value.(*SidecarTx); okConv {
 				fmt.Println("[mev-tendermint]: BroadcastTx has a sidecarTx type but something else went wrong so not broadcasting...")
-			} else {
 				if !isSidecarPeer {
 					fmt.Println("[mev-tendermint]: BroadcastTx got a sidecar tx but not broadcasting, since we don't have sidecar peer for", peerID)
 				}
@@ -352,6 +351,8 @@ func (memR *Reactor) broadcastTxRoutine(peer p2p.Peer) {
 			return
 		case <-memR.Quit():
 			return
+		// TODO: BARRY DON'T LIKE
+		default:
 		}
 	}
 }
