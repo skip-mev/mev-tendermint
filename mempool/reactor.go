@@ -240,6 +240,7 @@ func (memR *Reactor) broadcastTxRoutine(peer p2p.Peer) {
 	for {
 		// In case of both next.NextWaitChan() and peer.Quit() are variable at the same time
 		if !memR.IsRunning() || !peer.IsRunning() {
+			fmt.Println("memR or peer dead")
 			return
 		}
 		// This happens because the CElement we were looking at got garbage
@@ -254,9 +255,10 @@ func (memR *Reactor) broadcastTxRoutine(peer p2p.Peer) {
 				}
 			case <-memR.sidecar.TxsWaitChan(): // Wait until a tx is available in sidecar
 				// if a tx is available on sidecar, if fire is set too, then fire
-				fmt.Println("sidecar tx wait chan entered!")
+				fmt.Println("[mev-tendermint]: BroadcastTx() sidecar tx wait chan entered!")
 				isSidecarTxReceived = true
 				if next = memR.sidecar.TxsFront(); next == nil {
+					fmt.Println("[mev-tendermint]: BroadcastTx() next is nil after sidecar txs front()")
 					continue
 				}
 			case <-peer.Quit():
@@ -269,6 +271,7 @@ func (memR *Reactor) broadcastTxRoutine(peer p2p.Peer) {
 		// Make sure the peer is up to date.
 		peerState, ok := peer.Get(types.PeerStateKey).(PeerState)
 		if !ok {
+			fmt.Println("[mev-tendermint]: BroadcastTx: peerState not ok, playing catchup")
 			// Peer does not have a state yet. We set it in the consensus reactor, but
 			// when we add peer in Switch, the order we call reactors#AddPeer is
 			// different every time due to us using a map. Sometimes other reactors
@@ -303,14 +306,14 @@ func (memR *Reactor) broadcastTxRoutine(peer p2p.Peer) {
 				fmt.Println("[mev-tendermint]: BroadcastTx trying to send tx back to peer we received from")
 			}
 		} else {
-			if _, okConv := next.Value.(*SidecarTx); !okConv {
-				fmt.Println("[mev-tendermint]: BroadcastTx thought we had a sidecar tx but couldn't cast, trying as mempoolTx...")
+			if _, okConv := next.Value.(*SidecarTx); okConv {
+				fmt.Println("[mev-tendermint]: BroadcastTx has a sidecarTx type but something else went wrong so not broadcasting...")
 			} else {
 				if !isSidecarPeer {
-					fmt.Println("[mev-tendermint]: got a sidecar tx but not broadcasting, since we don't have sidecar peer for", peerID)
+					fmt.Println("[mev-tendermint]: BroadcastTx got a sidecar tx but not broadcasting, since we don't have sidecar peer for", peerID)
 				}
 				if !isSidecarTxReceived {
-					fmt.Println("[mev-tendermint]: got a sidecar tx but not broadcasting, since didn't set isSidecarTxReceived")
+					fmt.Println("[mev-tendermint]: BroadcastTx got a sidecar tx but not broadcasting, since didn't set isSidecarTxReceived")
 				}
 			}
 			// Allow for a lag of 1 block.

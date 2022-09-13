@@ -228,7 +228,7 @@ func (sc *CListPriorityTxSidecar) AddTx(tx types.Tx, txInfo TxInfo) error {
 
 	// -------- UPDATE MAX BUNDLE ---------
 
-	if txInfo.BundleId > sc.maxBundleId {
+	if txInfo.BundleId >= sc.maxBundleId {
 		fmt.Println("[mev-tendermint]: AddTx(): updating maxBundleId to", txInfo.BundleId)
 		sc.maxBundleId = txInfo.BundleId
 	}
@@ -239,6 +239,7 @@ func (sc *CListPriorityTxSidecar) AddTx(tx types.Tx, txInfo TxInfo) error {
 	e := sc.txs.PushBack(scTx)
 	sc.txsMap.Store(TxKey(scTx.tx), e)
 	atomic.AddInt64(&sc.txsBytes, int64(len(scTx.tx)))
+	fmt.Println("[mev-tendermint]: AddTx(): actually added the tx to the sc.txs CList, sidecar size is now", sc.Size())
 
 	// TODO: in the future, refactor to only notifyTxsAvailable when we have at least one full bundle
 	if sc.Size() > 0 {
