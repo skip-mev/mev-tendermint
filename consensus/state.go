@@ -1841,6 +1841,8 @@ func (cs *State) defaultSetProposal(proposal *types.Proposal) error {
 		cs.ProposalBlockParts = types.NewPartSetFromHeader(proposal.BlockID.PartSetHeader)
 	}
 
+	cs.Logger.Info("_______________________________________")
+	cs.Logger.Info("_______________________________________")
 	cs.Logger.Info("received proposal", "proposal", proposal)
 	return nil
 }
