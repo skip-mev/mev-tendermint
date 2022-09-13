@@ -163,7 +163,8 @@ func (memR *Reactor) GetChannels() []*p2p.ChannelDescriptor {
 // It starts a broadcast routine ensuring all txs are forwarded to the given peer.
 func (memR *Reactor) AddPeer(peer p2p.Peer) {
 	if memR.config.Broadcast {
-		go memR.broadcastTxRoutine(peer)
+		go memR.broadcastMempoolTxRoutine(peer)
+		go memR.broadcastSidecarTxRoutine(peer)
 	}
 }
 
@@ -230,12 +231,10 @@ type PeerState interface {
 }
 
 // Send new mempool txs to peer.
-func (memR *Reactor) broadcastTxRoutine(peer p2p.Peer) {
+func (memR *Reactor) broadcastSidecarTxRoutine(peer p2p.Peer) {
 	peerID := memR.ids.GetForPeer(peer)
 	isSidecarPeer := peer.IsSidecarPeer()
 	var next *clist.CElement
-
-	isSidecarTxReceived := false
 
 	for {
 		// In case of both next.NextWaitChan() and peer.Quit() are variable at the same time
@@ -248,17 +247,11 @@ func (memR *Reactor) broadcastTxRoutine(peer p2p.Peer) {
 		// start from the beginning.
 		if next == nil {
 			select {
-			case <-memR.mempool.TxsWaitChan(): // Wait until a tx is available in mempool
-				isSidecarTxReceived = false
-				if next = memR.mempool.TxsFront(); next == nil {
-					continue
-				}
 			case <-memR.sidecar.TxsWaitChan(): // Wait until a tx is available in sidecar
 				// if a tx is available on sidecar, if fire is set too, then fire
-				fmt.Println("[mev-tendermint]: BroadcastTx() sidecar tx wait chan entered!")
-				isSidecarTxReceived = true
+				fmt.Println("[mev-tendermint]: BroadcastSidecarTx() sidecar tx wait chan entered!")
 				if next = memR.sidecar.TxsFront(); next == nil {
-					fmt.Println("[mev-tendermint]: BroadcastTx() next is nil after sidecar txs front()")
+					fmt.Println("[mev-tendermint]: BroadcastSidecarTx() next is nil after sidecar txs front()")
 					continue
 				}
 			case <-peer.Quit():
@@ -268,21 +261,8 @@ func (memR *Reactor) broadcastTxRoutine(peer p2p.Peer) {
 			}
 		}
 
-		// Make sure the peer is up to date.
-		peerState, ok := peer.Get(types.PeerStateKey).(PeerState)
-		if !ok {
-			fmt.Println("[mev-tendermint]: BroadcastTx: peerState not ok, playing catchup")
-			// Peer does not have a state yet. We set it in the consensus reactor, but
-			// when we add peer in Switch, the order we call reactors#AddPeer is
-			// different every time due to us using a map. Sometimes other reactors
-			// will be initialized before the consensus reactor. We should wait a few
-			// milliseconds and retry.
-			time.Sleep(peerCatchupSleepIntervalMS * time.Millisecond)
-			continue
-		}
-
-		if scTx, okConv := next.Value.(*SidecarTx); okConv && isSidecarTxReceived && isSidecarPeer {
-			fmt.Println("[mev-tendermint]: BroadcastTx as sidecarTx to peer", peerID)
+		if scTx, okConv := next.Value.(*SidecarTx); okConv && isSidecarPeer {
+			fmt.Println("[mev-tendermint]: BroadcastSidecarTx() as sidecarTx to peer", peerID)
 			if _, ok := scTx.senders.Load(peerID); !ok {
 				msg := protomem.MEVMessage{
 					Sum: &protomem.MEVMessage_Txs{
@@ -303,43 +283,7 @@ func (memR *Reactor) broadcastTxRoutine(peer p2p.Peer) {
 					continue
 				}
 			} else {
-				fmt.Println("[mev-tendermint]: BroadcastTx trying to send tx back to peer we received from")
-			}
-		} else {
-			if _, okConv := next.Value.(*SidecarTx); okConv {
-				fmt.Println("[mev-tendermint]: BroadcastTx has a sidecarTx type but something else went wrong so not broadcasting...")
-				if !isSidecarPeer {
-					fmt.Println("[mev-tendermint]: BroadcastTx got a sidecar tx but not broadcasting, since we don't have sidecar peer for", peerID)
-				}
-				if !isSidecarTxReceived {
-					fmt.Println("[mev-tendermint]: BroadcastTx got a sidecar tx but not broadcasting, since didn't set isSidecarTxReceived")
-				}
-			}
-			// Allow for a lag of 1 block.
-			if memTx, okConv := next.Value.(*MempoolTx); okConv {
-				if peerState.GetHeight() < memTx.Height()-1 {
-					time.Sleep(peerCatchupSleepIntervalMS * time.Millisecond)
-					continue
-				}
-
-				if _, ok := memTx.senders.Load(peerID); !ok {
-					msg := protomem.Message{
-						Sum: &protomem.Message_Txs{
-							Txs: &protomem.Txs{Txs: [][]byte{memTx.tx}},
-						},
-					}
-					bz, err := msg.Marshal()
-					if err != nil {
-						panic(err)
-					}
-					success := peer.Send(MempoolChannel, bz)
-					if !success {
-						time.Sleep(peerCatchupSleepIntervalMS * time.Millisecond)
-						continue
-					}
-				}
-			} else {
-				fmt.Println("[mev-tendermint]: reactor broadcast, thought we had a mempool Tx, but couldn't cast it!")
+				fmt.Println(fmt.Sprintf("[mev-tendermint]: BroadcastSidecarTx() failed: isSideCarPeer is %t, conversion was %t", isSidecarPeer, okConv))
 			}
 		}
 
@@ -351,8 +295,82 @@ func (memR *Reactor) broadcastTxRoutine(peer p2p.Peer) {
 			return
 		case <-memR.Quit():
 			return
-		// TODO: BARRY DON'T LIKE
-		default:
+		}
+	}
+}
+
+// Send new mempool txs to peer.
+func (memR *Reactor) broadcastMempoolTxRoutine(peer p2p.Peer) {
+	peerID := memR.ids.GetForPeer(peer)
+	var next *clist.CElement
+
+	for {
+		// In case of both next.NextWaitChan() and peer.Quit() are variable at the same time
+		if !memR.IsRunning() || !peer.IsRunning() {
+			return
+		}
+		// This happens because the CElement we were looking at got garbage
+		// collected (removed). That is, .NextWait() returned nil. Go ahead and
+		// start from the beginning.
+		if next == nil {
+			select {
+			case <-memR.mempool.TxsWaitChan(): // Wait until a tx is available in mempool
+				if next = memR.mempool.TxsFront(); next == nil {
+					continue
+				}
+			case <-peer.Quit():
+				return
+			case <-memR.Quit():
+				return
+			}
+		}
+
+		// Make sure the peer is up to date.
+		peerState, ok := peer.Get(types.PeerStateKey).(PeerState)
+		if !ok {
+			// Peer does not have a state yet. We set it in the consensus reactor, but
+			// when we add peer in Switch, the order we call reactors#AddPeer is
+			// different every time due to us using a map. Sometimes other reactors
+			// will be initialized before the consensus reactor. We should wait a few
+			// milliseconds and retry.
+			time.Sleep(peerCatchupSleepIntervalMS * time.Millisecond)
+			continue
+		}
+		// Allow for a lag of 1 block.
+		if memTx, okConv := next.Value.(*MempoolTx); okConv {
+			if peerState.GetHeight() < memTx.Height()-1 {
+				time.Sleep(peerCatchupSleepIntervalMS * time.Millisecond)
+				continue
+			}
+
+			if _, ok := memTx.senders.Load(peerID); !ok {
+				msg := protomem.Message{
+					Sum: &protomem.Message_Txs{
+						Txs: &protomem.Txs{Txs: [][]byte{memTx.tx}},
+					},
+				}
+				bz, err := msg.Marshal()
+				if err != nil {
+					panic(err)
+				}
+				success := peer.Send(MempoolChannel, bz)
+				if !success {
+					time.Sleep(peerCatchupSleepIntervalMS * time.Millisecond)
+					continue
+				}
+			}
+		} else {
+			fmt.Println("[mev-tendermint]: BroadcastMempoolTx() couldn't cast mempoolTx!")
+		}
+
+		select {
+		case <-next.NextWaitChan():
+			// see the start of the for loop for nil check
+			next = next.Next()
+		case <-peer.Quit():
+			return
+		case <-memR.Quit():
+			return
 		}
 	}
 }
