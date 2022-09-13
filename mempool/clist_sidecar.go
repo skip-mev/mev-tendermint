@@ -33,6 +33,12 @@ type CListPriorityTxSidecar struct {
 
 	// map from height -> HeightState
 	heightStates sync.Map
+<<<<<<< HEAD
+=======
+
+	// fires one per height
+	heightChan chan struct{}
+>>>>>>> main
 }
 
 var _ PriorityTxSidecar = &CListPriorityTxSidecar{}
@@ -57,6 +63,11 @@ func NewCListSidecar(
 		txs:         clist.New(),
 	})
 
+<<<<<<< HEAD
+=======
+	sidecar.heightChan = make(chan struct{}, 1)
+
+>>>>>>> main
 	return sidecar
 }
 
@@ -98,6 +109,23 @@ func (sc *CListPriorityTxSidecar) TxsAvailable() <-chan struct{} {
 	return sc.txsAvailable
 }
 
+<<<<<<< HEAD
+=======
+func (sc *CListPriorityTxSidecar) notifyNewHeight() {
+	if sc.heightChan != nil {
+		// channel cap is 1, so this will send once
+		select {
+		case sc.heightChan <- struct{}{}:
+		default:
+		}
+	}
+}
+
+func (sc *CListPriorityTxSidecar) NewHeightChan() <-chan struct{} {
+	return sc.heightChan
+}
+
+>>>>>>> main
 //--------------------------------------------------------------------------------
 
 // TODO: Update to AddTx(tx types.Tx, txInfo TxInfo, order int64) error
@@ -234,7 +262,11 @@ func (sc *CListPriorityTxSidecar) AddTx(tx types.Tx, txInfo TxInfo) error {
 	hs.txsMap.Store(TxKey(scTx.tx), e)
 
 	atomic.AddInt64(&hs.txsBytes, int64(len(scTx.tx)))
+<<<<<<< HEAD
 	fmt.Println("[mev-tendermint]: AddTx(): actually added the tx to the sc.txs CList, sidecar size is now", sc.Size(txInfo.DesiredHeight))
+=======
+	fmt.Println(fmt.Sprintf("[mev-tendermint]: AddTx(): actually added the tx to the hs.txs CList, sidecar size is now %d for height %d, and heightToFire is %d", sc.Size(txInfo.DesiredHeight), txInfo.DesiredHeight, sc.heightForFiringAuction))
+>>>>>>> main
 
 	// TODO: in the future, refactor to only notifyTxsAvailable when we have at least one full bundle
 	// if sc.Size() > 0 {
@@ -252,10 +284,18 @@ func (sc *CListPriorityTxSidecar) AddTx(tx types.Tx, txInfo TxInfo) error {
 //
 // Safe for concurrent use by multiple goroutines.
 func (sc *CListPriorityTxSidecar) TxsWaitChan(height int64) <-chan struct{} {
+<<<<<<< HEAD
+=======
+	fmt.Println("[mev-tendermint]: calling TxsWaitChan() with height", height)
+>>>>>>> main
 	if hs, ok := sc.heightStates.Load(height); ok {
 		hs := hs.(*HeightState)
 		return hs.txs.WaitChan()
 	}
+<<<<<<< HEAD
+=======
+	fmt.Println("[mev-tendermint]: TxsWaitChan() - returning nil for height", height)
+>>>>>>> main
 	return nil
 }
 
@@ -265,10 +305,18 @@ func (sc *CListPriorityTxSidecar) TxsWaitChan(height int64) <-chan struct{} {
 //
 // Safe for concurrent use by multiple goroutines.
 func (sc *CListPriorityTxSidecar) TxsFront(height int64) *clist.CElement {
+<<<<<<< HEAD
+=======
+	fmt.Println("[mev-tendermint]: calling TxsFront() with height", height)
+>>>>>>> main
 	if hs, ok := sc.heightStates.Load(height); ok {
 		hs := hs.(*HeightState)
 		return hs.txs.Front()
 	}
+<<<<<<< HEAD
+=======
+	fmt.Println("[mev-tendermint]: TxsFront() - returning nil for height", height)
+>>>>>>> main
 	return nil
 }
 
@@ -293,9 +341,19 @@ func (sc *CListPriorityTxSidecar) Update(
 
 	if hs, ok := sc.heightStates.Load(height); ok {
 		hs := hs.(*HeightState)
+<<<<<<< HEAD
 		for i, tx := range txs {
 			if _, ok := hs.txsMap.Load(TxKey(tx)); ok {
 				fmt.Println("[mev-tendermint]: on sidecar Update(), found tx in sidecar!")
+=======
+
+		fmt.Println("notifying new height for height", height)
+		sc.notifyNewHeight()
+
+		for i, tx := range txs {
+			if _, ok := hs.txsMap.Load(TxKey(tx)); ok {
+				fmt.Println(fmt.Sprintf("[mev-tendermint]: on sidecar Update() for height %d, and heightToFire %d found tx in sidecar!", height, sc.heightForFiringAuction))
+>>>>>>> main
 				if deliverTxResponses[i].Code == abci.CodeTypeOK {
 					fmt.Println("... and was valid!")
 				}
@@ -439,6 +497,7 @@ func (sc *CListPriorityTxSidecar) ReapMaxTxs(height int64) []*MempoolTx {
 			if bundle, ok := hs.bundles.Load(bundleIdIter); ok {
 				bundle := bundle.(*Bundle)
 				bundleOrderedTxsMap := bundle.orderedTxsMap
+<<<<<<< HEAD
 
 				// check to see if bundle is full, if not, just skip now
 				if bundle.currSize != bundle.enforcedSize {
@@ -446,6 +505,15 @@ func (sc *CListPriorityTxSidecar) ReapMaxTxs(height int64) []*MempoolTx {
 					continue
 				}
 
+=======
+
+				// check to see if bundle is full, if not, just skip now
+				if bundle.currSize != bundle.enforcedSize {
+					fmt.Println(fmt.Sprintf("ReapMaxTxs() SKIPPING BUNDLE...: size mismatch for bundleId %d at height %d: currSize %d, enforcedSize %d: SKIPPING...", bundleIdIter, sc.heightForFiringAuction, bundle.currSize, bundle.enforcedSize))
+					continue
+				}
+
+>>>>>>> main
 				// if full, iterate over bundle in order and add txs to temporary store, then add all if we have enough (i.e. matches enforcedBundleSize)
 				innerTxs := make([]*MempoolTx, 0, bundle.enforcedSize)
 				for bundleOrderIter := 0; bundleOrderIter < int(bundle.enforcedSize); bundleOrderIter++ {

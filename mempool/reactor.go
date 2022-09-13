@@ -239,21 +239,25 @@ func (memR *Reactor) broadcastSidecarTxRoutine(peer p2p.Peer) {
 	for {
 		// In case of both next.NextWaitChan() and peer.Quit() are variable at the same time
 		if !memR.IsRunning() || !peer.IsRunning() {
-			fmt.Println("memR or peer dead")
 			return
 		}
 		// This happens because the CElement we were looking at got garbage
 		// collected (removed). That is, .NextWait() returned nil. Go ahead and
 		// start from the beginning.
 		if next == nil {
+			fmt.Println("[mev-tendermint]: BroadcastSidecarTxRoutine(), trying to get TxsWaitChan for height to fire", memR.sidecar.HeightForFiringAuction())
 			select {
-			case <-memR.sidecar.TxsWaitChan(memR.sidecar.heightForFiringAuction): // Wait until a tx is available in sidecar
+			case <-memR.sidecar.TxsWaitChan(memR.sidecar.HeightForFiringAuction()): // Wait until a tx is available in sidecar
 				// if a tx is available on sidecar, if fire is set too, then fire
 				fmt.Println("[mev-tendermint]: BroadcastSidecarTx() sidecar tx wait chan entered!")
-				if next = memR.sidecar.TxsFront(memR.sidecar.heightForFiringAuction); next == nil {
+				fmt.Println("[mev-tendermint]: BroadcastSidecarTx() front of sidecar is:", memR.sidecar.TxsFront(memR.sidecar.HeightForFiringAuction()), "for height", memR.sidecar.HeightForFiringAuction())
+				if next = memR.sidecar.TxsFront(memR.sidecar.HeightForFiringAuction()); next == nil {
 					fmt.Println("[mev-tendermint]: BroadcastSidecarTx() next is nil after sidecar txs front()")
 					continue
 				}
+			case <-memR.sidecar.NewHeightChan(): // Wait until a tx is available in sidecar
+				fmt.Printf("[mev-tendermint]: skipping over reactor since new height %d and new heightForAuction %d", memR.sidecar.height, memR.sidecar.heightForFiringAuction)
+				continue
 			case <-peer.Quit():
 				return
 			case <-memR.Quit():
@@ -262,7 +266,8 @@ func (memR *Reactor) broadcastSidecarTxRoutine(peer p2p.Peer) {
 		}
 
 		if scTx, okConv := next.Value.(*SidecarTx); okConv && isSidecarPeer {
-			fmt.Println("[mev-tendermint]: BroadcastSidecarTx() as sidecarTx to peer", peerID)
+			// if scTx, okConv := next.Value.(*SidecarTx); okConv {
+			fmt.Println("[mev-tendermint]: BroadcastSidecarTx() OK as sidecarTx to peer", peerID)
 			if _, ok := scTx.senders.Load(peerID); !ok {
 				msg := protomem.MEVMessage{
 					Sum: &protomem.MEVMessage_Txs{
@@ -283,18 +288,22 @@ func (memR *Reactor) broadcastSidecarTxRoutine(peer p2p.Peer) {
 					continue
 				}
 			} else {
-				fmt.Println(fmt.Sprintf("[mev-tendermint]: BroadcastSidecarTx() failed: isSideCarPeer is %t, conversion was %t", isSidecarPeer, okConv))
+				fmt.Println(fmt.Sprintf("[mev-tendermint]: BroadcastSidecarTx() failed: trying to send back to a sidecar we've already sent it to %s", peer.ID()))
 			}
+		} else {
+			fmt.Println(fmt.Sprintf("[mev-tendermint]: BroadcastSidecarTx() failed: isSideCarPeer is %t for peer %s, conversion was %t", isSidecarPeer, peer.ID(), okConv))
 		}
 
-		select {
-		case <-next.NextWaitChan():
-			// see the start of the for loop for nil check
-			next = next.Next()
-		case <-peer.Quit():
-			return
-		case <-memR.Quit():
-			return
+		if next != nil {
+			select {
+			case <-next.NextWaitChan():
+				// see the start of the for loop for nil check
+				next = next.Next()
+			case <-peer.Quit():
+				return
+			case <-memR.Quit():
+				return
+			}
 		}
 	}
 }
