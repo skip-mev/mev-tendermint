@@ -250,6 +250,7 @@ func (memR *Reactor) broadcastSidecarTxRoutine(peer p2p.Peer) {
 			case <-memR.sidecar.TxsWaitChan(memR.sidecar.HeightForFiringAuction()): // Wait until a tx is available in sidecar
 				// if a tx is available on sidecar, if fire is set too, then fire
 				fmt.Println("[mev-tendermint]: BroadcastSidecarTx() sidecar tx wait chan entered!")
+				fmt.Println("[mev-tendermint]: BroadcastSidecarTx() front of sidecar is:", memR.sidecar.TxsFront(memR.sidecar.HeightForFiringAuction()), "for height", memR.sidecar.HeightForFiringAuction())
 				if next = memR.sidecar.TxsFront(memR.sidecar.HeightForFiringAuction()); next == nil {
 					fmt.Println("[mev-tendermint]: BroadcastSidecarTx() next is nil after sidecar txs front()")
 					continue
@@ -264,8 +265,9 @@ func (memR *Reactor) broadcastSidecarTxRoutine(peer p2p.Peer) {
 			}
 		}
 
-		if scTx, okConv := next.Value.(*SidecarTx); okConv && isSidecarPeer {
-			fmt.Println("[mev-tendermint]: BroadcastSidecarTx() as sidecarTx to peer", peerID)
+		// if scTx, okConv := next.Value.(*SidecarTx); okConv && isSidecarPeer {
+		if scTx, okConv := next.Value.(*SidecarTx); okConv {
+			fmt.Println("[mev-tendermint]: BroadcastSidecarTx() OK as sidecarTx to peer", peerID)
 			if _, ok := scTx.senders.Load(peerID); !ok {
 				msg := protomem.MEVMessage{
 					Sum: &protomem.MEVMessage_Txs{
@@ -289,7 +291,7 @@ func (memR *Reactor) broadcastSidecarTxRoutine(peer p2p.Peer) {
 				fmt.Println(fmt.Sprintf("[mev-tendermint]: BroadcastSidecarTx() failed: trying to send back to a sidecar we've already sent it to %d", peerID))
 			}
 		} else {
-			fmt.Println(fmt.Sprintf("[mev-tendermint]: BroadcastSidecarTx() failed: isSideCarPeer is %t, conversion was %t", isSidecarPeer, okConv))
+			fmt.Println(fmt.Sprintf("[mev-tendermint]: BroadcastSidecarTx() failed: isSideCarPeer is %t for peer %d, conversion was %t", isSidecarPeer, peerID, okConv))
 		}
 
 		if next != nil {
