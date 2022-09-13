@@ -55,7 +55,7 @@ type PriorityTxSidecar interface {
 	Size(height int64) int
 
 	// TxsBytes returns the total size of all txs in the mempool.
-	TxsBytes() int64
+	TxsBytes(height int64) int64
 }
 
 // Mempool defines the mempool interface.
@@ -198,6 +198,8 @@ type Bundle struct {
 
 type HeightState struct {
 	maxBundleId int64
+	txsBytes    int64 // total size of sidecar, in bytes
+
 	// sync.Map: bundleId -> Bundle{
 	// // height int64
 	// // enforcedSize int64

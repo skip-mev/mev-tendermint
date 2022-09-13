@@ -111,10 +111,10 @@ func (blockExec *BlockExecutor) CreateProposalBlock(
 	blockExec.logger.Info(
 		"entering reap",
 		"height", height,
-		"sidecar_size", blockExec.sidecar.Size(),
+		"sidecar_size", blockExec.sidecar.Size(height),
 		"mempool_size", blockExec.mempool.Size(),
 	)
-	sidecarTxs := blockExec.sidecar.ReapMaxTxs()
+	sidecarTxs := blockExec.sidecar.ReapMaxTxs(height)
 	txs := blockExec.mempool.ReapMaxBytesMaxGas(maxDataBytes, maxGas, sidecarTxs)
 
 	return state.MakeBlock(height, txs, commit, evidence, proposerAddr)

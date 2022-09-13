@@ -20,7 +20,6 @@ type CListPriorityTxSidecar struct {
 	// Atomic integers
 	height                 int64 // the last block Update()'d to
 	heightForFiringAuction int64 // the height of the block to fire the auction for
-	txsBytes               int64 // total size of sidecar, in bytes
 
 	// notify listeners (ie. consensus) when txs are available
 	notifiedTxsAvailable bool
@@ -121,6 +120,16 @@ func (sc *CListPriorityTxSidecar) AddTx(tx types.Tx, txInfo TxInfo) error {
 		return ErrTxInCache
 	}
 
+	// load or store new heightstate
+	var hs *HeightState = &HeightState{
+		maxBundleId: 0,
+		txs:         clist.New(),
+	}
+	if hsLoad, loaded := sc.heightStates.LoadOrStore(txInfo.DesiredHeight, hs); loaded {
+		hsLoad := hsLoad.(*HeightState)
+		hs = hsLoad
+	}
+
 	scTx := &SidecarTx{
 		desiredHeight: txInfo.DesiredHeight,
 		tx:            tx,
@@ -141,7 +150,7 @@ func (sc *CListPriorityTxSidecar) AddTx(tx types.Tx, txInfo TxInfo) error {
 		}
 	}
 
-	// revert if tx asking to be included has an order greater/equal to size
+	// Revert if tx asking to be included has an order greater/equal to size
 	if txInfo.BundleOrder >= txInfo.BundleSize {
 		fmt.Println("[mev-tendermint]: AddTx() skip tx... trying to insert a tx for bundle at an order greater than the size of the bundle... THIS IS PROBABLY A FATAL ERROR")
 		return ErrTxMalformedForBundle{
@@ -156,19 +165,16 @@ func (sc *CListPriorityTxSidecar) AddTx(tx types.Tx, txInfo TxInfo) error {
 
 	var bundle *Bundle
 	// load existing bundle, or MAKE NEW if not
-	if hs, ok := sc.heightStates.Load(txInfo.DesiredHeight); ok {
-		hs := hs.(*HeightState)
-		existingBundle, _ := hs.bundles.LoadOrStore(txInfo.BundleId, &Bundle{
-			desiredHeight: txInfo.DesiredHeight,
-			bundleId:      txInfo.BundleId,
-			currSize:      int64(0),
-			enforcedSize:  txInfo.BundleSize,
-			// TODO: add from gossip info?
-			gasWanted:     int64(0),
-			orderedTxsMap: &sync.Map{},
-		})
-		bundle = existingBundle.(*Bundle)
-	}
+	existingBundle, _ := hs.bundles.LoadOrStore(txInfo.BundleId, &Bundle{
+		desiredHeight: txInfo.DesiredHeight,
+		bundleId:      txInfo.BundleId,
+		currSize:      int64(0),
+		enforcedSize:  txInfo.BundleSize,
+		// TODO: add from gossip info?
+		gasWanted:     int64(0),
+		orderedTxsMap: &sync.Map{},
+	})
+	bundle = existingBundle.(*Bundle)
 
 	// -------- BUNDLE SIZE CHECKS ---------
 
@@ -212,26 +218,19 @@ func (sc *CListPriorityTxSidecar) AddTx(tx types.Tx, txInfo TxInfo) error {
 
 	// -------- UPDATE MAX BUNDLE ---------
 
-	if hs, ok := sc.heightStates.Load(txInfo.DesiredHeight); ok {
-		hs := hs.(*HeightState)
-		if txInfo.BundleId >= hs.maxBundleId {
-			fmt.Println("[mev-tendermint]: AddTx(): updating maxBundleId to", txInfo.BundleId)
-			hs.maxBundleId = txInfo.BundleId
-		}
+	if txInfo.BundleId >= hs.maxBundleId {
+		fmt.Println("[mev-tendermint]: AddTx(): updating maxBundleId to", txInfo.BundleId)
+		hs.maxBundleId = txInfo.BundleId
 	}
 
 	// -------- TX INSERTION INTO MAIN TXS LIST ---------
 	// -------- TODO: In the future probably want to refactor to not have txs clist ---------
 
-	if hs, ok := sc.heightStates.Load(txInfo.DesiredHeight); ok {
-		hs := hs.(*HeightState)
-		e := hs.txs.PushBack(scTx)
-		hs.txsMap.Store(TxKey(scTx.tx), e)
+	e := hs.txs.PushBack(scTx)
+	hs.txsMap.Store(TxKey(scTx.tx), e)
 
-		// TODO: this should be height based too!
-		atomic.AddInt64(&sc.txsBytes, int64(len(scTx.tx)))
-		fmt.Println("[mev-tendermint]: AddTx(): actually added the tx to the sc.txs CList, sidecar size is now", sc.Size(txInfo.DesiredHeight))
-	}
+	atomic.AddInt64(&hs.txsBytes, int64(len(scTx.tx)))
+	fmt.Println("[mev-tendermint]: AddTx(): actually added the tx to the sc.txs CList, sidecar size is now", sc.Size(txInfo.DesiredHeight))
 
 	// TODO: in the future, refactor to only notifyTxsAvailable when we have at least one full bundle
 	// if sc.Size() > 0 {
@@ -281,6 +280,13 @@ func (sc *CListPriorityTxSidecar) Update(
 	sc.notifiedTxsAvailable = false
 	sc.heightForFiringAuction = height + 1
 
+	// create new height state if doesn't exist
+	var hs *HeightState = &HeightState{
+		maxBundleId: 0,
+		txs:         clist.New(),
+	}
+	sc.heightStates.LoadOrStore(sc.heightForFiringAuction, hs)
+
 	if hs, ok := sc.heightStates.Load(height); ok {
 		hs := hs.(*HeightState)
 		for i, tx := range txs {
@@ -302,9 +308,6 @@ func (sc *CListPriorityTxSidecar) Update(
 // Lock() must be help by the caller during execution.
 func (sc *CListPriorityTxSidecar) Flush(height int64) {
 	sc.cache.Reset()
-
-	// TODO: THIS IS WRONG
-	_ = atomic.SwapInt64(&sc.txsBytes, 0)
 
 	sc.notifiedTxsAvailable = false
 
@@ -377,9 +380,12 @@ func (sc *CListPriorityTxSidecar) GetCurrBundleSize(height int64, bundleId int64
 }
 
 // Safe for concurrent use by multiple goroutines.
-func (sc *CListPriorityTxSidecar) TxsBytes() int64 {
-	// TODO: fix!
-	return atomic.LoadInt64(&sc.txsBytes)
+func (sc *CListPriorityTxSidecar) TxsBytes(height int64) int64 {
+	if hs, ok := sc.heightStates.Load(height); ok {
+		hs := hs.(*HeightState)
+		return atomic.LoadInt64(&hs.txsBytes)
+	}
+	return 0
 }
 
 // Called from:
@@ -391,7 +397,7 @@ func (sc *CListPriorityTxSidecar) removeTx(height int64, tx types.Tx, elem *clis
 		elem.DetachPrev()
 
 		hs.txsMap.Delete(TxKey(tx))
-		atomic.AddInt64(&sc.txsBytes, int64(-len(tx)))
+		atomic.AddInt64(&hs.txsBytes, int64(-len(tx)))
 
 		if removeFromCache {
 			sc.cache.Remove(tx)
@@ -416,6 +422,7 @@ func (sc *CListPriorityTxSidecar) ReapMaxTxs(height int64) []*MempoolTx {
 
 		memTxs := make([]*MempoolTx, 0, hs.txs.Len())
 
+		// Return immediately if no bundles
 		if (hs.txs.Len() == 0) || (sc.NumBundles(height) == 0) {
 			return memTxs
 		}
