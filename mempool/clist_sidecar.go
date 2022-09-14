@@ -29,7 +29,7 @@ type CListPriorityTxSidecar struct {
 	txs    *clist.CList // concurrent linked-list of good SidecarTxs
 	txsMap sync.Map
 
-	// sync.Map: bundleId -> Bundle{
+	// sync.Map: Key{height, bundleId} -> Bundle{
 	// // height int64
 	// // enforcedSize int64
 	// // currSize int64
@@ -47,6 +47,10 @@ type CListPriorityTxSidecar struct {
 }
 
 var _ PriorityTxSidecar = &CListPriorityTxSidecar{}
+
+type Key struct {
+	height, bundleId int64
+}
 
 // NewCListSidecar returns a new sidecar with the given configuration
 func NewCListSidecar(
@@ -66,7 +70,7 @@ func (sc *CListPriorityTxSidecar) PrettyPrintBundles() {
 	fmt.Println(fmt.Sprintf("-------------"))
 	for bundleIdIter := 0; bundleIdIter <= int(sc.maxBundleId); bundleIdIter++ {
 		bundleIdIter := int64(bundleIdIter)
-		if bundle, ok := sc.bundles.Load(bundleIdIter); ok {
+		if bundle, ok := sc.bundles.Load(Key{sc.heightForFiringAuction, bundleIdIter}); ok {
 			bundle := bundle.(*Bundle)
 			fmt.Println(fmt.Sprintf("BUNDLE ID: %d", bundleIdIter))
 
@@ -152,7 +156,7 @@ func (sc *CListPriorityTxSidecar) AddTx(tx types.Tx, txInfo TxInfo) error {
 	// -------- BASIC CHECKS ON TX INFO ---------
 
 	// Can't add transactions asking to be included in a height for auction we're not on
-	if txInfo.DesiredHeight != sc.heightForFiringAuction {
+	if txInfo.DesiredHeight < sc.heightForFiringAuction {
 		fmt.Println(fmt.Sprintf("[mev-tendermint]: AddTx() skip tx... trying to add a tx for height %d whereas height for curr auction is %d", txInfo.DesiredHeight, sc.heightForFiringAuction))
 		return ErrWrongHeight{
 			int(txInfo.DesiredHeight),
@@ -175,7 +179,7 @@ func (sc *CListPriorityTxSidecar) AddTx(tx types.Tx, txInfo TxInfo) error {
 
 	var bundle *Bundle
 	// load existing bundle, or MAKE NEW if not
-	existingBundle, _ := sc.bundles.LoadOrStore(txInfo.BundleId, &Bundle{
+	existingBundle, _ := sc.bundles.LoadOrStore(Key{txInfo.DesiredHeight, txInfo.BundleId}, &Bundle{
 		desiredHeight: txInfo.DesiredHeight,
 		bundleId:      txInfo.BundleId,
 		currSize:      int64(0),
@@ -282,20 +286,47 @@ func (sc *CListPriorityTxSidecar) Update(
 	sc.heightForFiringAuction = height + 1
 
 	for i, tx := range txs {
-		if _, ok := sc.txsMap.Load(TxKey(tx)); ok {
-			fmt.Println("[mev-tendermint]: on sidecar Update(), found tx in sidecar!")
+		if e, ok := sc.txsMap.Load(TxKey(tx)); ok {
+			fmt.Println(fmt.Sprintf("[mev-tendermint]: on sidecar Update(), found COMMITTED tx %.20q in sidecar, removing!", tx))
 			if deliverTxResponses[i].Code == abci.CodeTypeOK {
 				fmt.Println("... and was valid!")
+			} else {
+				fmt.Println("... and was invalid!")
 			}
-			fmt.Println(tx)
+			sc.removeTx(tx, e.(*clist.CElement), false)
 		}
 	}
 
-	sc.Flush()
+	// TODO: cache reset correct?
+	sc.cache.Reset()
+	sc.maxBundleId = 0
+
+	// remove from txs list and txmap
+	for e := sc.txs.Front(); e != nil; e = e.Next() {
+		scTx := e.Value.(*SidecarTx)
+		if scTx.desiredHeight <= height {
+			fmt.Println(fmt.Sprintf("[mev-tendermint]: on sidecar Update(), found UNCOMMITTED tx %.20q in sidecar, removing! height for tx is %d, and updating to height %d", scTx.tx, scTx.desiredHeight, height))
+			tx := scTx.tx
+			sc.removeTx(tx, e, false)
+		}
+	}
+
+	// remove the bundles
+	sc.bundles.Range(func(key, _ interface{}) bool {
+		if bundle, ok := sc.bundles.Load(key); ok {
+			bundle := bundle.(*Bundle)
+			if bundle.desiredHeight <= height {
+				fmt.Println(fmt.Sprintf("[mev-tendermint]: on sidecar Update(), removing bundle with id %d in sidecar! height for bundle is %d, and updating to height %d", bundle.bundleId, bundle.desiredHeight, height))
+				sc.bundles.Delete(key)
+			}
+		}
+		return true
+	})
 
 	return nil
 }
 
+// Lock() must be help by the caller during execution.
 // Lock() must be help by the caller during execution.
 func (sc *CListPriorityTxSidecar) Flush() {
 	sc.cache.Reset()
@@ -348,7 +379,7 @@ func (sc *CListPriorityTxSidecar) HeightForFiringAuction() int64 {
 
 // Safe for concurrent use by multiple goroutines.
 func (sc *CListPriorityTxSidecar) GetEnforcedBundleSize(bundleId int64) int {
-	if bundle, ok := sc.bundles.Load(bundleId); ok {
+	if bundle, ok := sc.bundles.Load(Key{sc.heightForFiringAuction, bundleId}); ok {
 		bundle := bundle.(*Bundle)
 		return int(bundle.enforcedSize)
 	} else {
@@ -359,7 +390,7 @@ func (sc *CListPriorityTxSidecar) GetEnforcedBundleSize(bundleId int64) int {
 
 // Safe for concurrent use by multiple goroutines.
 func (sc *CListPriorityTxSidecar) GetCurrBundleSize(bundleId int64) int {
-	if bundle, ok := sc.bundles.Load(bundleId); ok {
+	if bundle, ok := sc.bundles.Load(Key{sc.heightForFiringAuction, bundleId}); ok {
 		bundle := bundle.(*Bundle)
 		return int(bundle.currSize)
 	} else {
@@ -409,7 +440,7 @@ func (sc *CListPriorityTxSidecar) ReapMaxTxs() []*MempoolTx {
 	for bundleIdIter := 0; bundleIdIter <= int(sc.maxBundleId); bundleIdIter++ {
 		bundleIdIter := int64(bundleIdIter)
 
-		if bundle, ok := sc.bundles.Load(bundleIdIter); ok {
+		if bundle, ok := sc.bundles.Load(Key{sc.heightForFiringAuction, bundleIdIter}); ok {
 			bundle := bundle.(*Bundle)
 			bundleOrderedTxsMap := bundle.orderedTxsMap
 
