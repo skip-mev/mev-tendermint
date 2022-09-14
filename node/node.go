@@ -550,12 +550,13 @@ func createSwitch(config *cfg.Config,
 	nodeKey *p2p.NodeKey,
 	p2pLogger log.Logger) *p2p.Switch {
 	peerList := splitAndTrimEmpty(config.Sidecar.PersonalPeerIDs, ",", " ")
-	if !contains(peerList, config.Sidecar.RelayerID) {
+
+	if !contains(peerList, config.Sidecar.RelayerID) && config.Sidecar.RelayerID != "" {
 		peerList = append(peerList, config.Sidecar.RelayerID)
 	}
 	sidecarPeers, err := p2p.NewSidecarPeers(peerList)
 	if err != nil {
-		panic("Problem with peer initialization")
+		p2pLogger.Error(fmt.Sprintf("Error initializing sidecar peers: %s", err))
 	}
 
 	sw := p2p.NewSwitch(
@@ -833,6 +834,9 @@ func NewNode(config *cfg.Config,
 	transport, peerFilters := createTransport(config, nodeInfo, nodeKey, proxyApp)
 
 	// Setup Switch.
+	if config.Sidecar.RelayerID == "" {
+		logger.Error("Relayer ID not set -- Will not participate in mev auctions")
+	}
 	p2pLogger := logger.With("module", "p2p")
 	sw := createSwitch(
 		config, transport, p2pMetrics, peerFilters, mempoolReactor, bcReactor,
