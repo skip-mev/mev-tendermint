@@ -249,6 +249,8 @@ func (blockExec *BlockExecutor) Commit(
 		"committed state",
 		"height", block.Height,
 		"num_txs", len(block.Txs),
+		"mempool_size", blockExec.mempool.Size(),
+		"sidecar_size", blockExec.sidecar.Size(),
 		"app_hash", fmt.Sprintf("%X", res.Data),
 	)
 
