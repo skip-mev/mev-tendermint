@@ -306,7 +306,7 @@ func TestSpecificAddTxsToMultipleBundles(t *testing.T) {
 
 	// only one since no txs in first
 	{
-		// bundleSize, bundleHeight, bundleId
+		// bundleSize, bundleHeight, bundleId, peerID
 		bundles := []testBundleInfo{
 			{0, 1, 0, 0},
 			{5, 1, 1, 0},
@@ -317,16 +317,16 @@ func TestSpecificAddTxsToMultipleBundles(t *testing.T) {
 		sidecar.Flush()
 	}
 
-	// only one for first since later two out of range
+	// three bundles
 	{
-		// bundleSize, bundleHeight, bundleId
+		// bundleSize, bundleHeight, bundleId, peerID
 		bundles := []testBundleInfo{
 			{5, 1, 0, 0},
 			{5, 5, 1, 0},
 			{5, 10, 1, 0},
 		}
 		addBundlesToSidecar(t, sidecar, bundles, UnknownPeerID)
-		assert.Equal(t, 1, sidecar.NumBundles(), "Got %d bundles, expected %d",
+		assert.Equal(t, 3, sidecar.NumBundles(), "Got %d bundles, expected %d",
 			sidecar.NumBundles(), 1)
 		sidecar.Flush()
 	}
@@ -758,7 +758,10 @@ func TestSidecarUpdate(t *testing.T) {
 
 		err := sidecar.Update(0, []types.Tx{[]byte{0x02}}, abciResponses(1, abci.CodeTypeOK))
 		require.NoError(t, err)
-		assert.Zero(t, sidecar.Size())
+		require.Equal(t, 2, sidecar.Size(), "foo with a newline should be written")
+		err = sidecar.Update(1, []types.Tx{[]byte{0x02}}, abciResponses(1, abci.CodeTypeOK))
+		require.NoError(t, err)
+		require.Equal(t, 0, sidecar.Size(), "foo with a newline should be written")
 	}
 }
 

@@ -239,7 +239,6 @@ func (memR *Reactor) broadcastSidecarTxRoutine(peer p2p.Peer) {
 	for {
 		// In case of both next.NextWaitChan() and peer.Quit() are variable at the same time
 		if !memR.IsRunning() || !peer.IsRunning() {
-			fmt.Println("memR or peer dead")
 			return
 		}
 		// This happens because the CElement we were looking at got garbage
