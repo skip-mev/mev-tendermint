@@ -164,7 +164,12 @@ func (memR *Reactor) GetChannels() []*p2p.ChannelDescriptor {
 func (memR *Reactor) AddPeer(peer p2p.Peer) {
 	if memR.config.Broadcast {
 		go memR.broadcastMempoolTxRoutine(peer)
-		go memR.broadcastSidecarTxRoutine(peer)
+		fmt.Println("Starting mempool tx broadcast routine for ", peer.ID())
+		// go memR.broadcastSidecarTxRoutine(peer)
+		if peer.IsSidecarPeer() {
+			fmt.Println("Starting sidecar tx broadcast routine for ", peer.ID())
+			go memR.broadcastSidecarTxRoutine(peer)
+		}
 	}
 }
 
@@ -185,7 +190,7 @@ func (memR *Reactor) Receive(chID byte, src p2p.Peer, msgBytes []byte) {
 			memR.Switch.StopPeerForError(src, err)
 			return
 		}
-		memR.Logger.Debug("Receive Mempool Tx", "src", src, "chId", chID, "msg", msg)
+		memR.Logger.Info("Received Mempool Tx", "src ", src.ID, "chId", chID, "msg", msg)
 		txInfo := TxInfo{SenderID: memR.ids.GetForPeer(src)}
 		if src != nil {
 			txInfo.SenderP2PID = src.ID()
@@ -206,6 +211,7 @@ func (memR *Reactor) Receive(chID byte, src p2p.Peer, msgBytes []byte) {
 			memR.Switch.StopPeerForError(src, err)
 			return
 		}
+		fmt.Println("[mev-tendermint] Reactor (receive) RECEIVED TX FROM ", src.ID())
 		// memR.Logger.Debug("Receive Sidecar Tx", "src", src, "chId", chID, "msg", msg)
 		txInfo := TxInfo{SenderID: memR.ids.GetForPeer(src), DesiredHeight: msg.DesiredHeight, BundleId: msg.BundleId, BundleOrder: msg.BundleOrder, BundleSize: msg.BundleSize}
 		if src != nil {
