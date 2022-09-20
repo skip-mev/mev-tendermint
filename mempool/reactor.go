@@ -358,6 +358,8 @@ func (memR *Reactor) broadcastMempoolTxRoutine(peer p2p.Peer) {
 				if err != nil {
 					panic(err)
 				}
+				fmt.Println("[tendermint] REACTOR MEMPOOL BROADCAST: (5) peer actually transmitting to ", peer.ID())
+				fmt.Println("... at TIME ", tmtime.Now())
 				success := peer.Send(MempoolChannel, bz)
 				if !success {
 					fmt.Println("PEER IS SLEEPING 4??", peerCatchupSleepIntervalMS*time.Millisecond)
