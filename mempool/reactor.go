@@ -154,7 +154,7 @@ func (memR *Reactor) GetChannels() []*p2p.ChannelDescriptor {
 		},
 		{
 			ID:                  SidecarChannel,
-			Priority:            5,
+			Priority:            10,
 			RecvMessageCapacity: batchMsg.Size(),
 		},
 	}
@@ -192,7 +192,8 @@ func (memR *Reactor) Receive(chID byte, src p2p.Peer, msgBytes []byte) {
 			txInfo.SenderP2PID = src.ID()
 		}
 		for _, tx := range msg.Txs {
-
+			fmt.Println(fmt.Sprintf("[mev-tendermint] Reactor (receive): received mempool tx %.20q!", tx))
+			fmt.Println("... at TIME ", tmtime.Now())
 			err = memR.mempool.CheckTx(tx, nil, txInfo)
 			if err == ErrTxInCache {
 				memR.Logger.Debug("Tx already exists in cache", "tx", txID(tx))
@@ -214,7 +215,7 @@ func (memR *Reactor) Receive(chID byte, src p2p.Peer, msgBytes []byte) {
 		}
 		for _, tx := range msg.Txs {
 			fmt.Println(fmt.Sprintf("[mev-tendermint] Reactor (receive): received sidecar tx %.20q! desiredHeight %d, bundleId %d, bundleOrder %d, bundleSize %d", tx, msg.DesiredHeight, msg.BundleId, msg.BundleOrder, msg.BundleSize))
-			fmt.Println("... at time ", tmtime.Now())
+			fmt.Println("... at TIME ", tmtime.Now())
 			err = memR.sidecar.AddTx(tx, txInfo)
 			if err == ErrTxInCache {
 				memR.Logger.Debug("SidecarTx already exists in cache", "tx", txID(tx))

@@ -111,7 +111,7 @@ func (blockExec *BlockExecutor) CreateProposalBlock(
 
 	blockExec.logger.Info(
 		"entering reap",
-		"time", tmtime.Now(),
+		"TIME", tmtime.Now(),
 		"height", height,
 		"sidecar_size", blockExec.sidecar.Size(),
 		"mempool_size", blockExec.mempool.Size(),
