@@ -192,7 +192,7 @@ func (memR *Reactor) Receive(chID byte, src p2p.Peer, msgBytes []byte) {
 			txInfo.SenderP2PID = src.ID()
 		}
 		for _, tx := range msg.Txs {
-			fmt.Println(fmt.Sprintf("[mev-tendermint] Reactor (receive): received mempool tx %.20q!", tx))
+			fmt.Println(fmt.Sprintf("[mev-tendermint] Reactor (receive): received mempool tx %s!", tx))
 			fmt.Println("... at TIME ", tmtime.Now())
 			err = memR.mempool.CheckTx(tx, nil, txInfo)
 			if err == ErrTxInCache {
@@ -358,7 +358,7 @@ func (memR *Reactor) broadcastMempoolTxRoutine(peer p2p.Peer) {
 				if err != nil {
 					panic(err)
 				}
-				fmt.Println("[tendermint] REACTOR MEMPOOL BROADCAST: (5) peer actually transmitting to ", peer.ID())
+				fmt.Printf("[tendermint] REACTOR MEMPOOL BROADCAST (5) for tx %s\n peer actually transmitting to %s\n", memTx.tx, peer.ID())
 				fmt.Println("... at TIME ", tmtime.Now())
 				success := peer.Send(MempoolChannel, bz)
 				if !success {
