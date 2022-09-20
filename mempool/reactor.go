@@ -263,8 +263,6 @@ func (memR *Reactor) broadcastSidecarTxRoutine(peer p2p.Peer) {
 		}
 
 		if scTx, okConv := next.Value.(*SidecarTx); okConv && isSidecarPeer {
-			fmt.Printf("[mev-tendermint]: BroadcastSidecarTx() as sidecarTx %.20q to peer %s", scTx.tx, peer.ID())
-			fmt.Println("... at TIME ", tmtime.Now())
 			if _, ok := scTx.senders.Load(peerID); !ok {
 				msg := protomem.MEVMessage{
 					Sum: &protomem.MEVMessage_Txs{
@@ -279,8 +277,11 @@ func (memR *Reactor) broadcastSidecarTxRoutine(peer p2p.Peer) {
 				if err != nil {
 					panic(err)
 				}
+				fmt.Printf("[mev-tendermint]: BroadcastSidecarTx() as sidecarTx %.20q to peer %s", scTx.tx, peer.ID())
+				fmt.Println("... at TIME ", tmtime.Now())
 				success := peer.Send(SidecarChannel, bz)
 				if !success {
+					fmt.Println("PEER IS SLEEPING 1??", peerCatchupSleepIntervalMS*time.Millisecond)
 					time.Sleep(peerCatchupSleepIntervalMS * time.Millisecond)
 					continue
 				}
@@ -335,12 +336,14 @@ func (memR *Reactor) broadcastMempoolTxRoutine(peer p2p.Peer) {
 			// different every time due to us using a map. Sometimes other reactors
 			// will be initialized before the consensus reactor. We should wait a few
 			// milliseconds and retry.
+			fmt.Println("PEER IS SLEEPING 2??", peerCatchupSleepIntervalMS*time.Millisecond)
 			time.Sleep(peerCatchupSleepIntervalMS * time.Millisecond)
 			continue
 		}
 		// Allow for a lag of 1 block.
 		if memTx, okConv := next.Value.(*MempoolTx); okConv {
 			if peerState.GetHeight() < memTx.Height()-1 {
+				fmt.Println("PEER IS SLEEPING 3??", peerCatchupSleepIntervalMS*time.Millisecond)
 				time.Sleep(peerCatchupSleepIntervalMS * time.Millisecond)
 				continue
 			}
@@ -357,6 +360,7 @@ func (memR *Reactor) broadcastMempoolTxRoutine(peer p2p.Peer) {
 				}
 				success := peer.Send(MempoolChannel, bz)
 				if !success {
+					fmt.Println("PEER IS SLEEPING 4??", peerCatchupSleepIntervalMS*time.Millisecond)
 					time.Sleep(peerCatchupSleepIntervalMS * time.Millisecond)
 					continue
 				}
