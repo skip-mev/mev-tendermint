@@ -14,6 +14,7 @@ import (
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	"github.com/tendermint/tendermint/proxy"
 	"github.com/tendermint/tendermint/types"
+	tmtime "github.com/tendermint/tendermint/types/time"
 )
 
 //-----------------------------------------------------------------------------
@@ -110,6 +111,7 @@ func (blockExec *BlockExecutor) CreateProposalBlock(
 
 	blockExec.logger.Info(
 		"entering reap",
+		"time", tmtime.Now(),
 		"height", height,
 		"sidecar_size", blockExec.sidecar.Size(),
 		"mempool_size", blockExec.mempool.Size(),

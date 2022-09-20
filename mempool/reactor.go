@@ -13,6 +13,7 @@ import (
 	"github.com/tendermint/tendermint/p2p"
 	protomem "github.com/tendermint/tendermint/proto/tendermint/mempool"
 	"github.com/tendermint/tendermint/types"
+	tmtime "github.com/tendermint/tendermint/types/time"
 )
 
 const (
@@ -213,7 +214,7 @@ func (memR *Reactor) Receive(chID byte, src p2p.Peer, msgBytes []byte) {
 		}
 		for _, tx := range msg.Txs {
 			fmt.Println(fmt.Sprintf("[mev-tendermint] Reactor (receive): received sidecar tx %.20q! desiredHeight %d, bundleId %d, bundleOrder %d, bundleSize %d", tx, msg.DesiredHeight, msg.BundleId, msg.BundleOrder, msg.BundleSize))
-
+			fmt.Println("... at time ", tmtime.Now())
 			err = memR.sidecar.AddTx(tx, txInfo)
 			if err == ErrTxInCache {
 				memR.Logger.Debug("SidecarTx already exists in cache", "tx", txID(tx))
