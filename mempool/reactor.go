@@ -250,9 +250,9 @@ func (memR *Reactor) broadcastSidecarTxRoutine(peer p2p.Peer) {
 			select {
 			case <-memR.sidecar.TxsWaitChan(): // Wait until a tx is available in sidecar
 				// if a tx is available on sidecar, if fire is set too, then fire
-				fmt.Println("[mev-tendermint]: BroadcastSidecarTx() sidecar tx wait chan entered!")
+				// fmt.Println("[mev-tendermint]: BroadcastSidecarTx() sidecar tx wait chan entered!")
 				if next = memR.sidecar.TxsFront(); next == nil {
-					fmt.Println("[mev-tendermint]: BroadcastSidecarTx() next is nil after sidecar txs front()")
+					// fmt.Println("[mev-tendermint]: BroadcastSidecarTx() next is nil after sidecar txs front()")
 					continue
 				}
 			case <-peer.Quit():
