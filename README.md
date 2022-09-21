@@ -1,161 +1,55 @@
-# Tendermint
 
-![banner](docs/tendermint-core-image.jpg)
-
-[Byzantine-Fault Tolerant](https://en.wikipedia.org/wiki/Byzantine_fault_tolerance)
-[State Machines](https://en.wikipedia.org/wiki/State_machine_replication).
-Or [Blockchain](<https://en.wikipedia.org/wiki/Blockchain_(database)>), for short.
-
-[![version](https://img.shields.io/github/tag/tendermint/tendermint.svg)](https://github.com/tendermint/tendermint/releases/latest)
-[![API Reference](https://camo.githubusercontent.com/915b7be44ada53c290eb157634330494ebe3e30a/68747470733a2f2f676f646f632e6f72672f6769746875622e636f6d2f676f6c616e672f6764646f3f7374617475732e737667)](https://pkg.go.dev/github.com/tendermint/tendermint)
-[![Go version](https://img.shields.io/badge/go-1.15-blue.svg)](https://github.com/moovweb/gvm)
-[![Discord chat](https://img.shields.io/discord/669268347736686612.svg)](https://discord.gg/AzefAFd)
-[![license](https://img.shields.io/github/license/tendermint/tendermint.svg)](https://github.com/tendermint/tendermint/blob/master/LICENSE)
-[![tendermint/tendermint](https://tokei.rs/b1/github/tendermint/tendermint?category=lines)](https://github.com/tendermint/tendermint)
-[![Sourcegraph](https://sourcegraph.com/github.com/tendermint/tendermint/-/badge.svg)](https://sourcegraph.com/github.com/tendermint/tendermint?badge)
-
-| Branch | Tests                                                                                                                                                                                                                                                  | Coverage                                                                                                                             | Linting                                                                    |
-| ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------- |
-| master | [![CircleCI](https://circleci.com/gh/tendermint/tendermint/tree/master.svg?style=shield)](https://circleci.com/gh/tendermint/tendermint/tree/master) </br> ![Tests](https://github.com/tendermint/tendermint/workflows/Tests/badge.svg?branch=master) | [![codecov](https://codecov.io/gh/tendermint/tendermint/branch/master/graph/badge.svg)](https://codecov.io/gh/tendermint/tendermint) | ![Lint](https://github.com/tendermint/tendermint/workflows/Lint/badge.svg) |
-
-Tendermint Core is Byzantine Fault Tolerant (BFT) middleware that takes a state transition machine - written in any programming language -
-and securely replicates it on many machines.
-
-For protocol details, see [the specification](https://github.com/tendermint/spec).
-
-For detailed analysis of the consensus protocol, including safety and liveness proofs,
-see our recent paper, "[The latest gossip on BFT consensus](https://arxiv.org/abs/1807.04938)".
-
-## Releases
-
-Please do not depend on master as your production branch. Use [releases](https://github.com/tendermint/tendermint/releases) instead.
-
-Tendermint is being used in production in both private and public environments,
-most notably the blockchains of the [Cosmos Network](https://cosmos.network/).
-However, we are still making breaking changes to the protocol and the APIs and have not yet released v1.0.
-See below for more details about [versioning](#versioning).
-
-In any case, if you intend to run Tendermint in production, we're happy to help. You can
-contact us [over email](mailto:hello@interchain.berlin) or [join the chat](https://discord.gg/AzefAFd).
-
-## Security
-
-To report a security vulnerability, see our [bug bounty
-program](https://hackerone.com/tendermint). 
-For examples of the kinds of bugs we're looking for, see [our security policy](SECURITY.md)
-
-We also maintain a dedicated mailing list for security updates. We will only ever use this mailing list
-to notify you of vulnerabilities and fixes in Tendermint Core. You can subscribe [here](http://eepurl.com/gZ5hQD).
-
-## Minimum requirements
-
-| Requirement | Notes            |
-| ----------- | ---------------- |
-| Go version  | Go1.15 or higher |
-
-## Documentation
-
-Complete documentation can be found on the [website](https://docs.tendermint.com/master/).
-
-### Install
-
-See the [install instructions](/docs/introduction/install.md).
-
-### Quick Start
-
-- [Single node](/docs/introduction/quick-start.md)
-- [Local cluster using docker-compose](/docs/networks/docker-compose.md)
-- [Remote cluster using Terraform and Ansible](/docs/networks/terraform-and-ansible.md)
-- [Join the Cosmos testnet](https://cosmos.network/testnet)
-
-## Contributing
-
-Please abide by the [Code of Conduct](CODE_OF_CONDUCT.md) in all interactions.
-
-Before contributing to the project, please take a look at the [contributing guidelines](CONTRIBUTING.md)
-and the [style guide](STYLE_GUIDE.md). You may also find it helpful to read the
-[specifications](https://github.com/tendermint/spec), watch the [Developer Sessions](/docs/DEV_SESSIONS.md), 
-and familiarize yourself with our
-[Architectural Decision Records](https://github.com/tendermint/tendermint/tree/master/docs/architecture).
-
-## Versioning
-
-### Semantic Versioning
-
-Tendermint uses [Semantic Versioning](http://semver.org/) to determine when and how the version changes.
-According to SemVer, anything in the public API can change at any time before version 1.0.0
-
-To provide some stability to Tendermint users in these 0.X.X days, the MINOR version is used
-to signal breaking changes across a subset of the total public API. This subset includes all
-interfaces exposed to other processes (cli, rpc, p2p, etc.), but does not
-include the Go APIs.
-
-That said, breaking changes in the following packages will be documented in the
-CHANGELOG even if they don't lead to MINOR version bumps:
-
-- crypto
-- config
-- libs
-    - bech32
-    - bits
-    - bytes
-    - json
-    - log
-    - math
-    - net
-    - os
-    - protoio
-    - rand
-    - sync
-    - strings
-    - service
-- node
-- rpc/client
-- types
-
-### Upgrades
-
-In an effort to avoid accumulating technical debt prior to 1.0.0,
-we do not guarantee that breaking changes (ie. bumps in the MINOR version)
-will work with existing Tendermint blockchains. In these cases you will
-have to start a new blockchain, or write something custom to get the old
-data into the new chain. However, any bump in the PATCH version should be 
-compatible with existing blockchain histories.
+![](https://s3.us-west-2.amazonaws.com/secure.notion-static.com/33ea763f-bfa3-4c65-ad35-ad0ee1fd312d/Group_6.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIAT73L2G45EIPT3X45%2F20220921%2Fus-west-2%2Fs3%2Faws4_request&X-Amz-Date=20220921T004412Z&X-Amz-Expires=3600&X-Amz-Signature=da5c1352a65fb61d2fc143d8c1293689fe7e1cd21cd834516338f2812d66cf84&X-Amz-SignedHeaders=host&x-id=GetObject)
 
 
-For more information on upgrading, see [UPGRADING.md](./UPGRADING.md).
+# mev-tendermint
 
-### Supported Versions
 
-Because we are a small core team, we only ship patch updates, including security updates,
-to the most recent minor release and the second-most recent minor release. Consequently,
-we strongly recommend keeping Tendermint up-to-date. Upgrading instructions can be found
-in [UPGRADING.md](./UPGRADING.md).
+_**The purpose of mev-tendermint is to expose a private mempool (the “sidecar”) containing atomic bundles of txs and gossips bundles of transactions specifically to the proposer of the next block.**_
 
-## Resources
 
-### Tendermint Core
+---
 
-For details about the blockchain data structures and the p2p protocols, see the
-[Tendermint specification](https://docs.tendermint.com/master/spec/).
 
-For details on using the software, see the [documentation](/docs/) which is also
-hosted at: <https://docs.tendermint.com/master/>
+### Design Goals
 
-### Tools
 
-Benchmarking is provided by [`tm-load-test`](https://github.com/informalsystems/tm-load-test).
-Additional tooling can be found in [/docs/tools](/docs/tools).
+The design goals of MEV-Tendermint is to allow & preserve:
 
-### Applications
+1. 🔒  **Privacy** for users submitting bundles
+2. 🎁  **Atomicity** for bundles of transactions
+3. 🐎  **Priority** guaranteed for highest paying bundles
+4. 🏛  **No new security assumptions** for validators and nodes running MEV-Tendermint, including removing the need for ingress or egress for locked-down validators. No new network assumptions are made
+5. 🔄  **On-chain transaction submission** via gossip, no need for off-chain submission like HTTP endpoints, endpoint querying, etc
+6. 💨  **Impossible to slow down block time**, i.e. no part of mev-tendermint introduces consensus delays
 
-- [Cosmos SDK](http://github.com/cosmos/cosmos-sdk); a cryptocurrency application framework
-- [Ethermint](http://github.com/cosmos/ethermint); Ethereum on Tendermint
-- [Many more](https://tendermint.com/ecosystem)
+### Components
 
-### Research
 
-- [The latest gossip on BFT consensus](https://arxiv.org/abs/1807.04938)
-- [Master's Thesis on Tendermint](https://atrium.lib.uoguelph.ca/xmlui/handle/10214/9769)
-- [Original Whitepaper: "Tendermint: Consensus Without Mining"](https://tendermint.com/static/docs/tendermint.pdf)
-- [Blog](https://blog.cosmos.network/tendermint/home)
+**#1 The Sidecar**
+
+- A separate, private mempool that respects `bundles` of transactions
+	- Relevant files: `mempool/clist_sidecar.go`
+- Has **selective gossiping**, meaning it only gossips:
+	- Over its own `SidecarChannel`
+	- **Only** to peers that are added as its `personal_peers`
+		- In practice, `personal_peers` are set to be:
+			- Sentry node → **validator** & **Skip sentinel**
+			- Validator node → **only its sentries**
+
+**#2 The Mempool Reactor**
+
+- The mempool reactor now supports a `SidecarChannel` over which only gossip for `SidecarTxs` can be handled
+	- Relevant files: `mempool/reactor.go`
+	- `SidecarTxs` have new metadata that is transmitted over gossip, including
+		- `BundleId` - the **global** order of the bundle this `SidecarTx` is in, per height
+		- `BundleOrder` - the **local** order of this `SidecarTx` within its bundle
+		- `DesiredHeight` - the height of the bundle this `SidecarTx` was submitted for
+		- `BundleSize` - the total size of the bundle this `SidecarcarTx` is in
+		- `TotalFee` - the total fee of the bundle this `SidecarTx` is in
+	- This metadata is submitted at a transaction level as **tendermint currently is not designed to broadcast batches of transactions**
+
+**#3 Selective Reaping**
+
+- The regular mempool now considers `sidecarTxs` (i.e. bundles) in addition to regular txs, and orders the former before the latter
+	- Relevant files: `mempool/clist_mempool.go`, `state/execution.go`
