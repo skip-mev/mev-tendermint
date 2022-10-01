@@ -14,6 +14,8 @@ import (
 const (
 	MempoolChannel = byte(0x30)
 
+	SidecarChannel = byte(0x80)
+
 	// PeerCatchupSleepIntervalMS defines how much time to sleep if a peer is behind
 	PeerCatchupSleepIntervalMS = 100
 
