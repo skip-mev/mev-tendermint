@@ -344,3 +344,5 @@ func NewPeer(t NewPeerT) *Peer {
 
 	return mock
 }
+
+func (_m *Peer) IsSidecarPeer() bool           { return _m.SidecarPeer }

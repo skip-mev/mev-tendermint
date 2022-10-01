@@ -13,7 +13,7 @@ import (
 func BenchmarkReap(b *testing.B) {
 	app := kvstore.NewApplication()
 	cc := proxy.NewLocalClientCreator(app)
-	mp, cleanup := newMempoolWithApp(cc)
+	mp, _, cleanup := newMempoolWithApp(cc)
 	defer cleanup()
 
 	mp.config.Size = 100000
@@ -28,14 +28,14 @@ func BenchmarkReap(b *testing.B) {
 	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		mp.ReapMaxBytesMaxGas(100000000, 10000000)
+		mp.ReapMaxBytesMaxGas(100000000, 10000000, nil)
 	}
 }
 
 func BenchmarkCheckTx(b *testing.B) {
 	app := kvstore.NewApplication()
 	cc := proxy.NewLocalClientCreator(app)
-	mp, cleanup := newMempoolWithApp(cc)
+	mp, _, cleanup := newMempoolWithApp(cc)
 	defer cleanup()
 
 	mp.config.Size = 1000000
@@ -57,7 +57,7 @@ func BenchmarkCheckTx(b *testing.B) {
 func BenchmarkParallelCheckTx(b *testing.B) {
 	app := kvstore.NewApplication()
 	cc := proxy.NewLocalClientCreator(app)
-	mp, cleanup := newMempoolWithApp(cc)
+	mp, _, cleanup := newMempoolWithApp(cc)
 	defer cleanup()
 
 	mp.config.Size = 100000000
@@ -82,7 +82,7 @@ func BenchmarkParallelCheckTx(b *testing.B) {
 func BenchmarkCheckDuplicateTx(b *testing.B) {
 	app := kvstore.NewApplication()
 	cc := proxy.NewLocalClientCreator(app)
-	mp, cleanup := newMempoolWithApp(cc)
+	mp, _, cleanup := newMempoolWithApp(cc)
 	defer cleanup()
 
 	mp.config.Size = 1000000

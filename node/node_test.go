@@ -248,6 +248,7 @@ func TestCreateProposalBlock(t *testing.T) {
 	// Make Mempool
 	memplMetrics := mempl.NopMetrics()
 	var mempool mempl.Mempool
+	var sidecar mempl.PriorityTxSidecar
 
 	switch config.Mempool.Version {
 	case cfg.MempoolV0:
@@ -257,6 +258,7 @@ func TestCreateProposalBlock(t *testing.T) {
 			mempoolv0.WithMetrics(memplMetrics),
 			mempoolv0.WithPreCheck(sm.TxPreCheck(state)),
 			mempoolv0.WithPostCheck(sm.TxPostCheck(state)))
+		sidecar = mempoolv0.NewCListSidecar(state.LastBlockHeight)
 	case cfg.MempoolV1:
 		mempool = mempoolv1.NewTxMempool(logger,
 			config.Mempool,
@@ -266,6 +268,7 @@ func TestCreateProposalBlock(t *testing.T) {
 			mempoolv1.WithPreCheck(sm.TxPreCheck(state)),
 			mempoolv1.WithPostCheck(sm.TxPostCheck(state)),
 		)
+		sidecar = nil
 	}
 
 	// Make EvidencePool
@@ -304,6 +307,7 @@ func TestCreateProposalBlock(t *testing.T) {
 		proxyApp.Consensus(),
 		mempool,
 		evidencePool,
+		sidecar,
 	)
 
 	commit := types.NewCommit(height-1, 0, types.BlockID{}, nil)
@@ -353,6 +357,7 @@ func TestMaxProposalBlockSize(t *testing.T) {
 	// Make Mempool
 	memplMetrics := mempl.NopMetrics()
 	var mempool mempl.Mempool
+	var sidecar mempl.PriorityTxSidecar
 	switch config.Mempool.Version {
 	case cfg.MempoolV0:
 		mempool = mempoolv0.NewCListMempool(config.Mempool,
@@ -361,6 +366,7 @@ func TestMaxProposalBlockSize(t *testing.T) {
 			mempoolv0.WithMetrics(memplMetrics),
 			mempoolv0.WithPreCheck(sm.TxPreCheck(state)),
 			mempoolv0.WithPostCheck(sm.TxPostCheck(state)))
+		sidecar = mempoolv0.NewCListSidecar(state.LastBlockHeight)
 	case cfg.MempoolV1:
 		mempool = mempoolv1.NewTxMempool(logger,
 			config.Mempool,
@@ -370,6 +376,7 @@ func TestMaxProposalBlockSize(t *testing.T) {
 			mempoolv1.WithPreCheck(sm.TxPreCheck(state)),
 			mempoolv1.WithPostCheck(sm.TxPostCheck(state)),
 		)
+		sidecar = nil
 	}
 
 	// fill the mempool with one txs just below the maximum size
@@ -384,6 +391,7 @@ func TestMaxProposalBlockSize(t *testing.T) {
 		proxyApp.Consensus(),
 		mempool,
 		sm.EmptyEvidencePool{},
+		sidecar,
 	)
 
 	commit := types.NewCommit(height-1, 0, types.BlockID{}, nil)

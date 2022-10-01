@@ -159,7 +159,7 @@ func newTestReactor(p testReactorParams) *BlockchainReactor {
 		stateStore := sm.NewStore(db, sm.StoreOptions{
 			DiscardABCIResponses: false,
 		})
-		appl = sm.NewBlockExecutor(stateStore, p.logger, proxyApp.Consensus(), mock.Mempool{}, sm.EmptyEvidencePool{})
+		appl = sm.NewBlockExecutor(stateStore, p.logger, proxyApp.Consensus(), mock.Mempool{}, sm.EmptyEvidencePool{}, mock.PriorityTxSidecar{})
 		if err = stateStore.Save(state); err != nil {
 			panic(err)
 		}
@@ -516,7 +516,7 @@ func newReactorStore(
 		DiscardABCIResponses: false},
 	)
 	blockExec := sm.NewBlockExecutor(stateStore, log.TestingLogger(), proxyApp.Consensus(),
-		mock.Mempool{}, sm.EmptyEvidencePool{})
+		mock.Mempool{}, sm.EmptyEvidencePool{}, mock.PriorityTxSidecar{})
 	if err = stateStore.Save(state); err != nil {
 		panic(err)
 	}
