@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"sync"
 
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/types"
@@ -42,7 +43,7 @@ type Mempool interface {
 	//
 	// If both maxes are negative, there is no cap on the size of all returned
 	// transactions (~ all available transactions).
-	ReapMaxBytesMaxGas(maxBytes, maxGas int64) types.Txs
+	ReapMaxBytesMaxGas(maxBytes, maxGas int64, sidecarTxs []*MempoolTx) types.Txs
 
 	// ReapMaxTxs reaps up to max transactions from the mempool. If max is
 	// negative, there is no cap on the size of all returned transactions
@@ -96,6 +97,54 @@ type Mempool interface {
 
 	// SizeBytes returns the total size of all txs in the mempool.
 	SizeBytes() int64
+}
+
+// Sidecar is a dummy version of a mempool only gossipeed through
+// the SidecarChannel with the Sentinel
+type PriorityTxSidecar interface {
+
+	// AddTx takes in a transaction and adds to the sidecar, no checks
+	// given by CheckTx
+	AddTx(tx types.Tx, txInfo TxInfo) error
+
+	// ReapMaxTxs reaps up to max transactions from the mempool.
+	// If max is negative, there is no cap on the size of all returned
+	// transactions (~ all available transactions).
+	ReapMaxTxs() []*MempoolTx
+
+	// Lock locks the mempool. The consensus must be able to hold lock to safely update.
+	Lock()
+
+	// Flush removes all transactions from the mempool and cache
+	Flush()
+
+	// Unlock unlocks the mempool.
+	Unlock()
+
+	// Update informs the sidecar that the given txs were reaped and can be discarded.
+	// NOTE: this should be called *after* block is committed by consensus.
+	// NOTE: Lock/Unlock must be managed by caller
+	Update(
+		blockHeight int64,
+		blockTxs types.Txs,
+		deliverTxResponses []*abci.ResponseDeliverTx,
+	) error
+
+	// TxsAvailable returns a channel which fires once for every height,
+	// and only when transactions are available in the mempool.
+	// NOTE: the returned channel may be nil if EnableTxsAvailable was not called.
+	TxsAvailable() <-chan struct{}
+
+	HeightForFiringAuction() int64
+
+	// EnableTxsAvailable initializes the TxsAvailable channel, ensuring it will
+	// trigger once every height when transactions are available.
+
+	// Size returns the number of transactions in the mempool.
+	Size() int
+
+	// TxsBytes returns the total size of all txs in the mempool.
+	TxsBytes() int64
 }
 
 // PreCheckFunc is an optional filter executed before CheckTx and rejects
@@ -159,6 +208,38 @@ func (e ErrTxTooLarge) Error() string {
 	return fmt.Sprintf("Tx too large. Max size is %d, but got %d", e.Max, e.Actual)
 }
 
+// ErrTxMalformedForBundle is a general malformed error for specific cases
+type ErrTxMalformedForBundle struct {
+	BundleId     int64
+	BundleSize   int64
+	BundleHeight int64
+	BundleOrder  int64
+}
+
+func (e ErrTxMalformedForBundle) Error() string {
+	return fmt.Sprintf("Tx submitted but malformed with respect to bundling, for bundleId %d, at height %d, with bundleSize %d, and bundleOrder %d", e.BundleId, e.BundleHeight, e.BundleSize, e.BundleOrder)
+}
+
+// ErrBundleFull means the tx is trying to enter a bundle that has already reached its limit
+type ErrBundleFull struct {
+	BundleId     int64
+	BundleHeight int64
+}
+
+func (e ErrBundleFull) Error() string {
+	return fmt.Sprintf("Tx submitted but bundle is full, for bundleId %d with bundle size %d", e.BundleId, e.BundleHeight)
+}
+
+// ErrWrongHeight means the tx is asking to be in a height that doesn't match the current auction
+type ErrWrongHeight struct {
+	DesiredHeight        int
+	CurrentAuctionHeight int
+}
+
+func (e ErrWrongHeight) Error() string {
+	return fmt.Sprintf("Tx submitted for wrong height, asked for %d, but current auction height is %d", e.DesiredHeight, e.CurrentAuctionHeight)
+}
+
 // ErrMempoolIsFull defines an error where Tendermint and the application cannot
 // handle that much load.
 type ErrMempoolIsFull struct {
@@ -190,4 +271,41 @@ func (e ErrPreCheck) Error() string {
 // IsPreCheckError returns true if err is due to pre check failure.
 func IsPreCheckError(err error) bool {
 	return errors.As(err, &ErrPreCheck{})
+}
+
+// mempoolTx is a transaction that successfully ran
+type MempoolTx struct {
+	Height    int64    // height that this tx had been validated in
+	GasWanted int64    // amount of gas this tx states it will require
+	Tx        types.Tx //
+
+	// ids of peers who've sent us this tx (as a map for quick lookups).
+	// senders: PeerID -> bool
+	Senders sync.Map
+}
+
+// MempoolTx is a transaction that successfully ran
+type SidecarTx struct {
+	DesiredHeight int64 // height that this tx wants to be included in
+	BundleId      int64 // ordered id of bundle
+	BundleOrder   int64 // order of tx within bundle
+	BundleSize    int64 // total size of bundle
+
+	GasWanted int64    // amount of gas this tx states it will require
+	Tx        types.Tx // tx bytes
+
+	// ids of peers who've sent us this tx (as a map for quick lookups).
+	// senders: PeerID -> bool
+	Senders sync.Map
+}
+
+// Bundle stores information about a sidecar bundle
+type Bundle struct {
+	DesiredHeight int64 // height that this bundle wants to be included in
+	BundleId      int64 // ordered id of bundle
+	CurrSize      int64 // total size of bundle
+	EnforcedSize  int64 // total size of bundle
+
+	GasWanted     int64     // amount of gas this tx states it will require
+	OrderedTxsMap *sync.Map // map from bundleOrder to *mempoolTx
 }
