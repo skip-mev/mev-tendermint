@@ -56,14 +56,14 @@ func newMempoolWithAppAndConfigMock(cc proxy.ClientCreator,
 	return mp, func() { os.RemoveAll(cfg.RootDir) }
 }
 
-func newMempoolWithApp(cc proxy.ClientCreator) (*CListMempool, cleanupFunc) {
+func newMempoolWithApp(cc proxy.ClientCreator) (*CListMempool, *CListPriorityTxSidecar, cleanupFunc) {
 	conf := config.ResetTestRoot("mempool_test")
 
-	mp, cu := newMempoolWithAppAndConfig(cc, conf)
-	return mp, cu
+	mp, sc, cu := newMempoolWithAppAndConfig(cc, conf)
+	return mp, sc, cu
 }
 
-func newMempoolWithAppAndConfig(cc proxy.ClientCreator, cfg *config.Config) (*CListMempool, cleanupFunc) {
+func newMempoolWithAppAndConfig(cc proxy.ClientCreator, cfg *config.Config) (*CListMempool, *CListPriorityTxSidecar, cleanupFunc) {
 	appConnMem, _ := cc.NewABCIClient()
 	appConnMem.SetLogger(log.TestingLogger().With("module", "abci-client", "connection", "mempool"))
 	err := appConnMem.Start()
@@ -73,8 +73,9 @@ func newMempoolWithAppAndConfig(cc proxy.ClientCreator, cfg *config.Config) (*CL
 
 	mp := NewCListMempool(cfg.Mempool, appConnMem, 0)
 	mp.SetLogger(log.TestingLogger())
+	sidecar := NewCListSidecar(0)
 
-	return mp, func() { os.RemoveAll(cfg.RootDir) }
+	return mp, sidecar, func() { os.RemoveAll(cfg.RootDir) }
 }
 
 func ensureNoFire(t *testing.T, ch <-chan struct{}, timeoutMS int) {
@@ -121,17 +122,17 @@ func checkTxs(t *testing.T, mp mempool.Mempool, count int, peerID uint16) types.
 func TestReapMaxBytesMaxGas(t *testing.T) {
 	app := kvstore.NewApplication()
 	cc := proxy.NewLocalClientCreator(app)
-	mp, cleanup := newMempoolWithApp(cc)
+	mp, _, cleanup := newMempoolWithApp(cc)
 	defer cleanup()
 
 	// Ensure gas calculation behaves as expected
 	checkTxs(t, mp, 1, mempool.UnknownPeerID)
-	tx0 := mp.TxsFront().Value.(*mempoolTx)
+	tx0 := mp.TxsFront().Value.(*mempool.MempoolTx)
 	// assert that kv store has gas wanted = 1.
-	require.Equal(t, app.CheckTx(abci.RequestCheckTx{Tx: tx0.tx}).GasWanted, int64(1), "KVStore had a gas value neq to 1")
-	require.Equal(t, tx0.gasWanted, int64(1), "transactions gas was set incorrectly")
+	require.Equal(t, app.CheckTx(abci.RequestCheckTx{Tx: tx0.Tx}).GasWanted, int64(1), "KVStore had a gas value neq to 1")
+	require.Equal(t, tx0.GasWanted, int64(1), "transactions gas was set incorrectly")
 	// ensure each tx is 20 bytes long
-	require.Equal(t, len(tx0.tx), 20, "Tx is longer than 20 bytes")
+	require.Equal(t, len(tx0.Tx), 20, "Tx is longer than 20 bytes")
 	mp.Flush()
 
 	// each table driven test creates numTxsToCreate txs with checkTx, and at the end clears all remaining txs.

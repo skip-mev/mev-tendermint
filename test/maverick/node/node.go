@@ -381,8 +381,8 @@ func onlyValidatorIsUs(state sm.State, pubKey crypto.PubKey) bool {
 	return bytes.Equal(pubKey.Address(), addr)
 }
 
-func createMempoolAndMempoolReactor(config *cfg.Config, proxyApp proxy.AppConns,
-	state sm.State, memplMetrics *mempl.Metrics, logger log.Logger) (p2p.Reactor, mempl.Mempool) {
+func createMempoolAndSidecarAndMempoolReactor(config *cfg.Config, proxyApp proxy.AppConns,
+	state sm.State, memplMetrics *mempl.Metrics, logger log.Logger) (p2p.Reactor, mempl.Mempool, mempl.PriorityTxSidecar) {
 
 	switch config.Mempool.Version {
 	case cfg.MempoolV1:
@@ -404,7 +404,7 @@ func createMempoolAndMempoolReactor(config *cfg.Config, proxyApp proxy.AppConns,
 			mp.EnableTxsAvailable()
 		}
 
-		return reactor, mp
+		return reactor, mp, nil
 
 	case cfg.MempoolV0:
 		mp := mempoolv0.NewCListMempool(
@@ -416,21 +416,26 @@ func createMempoolAndMempoolReactor(config *cfg.Config, proxyApp proxy.AppConns,
 			mempoolv0.WithPostCheck(sm.TxPostCheck(state)),
 		)
 
+		sidecar := mempoolv0.NewCListSidecar(
+			state.LastBlockHeight,
+		)
+
 		mp.SetLogger(logger)
 		mp.SetLogger(logger)
 
 		reactor := mempoolv0.NewReactor(
 			config.Mempool,
 			mp,
+			sidecar,
 		)
 		if config.Consensus.WaitForTxs() {
 			mp.EnableTxsAvailable()
 		}
 
-		return reactor, mp
+		return reactor, mp, sidecar
 
 	default:
-		return nil, nil
+		return nil, nil, nil
 	}
 }
 
@@ -595,6 +600,7 @@ func createSwitch(config *cfg.Config,
 
 	sw := p2p.NewSwitch(
 		config.P2P,
+		make(p2p.SidecarPeers, 0),
 		transport,
 		p2p.WithMetrics(p2pMetrics),
 		p2p.SwitchPeerFilters(peerFilters...),
@@ -809,7 +815,7 @@ func NewNode(config *cfg.Config,
 	csMetrics, p2pMetrics, memplMetrics, smMetrics := metricsProvider(genDoc.ChainID)
 
 	// Make MempoolReactor
-	mempoolReactor, mempool := createMempoolAndMempoolReactor(config, proxyApp, state, memplMetrics, logger)
+	mempoolReactor, mempool, sidecar := createMempoolAndSidecarAndMempoolReactor(config, proxyApp, state, memplMetrics, logger)
 
 	// Make Evidence Reactor
 	evidenceReactor, evidencePool, err := createEvidenceReactor(config, dbProvider, stateDB, blockStore, logger)
@@ -824,6 +830,7 @@ func NewNode(config *cfg.Config,
 		proxyApp.Consensus(),
 		mempool,
 		evidencePool,
+		sidecar,
 		sm.BlockExecutorWithMetrics(smMetrics),
 	)
 
