@@ -150,10 +150,8 @@ func (memR *Reactor) GetChannels() []*p2p.ChannelDescriptor {
 func (memR *Reactor) AddPeer(peer p2p.Peer) {
 	if memR.config.Broadcast {
 		go memR.broadcastMempoolTxRoutine(peer)
-		fmt.Println("[mev-tendermint] Starting mempool tx broadcast routine for ", peer.ID())
 		// go memR.broadcastSidecarTxRoutine(peer)
 		if peer.IsSidecarPeer() {
-			fmt.Println("[mev-tendermint] Starting sidecar tx broadcast routine for ", peer.ID())
 			go memR.broadcastSidecarTxRoutine(peer)
 		}
 	}

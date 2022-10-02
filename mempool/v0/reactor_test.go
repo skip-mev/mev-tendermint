@@ -62,7 +62,7 @@ func TestReactorBroadcastTxsMessage(t *testing.T) {
 		}
 	}
 
-	txs := checkTxs(t, reactors[0].mempool, numTxs, mempool.UnknownPeerID, nil, false)
+	txs := checkTxs(t, reactors[0].mempool, numTxs, mempool.UnknownPeerID, reactors[0].sidecar, false)
 	waitForTxsOnReactors(t, txs, reactors, false)
 }
 
@@ -92,6 +92,54 @@ func TestReactorBroadcastSidecarOnly(t *testing.T) {
 	assert.Equal(t, 0, reactors[5].sidecar.Size())
 	assert.Equal(t, 0, reactors[7].sidecar.Size())
 	assert.Equal(t, 0, reactors[3].sidecar.Size())
+}
+
+// Send a bunch of txs to the first reactor's sidecar and wait for them all to
+// be received in the others, IN THE RIGHT ORDER
+func TestReactorBroadcastSidecarTxsMessage(t *testing.T) {
+	config := cfg.TestConfig()
+	const N = 2
+	reactors := makeAndConnectReactors(config, N)
+	defer func() {
+		for _, r := range reactors {
+			if err := r.Stop(); err != nil {
+				assert.NoError(t, err)
+			}
+		}
+	}()
+	for _, r := range reactors {
+		for _, peer := range r.Switch.Peers().List() {
+			peer.Set(types.PeerStateKey, peerState{1})
+		}
+	}
+	txs := addNumBundlesToSidecar(t, reactors[0].sidecar, 5, 10, mempool.UnknownPeerID)
+	time.Sleep(2000)
+	reactors[0].sidecar.PrettyPrintBundles()
+	waitForTxsOnReactors(t, txs, reactors, true)
+	reactors[1].sidecar.PrettyPrintBundles()
+}
+
+func TestReactorInsertOutOfOrderThenReap(t *testing.T) {
+	config := cfg.TestConfig()
+	const N = 2
+	reactors := makeAndConnectReactors(config, N)
+	defer func() {
+		for _, r := range reactors {
+			if err := r.Stop(); err != nil {
+				assert.NoError(t, err)
+			}
+		}
+	}()
+	for _, r := range reactors {
+		for _, peer := range r.Switch.Peers().List() {
+			peer.Set(types.PeerStateKey, peerState{1})
+		}
+	}
+	txs := addNumBundlesToSidecar(t, reactors[0].sidecar, 5, 10, mempool.UnknownPeerID)
+	time.Sleep(2000)
+	reactors[0].sidecar.PrettyPrintBundles()
+	waitForTxsOnReactors(t, txs, reactors, true)
+	reactors[1].sidecar.PrettyPrintBundles()
 }
 
 // regression test for https://github.com/tendermint/tendermint/issues/5408

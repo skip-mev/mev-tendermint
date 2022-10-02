@@ -159,8 +159,8 @@ func (sc *CListPriorityTxSidecar) AddTx(tx types.Tx, txInfo mempool.TxInfo) erro
 	if txInfo.DesiredHeight < sc.heightForFiringAuction {
 		fmt.Println(fmt.Sprintf("[mev-tendermint]: AddTx() skip tx... trying to add a tx for height %d whereas height for curr auction is %d", txInfo.DesiredHeight, sc.heightForFiringAuction))
 		return mempool.ErrWrongHeight{
-			int(txInfo.DesiredHeight),
-			int(sc.heightForFiringAuction),
+			DesiredHeight:        int(txInfo.DesiredHeight),
+			CurrentAuctionHeight: int(sc.heightForFiringAuction),
 		}
 	}
 
@@ -168,10 +168,10 @@ func (sc *CListPriorityTxSidecar) AddTx(tx types.Tx, txInfo mempool.TxInfo) erro
 	if txInfo.BundleOrder >= txInfo.BundleSize {
 		fmt.Println("[mev-tendermint]: AddTx() skip tx... trying to insert a tx for bundle at an order greater than the size of the bundle... THIS IS PROBABLY A FATAL ERROR")
 		return mempool.ErrTxMalformedForBundle{
-			txInfo.BundleId,
-			txInfo.BundleSize,
-			txInfo.DesiredHeight,
-			txInfo.BundleOrder,
+			BundleId:     txInfo.BundleId,
+			BundleSize:   txInfo.BundleSize,
+			BundleHeight: txInfo.DesiredHeight,
+			BundleOrder:  txInfo.BundleOrder,
 		}
 	}
 
@@ -196,10 +196,10 @@ func (sc *CListPriorityTxSidecar) AddTx(tx types.Tx, txInfo mempool.TxInfo) erro
 	if txInfo.BundleSize != bundle.EnforcedSize {
 		fmt.Println("[mev-tendermint]: AddTx() skip tx... Trying to insert a tx with a size different than what's said by other txs for this bundle?? ... THIS IS PROBABLY A FATAL ERROR")
 		return mempool.ErrTxMalformedForBundle{
-			txInfo.BundleId,
-			txInfo.BundleSize,
-			txInfo.DesiredHeight,
-			txInfo.BundleOrder,
+			BundleId:     txInfo.BundleId,
+			BundleSize:   txInfo.BundleSize,
+			BundleHeight: txInfo.DesiredHeight,
+			BundleOrder:  txInfo.BundleOrder,
 		}
 	}
 
@@ -208,8 +208,8 @@ func (sc *CListPriorityTxSidecar) AddTx(tx types.Tx, txInfo mempool.TxInfo) erro
 	if bundle.CurrSize >= bundle.EnforcedSize {
 		fmt.Println("[mev-tendermint]: AddTx() skip tx... already full for this BundleId... THIS IS PROBABLY A FATAL ERROR")
 		return mempool.ErrBundleFull{
-			txInfo.BundleId,
-			txInfo.BundleSize,
+			BundleId:     txInfo.BundleId,
+			BundleHeight: txInfo.BundleSize,
 		}
 	}
 
