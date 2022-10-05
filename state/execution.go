@@ -243,6 +243,13 @@ func (blockExec *BlockExecutor) Commit(
 		"app_hash", fmt.Sprintf("%X", res.Data),
 	)
 
+	// update sidecar mempool
+	blockExec.sidecar.Update(
+		block.Height,
+		block.Txs,
+		deliverTxResponses,
+	)
+
 	// Update mempool.
 	err = blockExec.mempool.Update(
 		block.Height,
