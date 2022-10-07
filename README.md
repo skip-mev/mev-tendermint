@@ -80,27 +80,19 @@ The design goals of MEV-Tendermint is to allow & preserve:
 
 ### 1. Tendermint replacement ♻️
 
-In the `go.mod` file of the directory you use to compile your chain binary, you need to replace your version of `tendermint` with the correct `mev-tendermint` version, like so:
+In the `go.mod` file of the directory you use to compile your chain binary, you need to `replace` the imported version of `tendermint` with the correct `mev-tendermint` version, like so:
 
-- For Juno (testnet and mainnet), this is: `v0.34.21-mev`
+- For Juno (testnet and mainnet), this is: `github.com/skip-mev/mev-tendermint/v0.34.21-mev`
 
 ```tsx
 // ---------------------------------
-// BEFORE
-require (
+replace (
 	// Other stuff...
-	github.com/tendermint/tendermint v0.34.21
-	// Other stuff...
-)
-
-// ---------------------------------
-// AFTER
-require (
-	// Other stuff...
-	github.com/skip-mev/mev-tendermint v0.34.21-mev
-	// Other stuff...
+	**github.com/tendermint/tendermint => github.com/skip-mev/mev-tendermint v0.34.21-mev**
 )
 ```
+
+🚨 **After modifying the `replace` statement, run `go mod tidy` in your base directory**
 
 ### 2. Peering Setup 🤝
 
@@ -121,4 +113,4 @@ In order to participate in the network, you must share with Skip (feel free to c
 
 ### 4. Recompile your binary, and start! 🎉
 
-That’s it! After making the changes above, you can recompile your binary like `junod`, and restart your node(s). You will now begin receiving MEV bundles from Skip
+That’s it! After making the changes above, you can recompile your binary like `junod` (probably using `make install`),  and restart your node(s)! You will now begin receiving MEV bundles from Skip.
