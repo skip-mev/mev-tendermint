@@ -88,7 +88,7 @@ In the `go.mod` file of the directory you use to compile your chain binary, you 
 // ---------------------------------
 replace (
 	// Other stuff...
-	**github.com/tendermint/tendermint => github.com/skip-mev/mev-tendermint v0.34.21-mev**
+	github.com/tendermint/tendermint => github.com/skip-mev/mev-tendermint v0.34.21-mev
 )
 ```
 
