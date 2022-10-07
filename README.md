@@ -1,6 +1,6 @@
 # mev-tendermint
 
-![Group 6.png](mev-tendermint%208dc8f4a74c964cacb57dcdc96ee157c0/Group_6.png)
+![banner](mev-tendermint%208dc8f4a74c964cacb57dcdc96ee157c0/Group_6.png)
 
 # mev-tendermint
 
