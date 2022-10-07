@@ -1,9 +1,5 @@
 # mev-tendermint
 
-![](https://s3.us-west-2.amazonaws.com/secure.notion-static.com/33ea763f-bfa3-4c65-ad35-ad0ee1fd312d/Group_6.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIAT73L2G45EIPT3X45%2F20220921%2Fus-west-2%2Fs3%2Faws4_request&X-Amz-Date=20220921T004412Z&X-Amz-Expires=3600&X-Amz-Signature=da5c1352a65fb61d2fc143d8c1293689fe7e1cd21cd834516338f2812d66cf84&X-Amz-SignedHeaders=host&x-id=GetObject)
-
-# mev-tendermint
-
 ***The purpose of mev-tendermint is to create a private mempool (the “sidecar”) containing atomic bundles of txs and gossip bundles of transactions specifically to the proposer of the next block.***
 
 ---
@@ -86,6 +82,8 @@ The design goals of MEV-Tendermint is to allow & preserve:
 
 In the `go.mod` file of the directory you use to compile your chain binary, you need to replace your version of `tendermint` with the correct `mev-tendermint` version, like so:
 
+- For Juno (testnet and mainnet), this is: `v0.34.21-mev`
+
 ```tsx
 // ---------------------------------
 // BEFORE
@@ -109,7 +107,7 @@ require (
 mev-tendermint introduces a new section of config in `config.toml` called `sidecar`, which contains 2 settings that you must configure in order to receive bundles from the skip sentinel: 
 
 - `relayer_id` : This is the Tendermint p2p id of the Skip Sentinel that is used to establish a secret, authenticated handshake between your node and the Skip sentinel
-    - For Juno (testnet and mainnet), this is: `v0.34.21-mev`
+    - For nodes that should not communicate with the sentinel directly (e.g. validator nodes that have sentries), this does not need to be set.
 - `personal_peer_ids`: These are the Tendermint p2p ids of all the nodes that your node will gossip side car transactions with. To ensure trader privacy, these should only include p2p ids of nodes that you manage.
     - For your validator, this should be the `ids` of all your sentry nodes
     - For your sentry nodes, this should be the `ids` of all your **other** sentry nodes, and your validator
