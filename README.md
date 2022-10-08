@@ -84,13 +84,13 @@ The design goals of MEV-Tendermint is to allow & preserve:
 
 In the `go.mod` file of the directory you use to compile your chain binary, you need to `replace` the imported version of `tendermint` with the correct `mev-tendermint` version, like so:
 
-- For Juno (testnet and mainnet), this is: `github.com/skip-mev/mev-tendermint/v0.34.21-mev`
+- For Juno (testnet and mainnet), this is: `github.com/skip-mev/mev-tendermint/v0.34.21-mev.1`
 
 ```tsx
 // ---------------------------------
 replace (
 	// Other stuff...
-	github.com/tendermint/tendermint => github.com/skip-mev/mev-tendermint v0.34.21-mev
+	github.com/tendermint/tendermint => github.com/skip-mev/mev-tendermint v0.34.21-mev.1
 )
 ```
 
