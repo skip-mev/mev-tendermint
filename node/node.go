@@ -635,6 +635,7 @@ func createAddrBookAndSetOnSwitch(config *cfg.Config, sw *p2p.Switch,
 		if err != nil {
 			return nil, fmt.Errorf("p2p.external_address is incorrect: %w", err)
 		}
+		fmt.Println("[node startup]: p2p.external_address for addrbook:", addr)
 		addrBook.AddOurAddress(addr)
 	}
 	if config.P2P.ListenAddress != "" {
@@ -642,9 +643,11 @@ func createAddrBookAndSetOnSwitch(config *cfg.Config, sw *p2p.Switch,
 		if err != nil {
 			return nil, fmt.Errorf("p2p.laddr is incorrect: %w", err)
 		}
+		fmt.Println("[node startup]: p2p.laddr for addrbook:", addr)
 		addrBook.AddOurAddress(addr)
 	}
 
+	fmt.Println("[node startup]: setAddrBook:", addrBook)
 	sw.SetAddrBook(addrBook)
 
 	return addrBook, nil
@@ -1031,6 +1034,13 @@ func (n *Node) OnStart() error {
 	if err != nil {
 		return fmt.Errorf("could not dial peers from persistent_peers field: %w", err)
 	}
+
+	fmt.Println("[node startup]: NodeInfo:", n.nodeInfo.(p2p.DefaultNodeInfo))
+	na, _ := n.nodeInfo.NetAddress()
+	fmt.Println("[node startup]: NetAddress:", na)
+	fmt.Println("[node startup]: ListenAddr:", n.nodeInfo.(p2p.DefaultNodeInfo).ListenAddr)
+	fmt.Println("[node startup]: DefaultNodeID:", n.nodeInfo.ID())
+	fmt.Println("[node startup]: transport netaddress:", n.transport.NetAddress())
 
 	// Run state sync
 	if n.stateSync {

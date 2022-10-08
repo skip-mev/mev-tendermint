@@ -185,6 +185,7 @@ func (a *addrBook) AddOurAddress(addr *p2p.NetAddress) {
 	defer a.mtx.Unlock()
 
 	a.Logger.Info("Add our address to book", "addr", addr)
+	fmt.Println("addrbook adding own address:", addr)
 	a.ourAddrs[addr.String()] = struct{}{}
 }
 

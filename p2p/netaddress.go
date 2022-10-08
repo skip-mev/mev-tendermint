@@ -68,6 +68,8 @@ func NewNetAddress(id ID, addr net.Addr) *NetAddress {
 // Also resolves the host if host is not an IP.
 // Errors are of type ErrNetAddressXxx where Xxx is in (NoID, Invalid, Lookup)
 func NewNetAddressString(addr string) (*NetAddress, error) {
+	fmt.Println("[netaddress]: NewNetAddressString:", addr)
+
 	addrWithoutProtocol := removeProtocolIfDefined(addr)
 	spl := strings.Split(addrWithoutProtocol, "@")
 	if len(spl) != 2 {
@@ -93,8 +95,10 @@ func NewNetAddressString(addr string) (*NetAddress, error) {
 	}
 
 	ip := net.ParseIP(host)
+	fmt.Println("[netaddress]: first ip:", ip)
 	if ip == nil {
 		ips, err := net.LookupIP(host)
+		fmt.Println("[netaddress]: second ips:", ips)
 		if err != nil {
 			return nil, ErrNetAddressLookup{host, err}
 		}
@@ -105,9 +109,11 @@ func NewNetAddressString(addr string) (*NetAddress, error) {
 	if err != nil {
 		return nil, ErrNetAddressInvalid{portStr, err}
 	}
+	fmt.Println("[netaddress]: NewNetAddressString end:", addr)
 
 	na := NewNetAddressIPPort(ip, uint16(port))
 	na.ID = id
+	fmt.Println("[netaddress]: NewNetAddressString na:", na)
 	return na, nil
 }
 
