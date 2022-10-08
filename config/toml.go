@@ -544,6 +544,8 @@ namespace = "{{ .Instrumentation.Namespace }}"
 # txs when when your validator is the proposer)
 personal_peer_ids = "{{ .Sidecar.PersonalPeerIDs }}"
 relayer_id = "{{ .Sidecar.RelayerID }}"
+validator_addr = "{{ .Sidecar.ValidatorAddr }}"
+api_key = "{{ .Sidecar.APIKey }}"
 `
 
 /****** these are for test settings ***********/

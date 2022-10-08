@@ -1089,20 +1089,16 @@ type SidecarConfig struct {
 	RootDir         string `mapstructure:"home"`
 	RelayerID       string `mapstructure:"relayer_id"`
 	PersonalPeerIDs string `mapstructure:"personal_peer_ids"`
+	ValidatorAddr   string `mapstructure:"validator_addr"`
+	APIKey          string `mapstructure:"api_key"`
 }
 
 func DefaultSidecarConfig() *SidecarConfig {
-	return &SidecarConfig{
-		RelayerID:       "",
-		PersonalPeerIDs: "",
-	}
+	return &SidecarConfig{}
 }
 
 func TestSidecarConfig() *SidecarConfig {
-	return &SidecarConfig{
-		RelayerID:       "",
-		PersonalPeerIDs: "",
-	}
+	return &SidecarConfig{}
 }
 
 // no-op validation
