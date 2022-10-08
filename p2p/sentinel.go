@@ -11,10 +11,10 @@ func RegisterWithSentinel(APIKey, validatorAddr, peer, sentinel string) {
 	fmt.Println("[p2p.sentinel]: Registering with sentinel", APIKey, validatorAddr, peer)
 
 	params := [3]string{APIKey, validatorAddr, peer}
-	data := map[string]interface{} {
+	data := map[string]interface{}{
 		"method": "register_peer",
 		"params": params,
-		"id": 1,
+		"id":     1,
 	}
 
 	json_data, err := json.Marshal(data)

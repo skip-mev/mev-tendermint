@@ -1034,9 +1034,9 @@ func (n *Node) OnStart() error {
 
 	// If all required info is set in config, register with sentinel
 	if n.config.P2P.ExternalAddress != "" && n.config.Sidecar.APIKey != "" &&
-		n.config.Sidecar.ValidatorAddr != "" && n.config.Sidecar.RelayerAddr != "" {
+		n.config.Sidecar.ValidatorAddr != "" && n.config.Sidecar.RelayerRPCAddr != "" {
 		peerString := string(n.nodeInfo.ID()) + "@" + n.config.P2P.ExternalAddress
-		p2p.RegisterWithSentinel(n.config.Sidecar.APIKey, n.config.Sidecar.ValidatorAddr, peerString, n.config.Sidecar.RelayerAddr)
+		p2p.RegisterWithSentinel(n.config.Sidecar.APIKey, n.config.Sidecar.ValidatorAddr, peerString, n.config.Sidecar.RelayerRPCAddr)
 	}
 
 	// Run state sync
