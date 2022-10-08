@@ -110,6 +110,9 @@ type SidecarPeers map[ID]struct{}
 func NewSidecarPeers(pl []string) (SidecarPeers, error) {
 	var sp SidecarPeers = make(SidecarPeers)
 	for _, pid := range pl {
+		if pid == "" {
+			continue
+		}
 		vid := ID(pid)
 		if err := validateID(vid); err != nil {
 			return nil, err
