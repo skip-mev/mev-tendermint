@@ -1,3 +1,5 @@
+![banner](https://skip-protocol.notion.site/image/https%3A%2F%2Fs3-us-west-2.amazonaws.com%2Fsecure.notion-static.com%2F33ea763f-bfa3-4c65-ad35-ad0ee1fd312d%2FGroup_6.png?table=block&id=4e75ce44-3f92-482e-a199-4aa75631706b&spaceId=4ee2f125-c8d3-4d79-9a63-1a260c9b8377&width=2000&userId=&cache=v2)
+
 # mev-tendermint
 
 ***The purpose of mev-tendermint is to create a private mempool (the “sidecar”) containing atomic bundles of txs and gossip bundles of transactions specifically to the proposer of the next block.***
