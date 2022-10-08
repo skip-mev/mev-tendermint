@@ -1091,6 +1091,7 @@ type SidecarConfig struct {
 	PersonalPeerIDs string `mapstructure:"personal_peer_ids"`
 	ValidatorAddr   string `mapstructure:"validator_addr"`
 	APIKey          string `mapstructure:"api_key"`
+	RelayerAddr     string `mapstructure:"relayer_addr"`
 }
 
 func DefaultSidecarConfig() *SidecarConfig {

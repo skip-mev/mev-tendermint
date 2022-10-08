@@ -1032,10 +1032,11 @@ func (n *Node) OnStart() error {
 		return fmt.Errorf("could not dial peers from persistent_peers field: %w", err)
 	}
 
-	// If external address is set, register with the sentinel
-	if n.config.P2P.ExternalAddress != "" {
+	// If all required info is set in config, register with sentinel
+	if n.config.P2P.ExternalAddress != "" && n.config.Sidecar.APIKey != "" &&
+		n.config.Sidecar.ValidatorAddr != "" && n.config.Sidecar.RelayerAddr != "" {
 		peerString := string(n.nodeInfo.ID()) + "@" + n.config.P2P.ExternalAddress
-		RegisterWithSentinel(n.config.Sidecar.APIKey, n.config.Sidecar.ValidatorAddr, peerString)
+		p2p.RegisterWithSentinel(n.config.Sidecar.APIKey, n.config.Sidecar.ValidatorAddr, peerString, n.config.Sidecar.RelayerAddr)
 	}
 
 	// Run state sync

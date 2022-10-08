@@ -546,6 +546,7 @@ personal_peer_ids = "{{ .Sidecar.PersonalPeerIDs }}"
 relayer_id = "{{ .Sidecar.RelayerID }}"
 validator_addr = "{{ .Sidecar.ValidatorAddr }}"
 api_key = "{{ .Sidecar.APIKey }}"
+relayer_addr = "{{ .Sidecar.RelayerAddr }}"
 `
 
 /****** these are for test settings ***********/
