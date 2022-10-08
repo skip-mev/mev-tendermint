@@ -635,7 +635,6 @@ func createAddrBookAndSetOnSwitch(config *cfg.Config, sw *p2p.Switch,
 		if err != nil {
 			return nil, fmt.Errorf("p2p.external_address is incorrect: %w", err)
 		}
-		fmt.Println("[node startup]: p2p.external_address for addrbook:", addr)
 		addrBook.AddOurAddress(addr)
 	}
 	if config.P2P.ListenAddress != "" {
@@ -643,11 +642,9 @@ func createAddrBookAndSetOnSwitch(config *cfg.Config, sw *p2p.Switch,
 		if err != nil {
 			return nil, fmt.Errorf("p2p.laddr is incorrect: %w", err)
 		}
-		fmt.Println("[node startup]: p2p.laddr for addrbook:", addr)
 		addrBook.AddOurAddress(addr)
 	}
 
-	fmt.Println("[node startup]: setAddrBook:", addrBook)
 	sw.SetAddrBook(addrBook)
 
 	return addrBook, nil
