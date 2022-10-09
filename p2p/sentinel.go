@@ -17,14 +17,16 @@ func RegisterWithSentinel(APIKey, validatorAddr, peer, sentinel string) {
 		"id":     1,
 	}
 
-	json_data, err := json.Marshal(data)
+	jsonData, err := json.Marshal(data)
 	if err != nil {
 		fmt.Println("[p2p.sentinel]: Err marshalling json data:", err)
 		return
 	}
 
-	_, err = http.Post(sentinel, "application/json", bytes.NewBuffer(json_data))
-	if err != nil {
-		fmt.Println("[p2p.sentinel]: Err making post request to sentinel:", err)
-	}
+	go func() {
+		_, err := http.Post(sentinel, "application/json", bytes.NewBuffer(jsonData))
+		if err != nil {
+			fmt.Println("[p2p.sentinel]: Err making post request to sentinel:", err)
+		}
+	}()
 }
