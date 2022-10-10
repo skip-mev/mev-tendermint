@@ -1087,11 +1087,10 @@ func (cfg *ConsensusConfig) ValidateBasic() error {
 // mempool among the relayer and the nodes that belong to a particular proposer
 type SidecarConfig struct {
 	RootDir         string `mapstructure:"home"`
-	RelayerID       string `mapstructure:"relayer_id"`
+	Relayer         string `mapstructure:"relayer"`
 	PersonalPeerIDs string `mapstructure:"personal_peer_ids"`
 	ValidatorAddr   string `mapstructure:"validator_addr"`
 	APIKey          string `mapstructure:"api_key"`
-	RelayerRPCAddr  string `mapstructure:"relayer_rpc_addr"`
 }
 
 func DefaultSidecarConfig() *SidecarConfig {

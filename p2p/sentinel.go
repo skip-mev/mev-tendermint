@@ -7,10 +7,10 @@ import (
 	"net/http"
 )
 
-func RegisterWithSentinel(APIKey, validatorAddr, peer, sentinel string) {
-	fmt.Println("[p2p.sentinel]: Registering with sentinel", APIKey, validatorAddr, peer)
+func RegisterWithSentinel(APIKey, validatorAddr, peerID, sentinel string) {
+	fmt.Println("[p2p.sentinel]: Registering with sentinel", APIKey, validatorAddr, peerID, sentinel)
 
-	params := [3]string{APIKey, validatorAddr, peer}
+	params := [3]string{APIKey, validatorAddr, peerID}
 	data := map[string]interface{}{
 		"method": "register_peer",
 		"params": params,

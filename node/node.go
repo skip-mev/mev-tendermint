@@ -594,8 +594,9 @@ func createSwitch(config *cfg.Config,
 	nodeKey *p2p.NodeKey,
 	p2pLogger log.Logger) *p2p.Switch {
 	peerList := splitAndTrimEmpty(config.Sidecar.PersonalPeerIDs, ",", " ")
-	if !contains(peerList, config.Sidecar.RelayerID) {
-		peerList = append(peerList, config.Sidecar.RelayerID)
+	relayerID := strings.Split(config.Sidecar.Relayer, "@")[0]
+	if !contains(peerList, relayerID) {
+		peerList = append(peerList, relayerID)
 	}
 	sidecarPeers, err := p2p.NewSidecarPeers(peerList)
 	if err != nil {
@@ -967,7 +968,7 @@ func NewNode(config *cfg.Config,
 func (n *Node) getPrivateIds() []string {
 	// Add private IDs to addrbook to block those peers being added
 	privateIDs := splitAndTrimEmpty(n.config.P2P.PrivatePeerIDs, ",", " ")
-	relayerID := n.config.Sidecar.RelayerID
+	relayerID := strings.Split(n.config.Sidecar.Relayer, "@")[0]
 	if len(relayerID) > 0 {
 		contains := false
 		for _, v := range privateIDs {
@@ -1033,10 +1034,9 @@ func (n *Node) OnStart() error {
 	}
 
 	// If all required info is set in config, register with sentinel
-	if n.config.P2P.ExternalAddress != "" && n.config.Sidecar.APIKey != "" &&
-		n.config.Sidecar.ValidatorAddr != "" && n.config.Sidecar.RelayerRPCAddr != "" {
-		peerString := string(n.nodeInfo.ID()) + "@" + n.config.P2P.ExternalAddress
-		p2p.RegisterWithSentinel(n.config.Sidecar.APIKey, n.config.Sidecar.ValidatorAddr, peerString, n.config.Sidecar.RelayerRPCAddr)
+	if n.config.Sidecar.APIKey != "" && n.config.Sidecar.ValidatorAddr != "" && n.config.Sidecar.Relayer != "" {
+		relayerRPC := "http://" + strings.Split(n.config.Sidecar.Relayer, "@")[1]
+		p2p.RegisterWithSentinel(n.config.Sidecar.APIKey, n.config.Sidecar.ValidatorAddr, string(n.nodeInfo.ID()), relayerRPC)
 	}
 
 	// Run state sync
