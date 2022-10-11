@@ -7,6 +7,7 @@ import (
 
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/clist"
+	"github.com/tendermint/tendermint/libs/log"
 	tmsync "github.com/tendermint/tendermint/libs/sync"
 	"github.com/tendermint/tendermint/mempool"
 	"github.com/tendermint/tendermint/types"
@@ -45,6 +46,8 @@ type CListPriorityTxSidecar struct {
 	// Keep a cache of already-seen txs.
 	// This reduces the pressure on the proxyApp.
 	cache mempool.TxCache
+
+	logger log.Logger
 }
 
 var _ mempool.PriorityTxSidecar = &CListPriorityTxSidecar{}
@@ -61,6 +64,7 @@ func NewCListSidecar(
 		txs:                    clist.New(),
 		height:                 height,
 		heightForFiringAuction: height + 1,
+		logger:                 log.NewNopLogger(),
 	}
 	sidecar.cache = mempool.NewLRUTxCache(10000)
 	return sidecar
@@ -117,19 +121,20 @@ func (sc *CListPriorityTxSidecar) notifyTxsAvailable() {
 
 //--------------------------------------------------------------------------------
 
-// TODO: Update to AddTx(tx types.Tx, txInfo TxInfo, order int64) error
 func (sc *CListPriorityTxSidecar) AddTx(tx types.Tx, txInfo mempool.TxInfo) error {
 
 	sc.updateMtx.RLock()
 	// use defer to unlock mutex because application (*local client*) might panic
 	defer sc.updateMtx.RUnlock()
 
-	fmt.Println(fmt.Sprintf("[mev-tendermint]: STARTING TO ADD TRANSACTION %.20q TO SIDECAR! with bundleId %d, bundleOrder %d, desiredHeight %d, bundleSize %d", tx, txInfo.BundleId, txInfo.BundleOrder, txInfo.DesiredHeight, txInfo.BundleSize))
-
 	// don't add any txs already in cache
 	if !sc.cache.Push(tx) {
-		fmt.Println("[mev-tendermint]: trying to add tx to sidecar AddTx - but already in cache!")
-		fmt.Println(tx)
+		sc.logger.Debug(
+			"rejected sidecarTx: already in cache",
+			"bundle id", txInfo.BundleId,
+			"bundle order", txInfo.BundleOrder,
+			"tx", types.Tx(tx).Hash(),
+		)
 		// Record a new sender for a tx we've already seen.
 		// Note it's possible a tx is still in the cache but no longer in the mempool
 		// (eg. after committing a block, txs are removed from mempool but not cache),
@@ -150,14 +155,20 @@ func (sc *CListPriorityTxSidecar) AddTx(tx types.Tx, txInfo mempool.TxInfo) erro
 		BundleId:      txInfo.BundleId,
 		BundleOrder:   txInfo.BundleOrder,
 		BundleSize:    txInfo.BundleSize,
-		// TODO: gas
 	}
 
 	// -------- BASIC CHECKS ON TX INFO ---------
 
 	// Can't add transactions asking to be included in a height for auction we're not on
 	if txInfo.DesiredHeight < sc.heightForFiringAuction {
-		fmt.Println(fmt.Sprintf("[mev-tendermint]: AddTx() skip tx... trying to add a tx for height %d whereas height for curr auction is %d", txInfo.DesiredHeight, sc.heightForFiringAuction))
+		sc.logger.Info(
+			"failed adding sidecarTx",
+			"trying to add a tx for height", txInfo.DesiredHeight,
+			"whereas height for curr auction is", sc.heightForFiringAuction,
+			"bundle id", txInfo.BundleId,
+			"bundle order", txInfo.BundleOrder,
+			"tx", types.Tx(tx).Hash(),
+		)
 		return mempool.ErrWrongHeight{
 			DesiredHeight:        int(txInfo.DesiredHeight),
 			CurrentAuctionHeight: int(sc.heightForFiringAuction),
@@ -166,7 +177,14 @@ func (sc *CListPriorityTxSidecar) AddTx(tx types.Tx, txInfo mempool.TxInfo) erro
 
 	// revert if tx asking to be included has an order greater/equal to size
 	if txInfo.BundleOrder >= txInfo.BundleSize {
-		fmt.Println("[mev-tendermint]: AddTx() skip tx... trying to insert a tx for bundle at an order greater than the size of the bundle... THIS IS PROBABLY A FATAL ERROR")
+		sc.logger.Info(
+			"failed adding sidecarTx",
+			"trying to insert a tx for bundle at an order greater than the size of the bundle...",
+			"bundle id", txInfo.BundleId,
+			"bundle order", txInfo.BundleOrder,
+			"bundle size", txInfo.BundleSize,
+			"tx", types.Tx(tx).Hash(),
+		)
 		return mempool.ErrTxMalformedForBundle{
 			BundleId:     txInfo.BundleId,
 			BundleSize:   txInfo.BundleSize,
@@ -194,7 +212,14 @@ func (sc *CListPriorityTxSidecar) AddTx(tx types.Tx, txInfo mempool.TxInfo) erro
 
 	// check if bundle is asking for a different size than one already stored
 	if txInfo.BundleSize != bundle.EnforcedSize {
-		fmt.Println("[mev-tendermint]: AddTx() skip tx... Trying to insert a tx with a size different than what's said by other txs for this bundle?? ... THIS IS PROBABLY A FATAL ERROR")
+		sc.logger.Info(
+			"failed adding sidecarTx",
+			"trying to insert a tx for bundle at an order greater than the size of the bundle...",
+			"bundle id", txInfo.BundleId,
+			"bundle size", txInfo.BundleSize,
+			"enforced size", bundle.EnforcedSize,
+			"tx", types.Tx(tx).Hash(),
+		)
 		return mempool.ErrTxMalformedForBundle{
 			BundleId:     txInfo.BundleId,
 			BundleSize:   txInfo.BundleSize,
@@ -206,7 +231,14 @@ func (sc *CListPriorityTxSidecar) AddTx(tx types.Tx, txInfo mempool.TxInfo) erro
 	// Can't add transactions if the bundle is already full
 	// check if the current size of this bundle is greater than the expected size for the bundle, if so skip
 	if bundle.CurrSize >= bundle.EnforcedSize {
-		fmt.Println("[mev-tendermint]: AddTx() skip tx... already full for this BundleId... THIS IS PROBABLY A FATAL ERROR")
+		sc.logger.Info(
+			"failed adding sidecarTx",
+			"bundle already full for this BundleID...",
+			"bundle id", txInfo.BundleId,
+			"bundle curr size", bundle.CurrSize,
+			"enforced size", bundle.EnforcedSize,
+			"tx", types.Tx(tx).Hash(),
+		)
 		return mempool.ErrBundleFull{
 			BundleId:     txInfo.BundleId,
 			BundleHeight: txInfo.BundleSize,
@@ -218,12 +250,17 @@ func (sc *CListPriorityTxSidecar) AddTx(tx types.Tx, txInfo mempool.TxInfo) erro
 	// get the map of order -> scTx
 	orderedTxsMap := bundle.OrderedTxsMap
 
-	// TODO: could add check to not add if bundleSize already over limit!
 	// if we already have a tx at this bundleId, bundleOrder, and height, then skip this one!
 	if _, loaded := orderedTxsMap.LoadOrStore(txInfo.BundleOrder, scTx); loaded {
 		// if we had the tx already, then skip
-		// TODO: return error
-		fmt.Println(fmt.Sprintf("[mev-tendermint]: AddTx() skip tx... already have a tx for bundleId %d, height %d, bundleOrder %d", txInfo.BundleId, scTx.DesiredHeight, txInfo.BundleOrder))
+		sc.logger.Info(
+			"failed adding sidecarTx",
+			"already have a tx for this bundleID, height, and bundleOrder...",
+			"bundle id", txInfo.BundleId,
+			"bundle height", txInfo.DesiredHeight,
+			"bundle order", txInfo.BundleOrder,
+			"tx", types.Tx(tx).Hash(),
+		)
 		return nil
 	} else {
 		// if we added, then increment bundle size for bundleId
@@ -233,7 +270,6 @@ func (sc *CListPriorityTxSidecar) AddTx(tx types.Tx, txInfo mempool.TxInfo) erro
 	// -------- UPDATE MAX BUNDLE ---------
 
 	if txInfo.BundleId >= sc.maxBundleId {
-		fmt.Println("[mev-tendermint]: AddTx(): updating maxBundleId to", txInfo.BundleId)
 		sc.maxBundleId = txInfo.BundleId
 	}
 
@@ -243,14 +279,20 @@ func (sc *CListPriorityTxSidecar) AddTx(tx types.Tx, txInfo mempool.TxInfo) erro
 	e := sc.txs.PushBack(scTx)
 	sc.txsMap.Store(scTx.Tx.Key(), e)
 	atomic.AddInt64(&sc.txsBytes, int64(len(scTx.Tx)))
-	fmt.Println("[mev-tendermint]: AddTx(): actually added the tx to the sc.txs CList, sidecar size is now", sc.Size())
 
 	// TODO: in the future, refactor to only notifyTxsAvailable when we have at least one full bundle
 	if sc.Size() > 0 {
 		sc.notifyTxsAvailable()
 	}
-
-	fmt.Println("[mev-tendermint]: ADDING SIDECAR TX FUNCTION COMPLETION")
+	sc.logger.Info(
+		"Added sidecar tx successfully",
+		"tx", tx,
+		"bundleId", txInfo.BundleId,
+		"bundleOrder", txInfo.BundleOrder,
+		"desiredHeight", txInfo.DesiredHeight,
+		"bundleSize", txInfo.BundleSize,
+		"sidecar total size", sc.Size(),
+	)
 
 	return nil
 }
@@ -287,17 +329,25 @@ func (sc *CListPriorityTxSidecar) Update(
 
 	for i, tx := range txs {
 		if e, ok := sc.txsMap.Load(tx.Key()); ok {
-			fmt.Println(fmt.Sprintf("[mev-tendermint]: on sidecar Update(), found COMMITTED tx %.20q in sidecar, removing!", tx))
 			if deliverTxResponses[i].Code == abci.CodeTypeOK {
-				fmt.Println("... and was valid!")
+				sc.logger.Debug(
+					"removed valid commited tx from sidecar",
+					"tx", tx,
+					"mempool updated height", height,
+					"sidecar total size", sc.Size(),
+				)
 			} else {
-				fmt.Println("... and was invalid!")
+				sc.logger.Debug(
+					"removed invalid commited tx from sidecar",
+					"tx", tx,
+					"mempool updated height", height,
+					"sidecar total size", sc.Size(),
+				)
 			}
 			sc.removeTx(tx, e.(*clist.CElement), false)
 		}
 	}
 
-	// TODO: cache reset correct?
 	sc.cache.Reset()
 	sc.maxBundleId = 0
 
@@ -305,7 +355,13 @@ func (sc *CListPriorityTxSidecar) Update(
 	for e := sc.txs.Front(); e != nil; e = e.Next() {
 		scTx := e.Value.(*mempool.SidecarTx)
 		if scTx.DesiredHeight <= height {
-			fmt.Println(fmt.Sprintf("[mev-tendermint]: on sidecar Update(), found UNCOMMITTED tx %.20q in sidecar, removing! height for tx is %d, and updating to height %d", scTx.Tx, scTx.DesiredHeight, height))
+			sc.logger.Debug(
+				"removed uncommited tx from sidecar",
+				"tx", scTx.Tx,
+				"tx desired height", scTx.DesiredHeight,
+				"mempool updated height", height,
+				"sidecar total size", sc.Size(),
+			)
 			tx := scTx.Tx
 			sc.removeTx(tx, e, false)
 		}
@@ -316,7 +372,13 @@ func (sc *CListPriorityTxSidecar) Update(
 		if bundle, ok := sc.bundles.Load(key); ok {
 			bundle := bundle.(*mempool.Bundle)
 			if bundle.DesiredHeight <= height {
-				fmt.Println(fmt.Sprintf("[mev-tendermint]: on sidecar Update(), removing bundle with id %d in sidecar! height for bundle is %d, and updating to height %d", bundle.BundleId, bundle.DesiredHeight, height))
+				sc.logger.Debug(
+					"removed bundle from sidecar",
+					"bundle id", bundle.BundleId,
+					"tx desired height", bundle.DesiredHeight,
+					"mempool updated height", height,
+					"sidecar total size", sc.Size(),
+				)
 				sc.bundles.Delete(key)
 			}
 		}
@@ -346,7 +408,6 @@ func (sc *CListPriorityTxSidecar) Flush() {
 		return true
 	})
 
-	// TODO: does the below not have garbage collection?
 	sc.bundles.Range(func(key, _ interface{}) bool {
 		sc.bundles.Delete(key)
 		return true
@@ -383,7 +444,10 @@ func (sc *CListPriorityTxSidecar) GetEnforcedBundleSize(bundleId int64) int {
 		bundle := bundle.(*mempool.Bundle)
 		return int(bundle.EnforcedSize)
 	} else {
-		fmt.Println("Error GetEnforcedBundleSize(): Don't have a bundle for bundleId", bundleId)
+		sc.logger.Info(
+			"error GetEnforcedBundleSize: Don't have a bundle for bundleId",
+			"bundleId", bundleId,
+		)
 		return 0
 	}
 }
@@ -394,7 +458,10 @@ func (sc *CListPriorityTxSidecar) GetCurrBundleSize(bundleId int64) int {
 		bundle := bundle.(*mempool.Bundle)
 		return int(bundle.CurrSize)
 	} else {
-		fmt.Println("Error GetBundleSize(): Don't have a bundle for bundleId", bundleId)
+		sc.logger.Info(
+			"error GetBundleSize: Don't have a bundle for bundleId",
+			"bundleId", bundleId,
+		)
 		return 0
 	}
 }
@@ -418,7 +485,6 @@ func (sc *CListPriorityTxSidecar) removeTx(tx types.Tx, elem *clist.CElement, re
 }
 
 // Safe for concurrent use by multiple goroutines.
-// TODO: add gas and byte limits (but requires tracking gas)
 
 // this reap function iterates over all the bundleIds up to maxBundleId
 // ... then goes over each bundle via the bundleOrders (up to enforcedSize for bundle)
@@ -427,7 +493,9 @@ func (sc *CListPriorityTxSidecar) ReapMaxTxs() []*mempool.MempoolTx {
 	sc.updateMtx.RLock()
 	defer sc.updateMtx.RUnlock()
 
-	fmt.Println(fmt.Sprintf("REAPING SIDECAR via ReapMaxTxs(): sidecar size at this time is %d", sc.Size()))
+	sc.logger.Info(
+		"Entering sidecar reap: sidecar size at this time is", sc.Size(),
+	)
 
 	memTxs := make([]*mempool.MempoolTx, 0, sc.txs.Len())
 
@@ -446,7 +514,13 @@ func (sc *CListPriorityTxSidecar) ReapMaxTxs() []*mempool.MempoolTx {
 
 			// check to see if bundle is full, if not, just skip now
 			if bundle.CurrSize != bundle.EnforcedSize {
-				fmt.Println(fmt.Sprintf("ReapMaxTxs() SKIPPING BUNDLE...: size mismatch for bundleId %d at height %d: currSize %d, enforcedSize %d: SKIPPING...", bundleIdIter, sc.heightForFiringAuction, bundle.CurrSize, bundle.EnforcedSize))
+				sc.logger.Info(
+					"In reap: skipping bundle, size mismatch",
+					"bundleId", bundleIdIter,
+					"height", sc.heightForFiringAuction,
+					"currSize", bundle.CurrSize,
+					"enforcedSize", bundle.EnforcedSize,
+				)
 				continue
 			}
 
@@ -468,7 +542,12 @@ func (sc *CListPriorityTxSidecar) ReapMaxTxs() []*mempool.MempoolTx {
 					innerTxs = append(innerTxs, memTx)
 				} else {
 					// can't find tx at this bundleOrder for this bundleId
-					fmt.Println(fmt.Sprintf("ReapMaxTxs() skip: don't have memTx for bundleOrder %d bundleId %d at height %d", bundleOrderIter, bundleIdIter, sc.heightForFiringAuction))
+					sc.logger.Info(
+						"In reap: skipping bundle, don't have a tx for bundle",
+						"bundleId", bundleIdIter,
+						"bundleOrder", bundleOrderIter,
+						"height", sc.heightForFiringAuction,
+					)
 				}
 			}
 
@@ -477,11 +556,22 @@ func (sc *CListPriorityTxSidecar) ReapMaxTxs() []*mempool.MempoolTx {
 				// check to see if we've reaped the right number of txs expected for the bundle
 				memTxs = append(memTxs, innerTxs...)
 			} else {
-				fmt.Println(fmt.Sprintf("ReapMaxTxs() SKIPPING BUNDLE...: size mismatch for bundleId %d at height %d: reaped %d, bundleSize %d, enforcedBundleSize %d: SKIPPING...", bundleIdIter, sc.heightForFiringAuction, len(innerTxs), bundle.CurrSize, bundle.EnforcedSize))
+				sc.logger.Info(
+					"In reap: skipping bundle, size mismatch",
+					"num txs reaped", len(innerTxs),
+					"bundle current size", bundle.CurrSize,
+					"bundle enforced size", bundle.EnforcedSize,
+					"bundleId", bundleIdIter,
+					"height", sc.heightForFiringAuction,
+				)
 			}
 		} else {
 			// can't find a bundle for this bundleId, panic! (incomplete gossipping)
-			fmt.Println(fmt.Sprintf("ReapMaxTxs() SKIPPING BUNDLE...: don't have bundle entry for bundleId %d at height %d", bundleIdIter, sc.heightForFiringAuction))
+			sc.logger.Info(
+				"In reap: skipping bundle, don't have a bundle entry",
+				"bundleId", bundleIdIter,
+				"height", sc.heightForFiringAuction,
+			)
 		}
 	}
 

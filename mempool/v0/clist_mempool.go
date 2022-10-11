@@ -3,7 +3,6 @@ package v0
 import (
 	"bytes"
 	"errors"
-	"fmt"
 	"sync"
 	"sync/atomic"
 
@@ -532,8 +531,11 @@ func (mem *CListMempool) ReapMaxBytesMaxGas(maxBytes, maxGas int64, sidecarTxs [
 	var sidecarTxsMap sync.Map
 
 	for _, scMemTx := range sidecarTxs {
-		fmt.Println("REAPING SIDECAR TX")
-		fmt.Println(scMemTx.Tx)
+		mem.logger.Debug(
+			"reaped sidecar mev transaction",
+			"tx", types.Tx(scMemTx.Tx).Hash(),
+			"height", scMemTx.Height,
+		)
 		dataSize := types.ComputeProtoSizeForTxs(append(txs, scMemTx.Tx))
 
 		// Check total size requirement
@@ -554,9 +556,12 @@ func (mem *CListMempool) ReapMaxBytesMaxGas(maxBytes, maxGas int64, sidecarTxs [
 		memTx := e.Value.(*mempool.MempoolTx)
 
 		if _, ok := sidecarTxsMap.Load(memTx.Tx.Key()); ok {
-			// SKIP THIS TRANSACTION, ALREADY SEEN IN SENTINEL
-			fmt.Println("SKIP SIDECAR TX IN REAP, skipping in mempool:")
-			fmt.Println(memTx.Tx)
+			// SKIP THIS TRANSACTION, ALREADY SEEN IN SIDECAR
+			mem.logger.Debug(
+				"skipped mempool tx, already found in sidecar",
+				"tx", types.Tx(memTx.Tx).Hash(),
+				"height", memTx.Height,
+			)
 			continue
 		}
 
