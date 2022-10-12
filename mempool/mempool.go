@@ -147,6 +147,9 @@ type PriorityTxSidecar interface {
 
 	// TxsBytes returns the total size of all txs in the mempool.
 	TxsBytes() int64
+
+	// Gets the height of the last received bundle tx. For status rpc purposes.
+	GetLastBundleHeight() int64
 }
 
 // PreCheckFunc is an optional filter executed before CheckTx and rejects

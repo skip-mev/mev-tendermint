@@ -22,6 +22,7 @@ type CListPriorityTxSidecar struct {
 	height                 int64 // the last block Update()'d to
 	heightForFiringAuction int64 // the height of the block to fire the auction for
 	txsBytes               int64 // total size of sidecar, in bytes
+	lastBundleHeight       int64 // height of last accepted bundle tx, for status rpc purposes
 
 	// notify listeners (ie. consensus) when txs are available
 	notifiedTxsAvailable bool
@@ -245,6 +246,8 @@ func (sc *CListPriorityTxSidecar) AddTx(tx types.Tx, txInfo mempool.TxInfo) erro
 	atomic.AddInt64(&sc.txsBytes, int64(len(scTx.Tx)))
 	fmt.Println("[mev-tendermint]: AddTx(): actually added the tx to the sc.txs CList, sidecar size is now", sc.Size())
 
+	sc.lastBundleHeight = scTx.DesiredHeight
+
 	// TODO: in the future, refactor to only notifyTxsAvailable when we have at least one full bundle
 	if sc.Size() > 0 {
 		sc.notifyTxsAvailable()
@@ -253,6 +256,11 @@ func (sc *CListPriorityTxSidecar) AddTx(tx types.Tx, txInfo mempool.TxInfo) erro
 	fmt.Println("[mev-tendermint]: ADDING SIDECAR TX FUNCTION COMPLETION")
 
 	return nil
+}
+
+// Gets the height of the last received bundle tx. For status rpc purposes.
+func (sc *CListPriorityTxSidecar) GetLastBundleHeight() int64 {
+	return sc.lastBundleHeight
 }
 
 // TxsWaitChan returns a channel to wait on transactions. It will be closed
