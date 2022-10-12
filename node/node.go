@@ -977,24 +977,6 @@ func NewNode(config *cfg.Config,
 	return node, nil
 }
 
-// Adds sidecar relayer id to the list of private peer ids if it exists
-// and isn't already there
-func (n *Node) getPrivateIds() []string {
-	// Add private IDs to addrbook to block those peers being added
-	privateIDs := splitAndTrimEmpty(n.config.P2P.PrivatePeerIDs, ",", " ")
-	relayerID := strings.Split(n.config.Sidecar.RelayerConnString, "@")[0]
-	if len(relayerID) > 0 {
-		contains := false
-		for _, v := range privateIDs {
-			contains = v == relayerID || contains
-		}
-		if contains {
-			privateIDs = append(privateIDs, relayerID)
-		}
-	}
-	return privateIDs
-}
-
 // OnStart starts the Node. It implements service.Service.
 func (n *Node) OnStart() error {
 	now := tmtime.Now()
