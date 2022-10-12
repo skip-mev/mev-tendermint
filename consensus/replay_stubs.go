@@ -81,6 +81,8 @@ func (emptySidecar) EnableTxsAvailable()           {}
 func (emptySidecar) Size() int       { return 0 }
 func (emptySidecar) TxsBytes() int64 { return 0 }
 
+func (emptySidecar) GetLastBundleHeight() int64 { return 0 }
+
 //-----------------------------------------------------------------------------
 // mockProxyApp uses ABCIResponses to give the right results.
 //

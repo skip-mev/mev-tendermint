@@ -230,6 +230,8 @@ type Node struct {
 	blockIndexer      indexer.BlockIndexer
 	indexerService    *txindex.IndexerService
 	prometheusSrv     *http.Server
+
+	sidecar           *mempoolv0.CListPriorityTxSidecar
 }
 
 func initDBs(config *cfg.Config, dbProvider DBProvider) (blockStore *store.BlockStore, stateDB dbm.DB, err error) {
@@ -953,6 +955,7 @@ func NewNode(config *cfg.Config,
 		indexerService:   indexerService,
 		blockIndexer:     blockIndexer,
 		eventBus:         eventBus,
+		sidecar:          sidecar.(*mempoolv0.CListPriorityTxSidecar),
 	}
 	node.BaseService = *service.NewBaseService(logger, "Node", node)
 
@@ -1136,10 +1139,12 @@ func (n *Node) ConfigureRPC() error {
 		ConsensusReactor: n.consensusReactor,
 		EventBus:         n.eventBus,
 		Mempool:          n.mempool,
+		Sidecar:          n.sidecar,
 
 		Logger: n.Logger.With("module", "rpc"),
 
 		Config: *n.config.RPC,
+		SidecarConfig: *n.config.Sidecar,
 	})
 	if err := rpccore.InitGenesisChunks(); err != nil {
 		return err
