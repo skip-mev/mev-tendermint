@@ -48,6 +48,8 @@ type CListPriorityTxSidecar struct {
 	cache mempool.TxCache
 
 	logger log.Logger
+
+	metrics *mempool.Metrics
 }
 
 var _ mempool.PriorityTxSidecar = &CListPriorityTxSidecar{}
@@ -65,6 +67,7 @@ func NewCListSidecar(
 		height:                 height,
 		heightForFiringAuction: height + 1,
 		logger:                 log.NewNopLogger(),
+		metrics:                mempool.NopMetrics(),
 	}
 	sidecar.cache = mempool.NewLRUTxCache(10000)
 	return sidecar
@@ -156,6 +159,9 @@ func (sc *CListPriorityTxSidecar) AddTx(tx types.Tx, txInfo mempool.TxInfo) erro
 		BundleOrder:   txInfo.BundleOrder,
 		BundleSize:    txInfo.BundleSize,
 	}
+
+	// add to metrics that we've received a new tx
+	sc.metrics.NumMevTxsTotal.Add(1)
 
 	// -------- BASIC CHECKS ON TX INFO ---------
 
@@ -280,6 +286,12 @@ func (sc *CListPriorityTxSidecar) AddTx(tx types.Tx, txInfo mempool.TxInfo) erro
 	sc.txsMap.Store(scTx.Tx.Key(), e)
 	atomic.AddInt64(&sc.txsBytes, int64(len(scTx.Tx)))
 
+	// add metric for new sidecar size
+	sc.metrics.SidecarSize.Set(float64(sc.Size()))
+
+	// add metric for sidecar tx sampling
+	sc.metrics.SidecarTxSizeBytes.Observe(float64(len(scTx.Tx)))
+
 	// TODO: in the future, refactor to only notifyTxsAvailable when we have at least one full bundle
 	if sc.Size() > 0 {
 		sc.notifyTxsAvailable()
@@ -384,6 +396,9 @@ func (sc *CListPriorityTxSidecar) Update(
 		}
 		return true
 	})
+
+	// add metric for new sidecar size
+	sc.metrics.SidecarSize.Set(float64(sc.Size()))
 
 	return nil
 }
@@ -503,6 +518,9 @@ func (sc *CListPriorityTxSidecar) ReapMaxTxs() []*mempool.MempoolTx {
 		return memTxs
 	}
 
+	completedBundles := 0
+	numTxsInBundles := 0
+
 	// iterate over all bundleIds up to the max we've seen
 	// CONTRACT: this assumes that bundles don't care about previous bundles, so still want to execute if any missing between
 	for bundleIdIter := 0; bundleIdIter <= int(sc.maxBundleId); bundleIdIter++ {
@@ -555,6 +573,11 @@ func (sc *CListPriorityTxSidecar) ReapMaxTxs() []*mempool.MempoolTx {
 			if bundle.EnforcedSize == int64(len(innerTxs)) {
 				// check to see if we've reaped the right number of txs expected for the bundle
 				memTxs = append(memTxs, innerTxs...)
+				completedBundles += 1
+				numTxsInBundles += len(innerTxs)
+
+				// update metrics with total number of bundles reaped
+				sc.metrics.NumBundlesTotal.Add(1)
 			} else {
 				sc.logger.Info(
 					"In reap: skipping bundle, size mismatch",
@@ -574,6 +597,12 @@ func (sc *CListPriorityTxSidecar) ReapMaxTxs() []*mempool.MempoolTx {
 			)
 		}
 	}
+
+	// update metrics with number of bundles reaped this block
+	sc.metrics.NumBundlesLastBlock.Set(float64(completedBundles))
+
+	// update metrics for number of mev transactions reaped this block
+	sc.metrics.NumMevTxsLastBlock.Set(float64(numTxsInBundles))
 
 	return memTxs
 }

@@ -606,6 +606,7 @@ func createSwitch(config *cfg.Config,
 		config.P2P,
 		sidecarPeers,
 		transport,
+		config.Sidecar.RelayerID,
 		p2p.WithMetrics(p2pMetrics),
 		p2p.SwitchPeerFilters(peerFilters...),
 	)

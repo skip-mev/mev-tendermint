@@ -92,6 +92,7 @@ type Switch struct {
 
 	metrics      *Metrics
 	sidecarPeers SidecarPeers
+	RelayerID    string
 }
 
 // NetAddress returns the address the switch is listening on.
@@ -127,6 +128,7 @@ func NewSwitch(
 	cfg *config.P2PConfig,
 	sidecarPeers SidecarPeers,
 	transport Transport,
+	relayerID string,
 	options ...SwitchOption,
 ) *Switch {
 	sw := &Switch{
@@ -143,6 +145,7 @@ func NewSwitch(
 		filterTimeout:        defaultFilterTimeout,
 		persistentPeersAddrs: make([]*NetAddress, 0),
 		unconditionalPeerIDs: make(map[ID]struct{}),
+		RelayerID:            relayerID,
 	}
 
 	// Ensure we have a completely undeterministic PRNG.
@@ -392,6 +395,15 @@ func (sw *Switch) stopAndRemovePeer(peer Peer, reason interface{}) {
 	// https://github.com/tendermint/tendermint/issues/3338
 	if sw.peers.Remove(peer) {
 		sw.metrics.Peers.Add(float64(-1))
+
+		// check if we removed sentinel, if so, alert metrics
+		relayerIDConv := ID(sw.RelayerID)
+		if err := validateID(relayerIDConv); err == nil {
+			if peer.ID() == relayerIDConv {
+				sw.metrics.RelayConnected.Set(0)
+			}
+		}
+
 	}
 }
 
@@ -858,6 +870,14 @@ func (sw *Switch) addPeer(p Peer) error {
 		return err
 	}
 	sw.metrics.Peers.Add(float64(1))
+
+	// check if we removed sentinel, if so, alert metrics
+	relayerIDConv := ID(sw.RelayerID)
+	if err := validateID(relayerIDConv); err == nil {
+		if p.ID() == relayerIDConv {
+			sw.metrics.RelayConnected.Set(1)
+		}
+	}
 
 	// Start all the reactor protocols on the peer.
 	for _, reactor := range sw.reactors {
