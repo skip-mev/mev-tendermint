@@ -54,8 +54,8 @@ func ParseConfig(cmd *cobra.Command) (*cfg.Config, error) {
 		return nil, fmt.Errorf("error in config file: %v", err)
 	}
 	// Add auction relayer to config if not present and set
-	if len(conf.Sidecar.Relayer) > 0 {
-		relayerID := strings.Split(conf.Sidecar.Relayer, "@")[0]
+	if len(conf.Sidecar.RelayerConnString) > 0 {
+		relayerID := strings.Split(conf.Sidecar.RelayerConnString, "@")[0]
 		if !strings.Contains(conf.P2P.PrivatePeerIDs, relayerID) {
 			// safety check to not blow away existing private peers if any
 			if len(conf.P2P.PrivatePeerIDs) > 0 {

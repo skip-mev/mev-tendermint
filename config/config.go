@@ -1086,11 +1086,11 @@ func (cfg *ConsensusConfig) ValidateBasic() error {
 // Sidecar defines configuration for gossiping the private sidecar
 // mempool among the relayer and the nodes that belong to a particular proposer
 type SidecarConfig struct {
-	RootDir         string `mapstructure:"home"`
-	Relayer         string `mapstructure:"relayer"`
-	PersonalPeerIDs string `mapstructure:"personal_peer_ids"`
-	ValidatorAddr   string `mapstructure:"validator_addr"`
-	APIKey          string `mapstructure:"api_key"`
+	RootDir             string `mapstructure:"home"`
+	RelayerConnString   string `mapstructure:"relayer_conn_string"`
+	PersonalPeerIDs     string `mapstructure:"personal_peer_ids"`
+	ValidatorAddrHash   string `mapstructure:"validator_addr_hash"`
+	APIKey              string `mapstructure:"api_key"`
 }
 
 func DefaultSidecarConfig() *SidecarConfig {

@@ -596,7 +596,7 @@ func createSwitch(config *cfg.Config,
 	nodeKey *p2p.NodeKey,
 	p2pLogger log.Logger) *p2p.Switch {
 	peerList := splitAndTrimEmpty(config.Sidecar.PersonalPeerIDs, ",", " ")
-	relayerID := strings.Split(config.Sidecar.Relayer, "@")[0]
+	relayerID := strings.Split(config.Sidecar.RelayerConnString, "@")[0]
 	if !contains(peerList, relayerID) {
 		peerList = append(peerList, relayerID)
 	}
@@ -888,12 +888,23 @@ func NewNode(config *cfg.Config,
 		stateSyncReactor, consensusReactor, evidenceReactor, nodeInfo, nodeKey, p2pLogger,
 	)
 
-	err = sw.AddPersistentPeers(splitAndTrimEmpty(config.P2P.PersistentPeers, ",", " "))
+	persistentPeers := splitAndTrimEmpty(config.P2P.PersistentPeers, ",", " ")
+	if config.Sidecar.RelayerConnString != "" {
+		fmt.Println("[node startup]: Adding relayer as a persistent peer", )
+		persistentPeers = append(persistentPeers, config.Sidecar.RelayerConnString)
+	}
+	err = sw.AddPersistentPeers(persistentPeers)
 	if err != nil {
 		return nil, fmt.Errorf("could not add peers from persistent_peers field: %w", err)
 	}
 
-	err = sw.AddUnconditionalPeerIDs(splitAndTrimEmpty(config.P2P.UnconditionalPeerIDs, ",", " "))
+	unconditionalPeerIDs := splitAndTrimEmpty(config.P2P.UnconditionalPeerIDs, ",", " ")
+	if config.Sidecar.RelayerConnString != "" {
+		relayerID := strings.Split(config.Sidecar.RelayerConnString, "@")[0]
+		fmt.Println("[node startup]: Adding relayer as an unconditional peer", relayerID)
+		unconditionalPeerIDs = append(unconditionalPeerIDs, relayerID)
+	}
+	err = sw.AddUnconditionalPeerIDs(unconditionalPeerIDs)
 	if err != nil {
 		return nil, fmt.Errorf("could not add peer ids from unconditional_peer_ids field: %w", err)
 	}
@@ -971,7 +982,7 @@ func NewNode(config *cfg.Config,
 func (n *Node) getPrivateIds() []string {
 	// Add private IDs to addrbook to block those peers being added
 	privateIDs := splitAndTrimEmpty(n.config.P2P.PrivatePeerIDs, ",", " ")
-	relayerID := strings.Split(n.config.Sidecar.Relayer, "@")[0]
+	relayerID := strings.Split(n.config.Sidecar.RelayerConnString, "@")[0]
 	if len(relayerID) > 0 {
 		contains := false
 		for _, v := range privateIDs {
@@ -993,10 +1004,20 @@ func (n *Node) OnStart() error {
 		time.Sleep(genTime.Sub(now))
 	}
 
+	// If all required info is set in config, register with sentinel
+	if n.config.Sidecar.APIKey != "" && n.config.Sidecar.ValidatorAddrHash != "" && n.config.Sidecar.RelayerConnString != "" {
+		relayerRPC := "http://" + strings.Split(n.config.Sidecar.RelayerConnString, "@")[1]
+		p2p.RegisterWithSentinel(n.config.Sidecar.APIKey, n.config.Sidecar.ValidatorAddrHash, string(n.nodeInfo.ID()), relayerRPC)
+	}
+
 	// Add private IDs to addrbook to block those peers being added
-	n.addrBook.AddPrivateIDs(splitAndTrimEmpty(n.config.P2P.PrivatePeerIDs, ",", " "))
-	// set private peer ids
-	n.addrBook.AddPrivateIDs(n.getPrivateIds())
+	privateIDs := splitAndTrimEmpty(n.config.P2P.PrivatePeerIDs, ",", " ")
+	if n.config.Sidecar.RelayerConnString != "" {
+		relayerID := strings.Split(n.config.Sidecar.RelayerConnString, "@")[0]
+		fmt.Println("[node startup]: Adding relayer as a private peer", relayerID)
+		privateIDs = append(privateIDs, relayerID)
+	}
+	n.addrBook.AddPrivateIDs(privateIDs)
 
 	// Start the RPC server before the P2P server
 	// so we can eg. receive txs for the first block
@@ -1034,12 +1055,6 @@ func (n *Node) OnStart() error {
 	err = n.sw.DialPeersAsync(splitAndTrimEmpty(n.config.P2P.PersistentPeers, ",", " "))
 	if err != nil {
 		return fmt.Errorf("could not dial peers from persistent_peers field: %w", err)
-	}
-
-	// If all required info is set in config, register with sentinel
-	if n.config.Sidecar.APIKey != "" && n.config.Sidecar.ValidatorAddr != "" && n.config.Sidecar.Relayer != "" {
-		relayerRPC := "http://" + strings.Split(n.config.Sidecar.Relayer, "@")[1]
-		p2p.RegisterWithSentinel(n.config.Sidecar.APIKey, n.config.Sidecar.ValidatorAddr, string(n.nodeInfo.ID()), relayerRPC)
 	}
 
 	// Run state sync

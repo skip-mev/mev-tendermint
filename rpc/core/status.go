@@ -57,7 +57,7 @@ func Status(ctx *rpctypes.Context) (*ctypes.ResultStatus, error) {
 		lastReceivedBundleHeight int64
 	)
 
-	if relayer := env.SidecarConfig.Relayer; relayer != "" {
+	if relayer := env.SidecarConfig.RelayerConnString; relayer != "" {
 		isPeeredWithRelayer = env.P2PPeers.Peers().Has(p2p.ID(strings.Split(relayer, "@")[0]))
 	}
 

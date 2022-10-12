@@ -84,7 +84,7 @@ func checkConfig(configFile string) bool {
 		"max",
 		"genesis",
 		"skip",
-		"relayer",
+		"relayer_conn_string",
 		"personal_peer_ids",
 	}
 	for _, e := range elems {
