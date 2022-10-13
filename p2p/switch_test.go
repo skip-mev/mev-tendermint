@@ -697,7 +697,7 @@ func (errorTransport) Cleanup(Peer) {
 }
 
 func TestSwitchAcceptRoutineErrorCases(t *testing.T) {
-	sw := NewSwitch(cfg, make(SidecarPeers, 0), errorTransport{ErrFilterTimeout{}})
+	sw := NewSwitch(cfg, make(SidecarPeers, 0), errorTransport{ErrFilterTimeout{}}, "")
 	assert.NotPanics(t, func() {
 		err := sw.Start()
 		require.NoError(t, err)
@@ -705,7 +705,7 @@ func TestSwitchAcceptRoutineErrorCases(t *testing.T) {
 		require.NoError(t, err)
 	})
 
-	sw = NewSwitch(cfg, make(SidecarPeers, 0), errorTransport{ErrRejected{conn: nil, err: errors.New("filtered"), isFiltered: true}})
+	sw = NewSwitch(cfg, make(SidecarPeers, 0), errorTransport{ErrRejected{conn: nil, err: errors.New("filtered"), isFiltered: true}}, "")
 	assert.NotPanics(t, func() {
 		err := sw.Start()
 		require.NoError(t, err)
@@ -714,7 +714,7 @@ func TestSwitchAcceptRoutineErrorCases(t *testing.T) {
 	})
 	// TODO(melekes) check we remove our address from addrBook
 
-	sw = NewSwitch(cfg, make(SidecarPeers, 0), errorTransport{ErrTransportClosed{}})
+	sw = NewSwitch(cfg, make(SidecarPeers, 0), errorTransport{ErrTransportClosed{}}, "")
 	assert.NotPanics(t, func() {
 		err := sw.Start()
 		require.NoError(t, err)

@@ -25,6 +25,8 @@ type Metrics struct {
 	PeerPendingSendBytes metrics.Gauge
 	// Number of transactions submitted by each peer.
 	NumTxs metrics.Gauge
+	// Whether or not a node is connected to the relay.
+	RelayConnected metrics.Gauge
 }
 
 // PrometheusMetrics returns Metrics build using Prometheus client library.
@@ -66,6 +68,12 @@ func PrometheusMetrics(namespace string, labelsAndValues ...string) *Metrics {
 			Name:      "num_txs",
 			Help:      "Number of transactions submitted by each peer.",
 		}, append(labels, "peer_id")).With(labelsAndValues...),
+		RelayConnected: prometheus.NewGaugeFrom(stdprometheus.GaugeOpts{
+			Namespace: namespace,
+			Subsystem: MetricsSubsystem,
+			Name:      "relay_connected",
+			Help:      "Whether or not a node is connected to the mev relay / sentinel. 1 if yes, 0 if no.",
+		}, labels).With(labelsAndValues...),
 	}
 }
 
@@ -77,5 +85,6 @@ func NopMetrics() *Metrics {
 		PeerSendBytesTotal:    discard.NewCounter(),
 		PeerPendingSendBytes:  discard.NewGauge(),
 		NumTxs:                discard.NewGauge(),
+		RelayConnected:        discard.NewGauge(),
 	}
 }
