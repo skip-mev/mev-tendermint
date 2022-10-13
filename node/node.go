@@ -230,6 +230,8 @@ type Node struct {
 	blockIndexer      indexer.BlockIndexer
 	indexerService    *txindex.IndexerService
 	prometheusSrv     *http.Server
+
+	sidecar           *mempoolv0.CListPriorityTxSidecar
 }
 
 func initDBs(config *cfg.Config, dbProvider DBProvider) (blockStore *store.BlockStore, stateDB dbm.DB, err error) {
@@ -594,9 +596,14 @@ func createSwitch(config *cfg.Config,
 	nodeKey *p2p.NodeKey,
 	p2pLogger log.Logger) *p2p.Switch {
 	peerList := splitAndTrimEmpty(config.Sidecar.PersonalPeerIDs, ",", " ")
-	if !contains(peerList, config.Sidecar.RelayerID) && config.Sidecar.RelayerID != "" {
-		peerList = append(peerList, config.Sidecar.RelayerID)
+
+  if config.Sidecar.RelayerConnString != "" {
+    relayerID := strings.Split(config.Sidecar.RelayerConnString, "@")[0]
+    if !contains(peerList, relayerID) {
+      peerList = append(peerList, relayerID)
+    }
 	}
+  
 	sidecarPeers, err := p2p.NewSidecarPeers(peerList)
 	if err != nil {
 		panic(fmt.Sprintln("Problem with peer initialization", err))
@@ -886,12 +893,23 @@ func NewNode(config *cfg.Config,
 		stateSyncReactor, consensusReactor, evidenceReactor, nodeInfo, nodeKey, p2pLogger,
 	)
 
-	err = sw.AddPersistentPeers(splitAndTrimEmpty(config.P2P.PersistentPeers, ",", " "))
+	persistentPeers := splitAndTrimEmpty(config.P2P.PersistentPeers, ",", " ")
+	if config.Sidecar.RelayerConnString != "" {
+		fmt.Println("[node startup]: Adding relayer as a persistent peer", )
+		persistentPeers = append(persistentPeers, config.Sidecar.RelayerConnString)
+	}
+	err = sw.AddPersistentPeers(persistentPeers)
 	if err != nil {
 		return nil, fmt.Errorf("could not add peers from persistent_peers field: %w", err)
 	}
 
-	err = sw.AddUnconditionalPeerIDs(splitAndTrimEmpty(config.P2P.UnconditionalPeerIDs, ",", " "))
+	unconditionalPeerIDs := splitAndTrimEmpty(config.P2P.UnconditionalPeerIDs, ",", " ")
+	if config.Sidecar.RelayerConnString != "" {
+		relayerID := strings.Split(config.Sidecar.RelayerConnString, "@")[0]
+		fmt.Println("[node startup]: Adding relayer as an unconditional peer", relayerID)
+		unconditionalPeerIDs = append(unconditionalPeerIDs, relayerID)
+	}
+	err = sw.AddUnconditionalPeerIDs(unconditionalPeerIDs)
 	if err != nil {
 		return nil, fmt.Errorf("could not add peer ids from unconditional_peer_ids field: %w", err)
 	}
@@ -953,6 +971,7 @@ func NewNode(config *cfg.Config,
 		indexerService:   indexerService,
 		blockIndexer:     blockIndexer,
 		eventBus:         eventBus,
+		sidecar:          sidecar.(*mempoolv0.CListPriorityTxSidecar),
 	}
 	node.BaseService = *service.NewBaseService(logger, "Node", node)
 
@@ -961,24 +980,6 @@ func NewNode(config *cfg.Config,
 	}
 
 	return node, nil
-}
-
-// Adds sidecar relayer id to the list of private peer ids if it exists
-// and isn't already there
-func (n *Node) getPrivateIds() []string {
-	// Add private IDs to addrbook to block those peers being added
-	privateIDs := splitAndTrimEmpty(n.config.P2P.PrivatePeerIDs, ",", " ")
-	relayerID := n.config.Sidecar.RelayerID
-	if len(relayerID) > 0 {
-		contains := false
-		for _, v := range privateIDs {
-			contains = v == relayerID || contains
-		}
-		if contains {
-			privateIDs = append(privateIDs, relayerID)
-		}
-	}
-	return privateIDs
 }
 
 // OnStart starts the Node. It implements service.Service.
@@ -990,10 +991,24 @@ func (n *Node) OnStart() error {
 		time.Sleep(genTime.Sub(now))
 	}
 
+	// If all required info is set in config, register with sentinel
+	if n.config.Sidecar.APIKey != "" && n.config.Sidecar.ValidatorAddrHex != "" && n.config.Sidecar.RelayerConnString != "" {
+		relayerRPC := "http://" + strings.Split(n.config.Sidecar.RelayerConnString, "@")[1]
+		p2p.RegisterWithSentinel(n.config.Sidecar.APIKey, n.config.Sidecar.ValidatorAddrHex, string(n.nodeInfo.ID()), relayerRPC)
+	} else {
+		fmt.Println("[node startup]: Not registering with relayer, config has API Key:", n.config.Sidecar.APIKey,
+			"validator addr hex:", n.config.Sidecar.ValidatorAddrHex,
+			"relayer conn string:", n.config.Sidecar.RelayerConnString)
+	}
+
 	// Add private IDs to addrbook to block those peers being added
-	n.addrBook.AddPrivateIDs(splitAndTrimEmpty(n.config.P2P.PrivatePeerIDs, ",", " "))
-	// set private peer ids
-	n.addrBook.AddPrivateIDs(n.getPrivateIds())
+	privateIDs := splitAndTrimEmpty(n.config.P2P.PrivatePeerIDs, ",", " ")
+	if n.config.Sidecar.RelayerConnString != "" {
+		relayerID := strings.Split(n.config.Sidecar.RelayerConnString, "@")[0]
+		fmt.Println("[node startup]: Adding relayer as a private peer", relayerID)
+		privateIDs = append(privateIDs, relayerID)
+	}
+	n.addrBook.AddPrivateIDs(privateIDs)
 
 	// Start the RPC server before the P2P server
 	// so we can eg. receive txs for the first block
@@ -1130,10 +1145,12 @@ func (n *Node) ConfigureRPC() error {
 		ConsensusReactor: n.consensusReactor,
 		EventBus:         n.eventBus,
 		Mempool:          n.mempool,
+		Sidecar:          n.sidecar,
 
 		Logger: n.Logger.With("module", "rpc"),
 
 		Config: *n.config.RPC,
+		SidecarConfig: *n.config.Sidecar,
 	})
 	if err := rpccore.InitGenesisChunks(); err != nil {
 		return err

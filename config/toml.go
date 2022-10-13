@@ -543,7 +543,9 @@ namespace = "{{ .Instrumentation.Namespace }}"
 # nodes in your network receive auction-winning
 # txs when when your validator is the proposer)
 personal_peer_ids = "{{ .Sidecar.PersonalPeerIDs }}"
-relayer_id = "{{ .Sidecar.RelayerID }}"
+relayer_conn_string = "{{ .Sidecar.RelayerConnString }}"
+validator_addr_hex = "{{ .Sidecar.ValidatorAddrHex }}"
+api_key = "{{ .Sidecar.APIKey }}"
 `
 
 /****** these are for test settings ***********/

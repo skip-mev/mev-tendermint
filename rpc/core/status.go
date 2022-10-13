@@ -2,6 +2,7 @@ package core
 
 import (
 	"time"
+	"strings"
 
 	tmbytes "github.com/tendermint/tendermint/libs/bytes"
 	"github.com/tendermint/tendermint/p2p"
@@ -51,6 +52,17 @@ func Status(ctx *rpctypes.Context) (*ctypes.ResultStatus, error) {
 		votingPower = val.VotingPower
 	}
 
+	var (
+		isPeeredWithRelayer      bool
+		lastReceivedBundleHeight int64
+	)
+
+	if relayer := env.SidecarConfig.RelayerConnString; relayer != "" {
+		isPeeredWithRelayer = env.P2PPeers.Peers().Has(p2p.ID(strings.Split(relayer, "@")[0]))
+	}
+
+	lastReceivedBundleHeight = env.Sidecar.GetLastBundleHeight()
+
 	result := &ctypes.ResultStatus{
 		NodeInfo: env.P2PTransport.NodeInfo().(p2p.DefaultNodeInfo),
 		SyncInfo: ctypes.SyncInfo{
@@ -68,6 +80,10 @@ func Status(ctx *rpctypes.Context) (*ctypes.ResultStatus, error) {
 			Address:     env.PubKey.Address(),
 			PubKey:      env.PubKey,
 			VotingPower: votingPower,
+		},
+		MevInfo: ctypes.MevInfo{
+			IsPeeredWithRelayer:       isPeeredWithRelayer,
+			LastReceivedBundleHeight:  lastReceivedBundleHeight,
 		},
 	}
 
