@@ -1089,7 +1089,7 @@ type SidecarConfig struct {
 	RootDir             string `mapstructure:"home"`
 	RelayerConnString   string `mapstructure:"relayer_conn_string"`
 	PersonalPeerIDs     string `mapstructure:"personal_peer_ids"`
-	ValidatorAddrHash   string `mapstructure:"validator_addr_hash"`
+	ValidatorAddrHex   string `mapstructure:"validator_addr_hex"`
 	APIKey              string `mapstructure:"api_key"`
 }
 

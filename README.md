@@ -103,8 +103,8 @@ mev-tendermint introduces a new section of config in `config.toml` called `sidec
 - `personal_peer_ids`: These are the Tendermint p2p ids of all the nodes that your node will gossip side car transactions with. To ensure trader privacy, these should only include p2p ids of nodes that you manage.
     - For your validator, this should be the `ids` of all your sentry nodes
     - For your sentry nodes, this should be the `ids` of all your **other** sentry nodes, and your validator
-- `validator_addr_hash`: The hash associated with your validator address. This tells the relayer to fire to this node when this validator is the block proposer.
-- `api_key`: The API key issued to you, associated with your validator hash. Used for sending a peer registration request to the relayer.
+- `validator_addr_hex`: The hex associated with your validator address. This tells the relayer to fire to this node when this validator is the block proposer.
+- `api_key`: The API key issued to you, associated with your validator hex. Used for sending a peer registration request to the relayer.
 
 ### 3. Information Skip Requires from you  ℹ️
 
