@@ -990,6 +990,10 @@ func (n *Node) OnStart() error {
 	if n.config.Sidecar.APIKey != "" && n.config.Sidecar.ValidatorAddrHash != "" && n.config.Sidecar.RelayerConnString != "" {
 		relayerRPC := "http://" + strings.Split(n.config.Sidecar.RelayerConnString, "@")[1]
 		p2p.RegisterWithSentinel(n.config.Sidecar.APIKey, n.config.Sidecar.ValidatorAddrHash, string(n.nodeInfo.ID()), relayerRPC)
+	} else {
+		fmt.Println("[node startup]: Not registering with relayer, config has API Key:", n.config.Sidecar.APIKey,
+			"validator addr hash:", n.config.Sidecar.ValidatorAddrHash,
+			"relayer conn string:", n.config.Sidecar.RelayerConnString)
 	}
 
 	// Add private IDs to addrbook to block those peers being added
