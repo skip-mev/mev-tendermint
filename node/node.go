@@ -596,19 +596,24 @@ func createSwitch(config *cfg.Config,
 	nodeKey *p2p.NodeKey,
 	p2pLogger log.Logger) *p2p.Switch {
 	peerList := splitAndTrimEmpty(config.Sidecar.PersonalPeerIDs, ",", " ")
-	relayerID := strings.Split(config.Sidecar.RelayerConnString, "@")[0]
-	if !contains(peerList, relayerID) {
-		peerList = append(peerList, relayerID)
+
+  if config.Sidecar.RelayerConnString != "" {
+    relayerID := strings.Split(config.Sidecar.RelayerConnString, "@")[0]
+    if !contains(peerList, relayerID) {
+      peerList = append(peerList, relayerID)
+    }
 	}
+  
 	sidecarPeers, err := p2p.NewSidecarPeers(peerList)
 	if err != nil {
-		panic("Problem with peer initialization")
+		panic(fmt.Sprintln("Problem with peer initialization", err))
 	}
 
 	sw := p2p.NewSwitch(
 		config.P2P,
 		sidecarPeers,
 		transport,
+		config.Sidecar.RelayerID,
 		p2p.WithMetrics(p2pMetrics),
 		p2p.SwitchPeerFilters(peerFilters...),
 	)

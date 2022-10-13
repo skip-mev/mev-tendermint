@@ -192,11 +192,10 @@ func (memR *Reactor) Receive(chID byte, src p2p.Peer, msgBytes []byte) {
 	} else if chID == mempool.SidecarChannel && isSidecarPeer {
 		msg, err := memR.decodeBundleMsg(msgBytes)
 		if err != nil {
-			memR.Logger.Error("Error decoding message", "src", src, "chId", chID, "err", err)
+			memR.Logger.Error("Error decoding sidecar message", "src", src, "chId", chID, "err", err)
 			memR.Switch.StopPeerForError(src, err)
 			return
 		}
-		fmt.Println("[mev-tendermint] Reactor (receive) RECEIVED TX FROM ", src.ID())
 		txInfo := mempool.TxInfo{
 			SenderID:      memR.ids.GetForPeer(src),
 			DesiredHeight: msg.DesiredHeight,
@@ -208,13 +207,20 @@ func (memR *Reactor) Receive(chID byte, src p2p.Peer, msgBytes []byte) {
 			txInfo.SenderP2PID = src.ID()
 		}
 		for _, tx := range msg.Txs {
-			fmt.Println(fmt.Sprintf("[mev-tendermint] Reactor (receive): received sidecar tx %.20q! desiredHeight %d, bundleId %d, bundleOrder %d, bundleSize %d", tx, msg.DesiredHeight, msg.BundleId, msg.BundleOrder, msg.BundleSize))
+			memR.Logger.Debug(
+				"received sidecar tx",
+				"tx", types.Tx(tx).Hash(),
+				"desired height", msg.DesiredHeight,
+				"bundle ID", msg.BundleId,
+				"bundle order", msg.BundleOrder,
+				"bundle size", msg.BundleSize,
+			)
 
 			err = memR.sidecar.AddTx(tx, txInfo)
 			if err == mempool.ErrTxInCache {
-				memR.Logger.Debug("SidecarTx already exists in cache", "tx", tx.String())
+				memR.Logger.Debug("sidecartx already exists in cache!", "tx", types.Tx(tx).Hash())
 			} else if err != nil {
-				memR.Logger.Info("Could not add SidecarTx", "tx", tx.String(), "err", err)
+				memR.Logger.Info("could not add SidecarTx", "tx", tx.String(), "err", err)
 			}
 		}
 	}
@@ -245,9 +251,7 @@ func (memR *Reactor) broadcastSidecarTxRoutine(peer p2p.Peer) {
 			select {
 			case <-memR.sidecar.TxsWaitChan(): // Wait until a tx is available in sidecar
 				// if a tx is available on sidecar, if fire is set too, then fire
-				fmt.Println("[mev-tendermint]: BroadcastSidecarTx() sidecar tx wait chan entered!")
 				if next = memR.sidecar.TxsFront(); next == nil {
-					fmt.Println("[mev-tendermint]: BroadcastSidecarTx() next is nil after sidecar txs front()")
 					continue
 				}
 			case <-peer.Quit():
@@ -258,7 +262,11 @@ func (memR *Reactor) broadcastSidecarTxRoutine(peer p2p.Peer) {
 		}
 
 		if scTx, okConv := next.Value.(*mempool.SidecarTx); okConv && isSidecarPeer {
-			fmt.Println("[mev-tendermint]: BroadcastSidecarTx() as sidecarTx to peer", peerID)
+			memR.Logger.Debug(
+				"broadcasting a sidecarTx to peer",
+				"peer", peerID,
+				"tx", types.Tx(scTx.Tx).Hash(),
+			)
 			if _, ok := scTx.Senders.Load(peerID); !ok {
 				msg := protomem.MEVMessage{
 					Sum: &protomem.MEVMessage_Txs{
@@ -279,7 +287,13 @@ func (memR *Reactor) broadcastSidecarTxRoutine(peer p2p.Peer) {
 					continue
 				}
 			} else {
-				fmt.Println(fmt.Sprintf("[mev-tendermint]: BroadcastSidecarTx() failed: isSideCarPeer is %t, conversion was %t", isSidecarPeer, okConv))
+				memR.Logger.Info(
+					"broadcasting sidecarTx to peer failed",
+					"peer", peerID,
+					"was considered sidecarPeer", isSidecarPeer,
+					"was converted to sidecarTx", okConv,
+					"tx", types.Tx(scTx.Tx).Hash(),
+				)
 			}
 		}
 
