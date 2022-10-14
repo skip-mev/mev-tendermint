@@ -413,6 +413,7 @@ func createMempoolAndSidecarAndMempoolReactor(
 		sidecar := mempoolv0.NewCListSidecar(
 			state.LastBlockHeight,
 			logger,
+			memplMetrics,
 		)
 
 		reactor := mempoolv0.NewReactor(

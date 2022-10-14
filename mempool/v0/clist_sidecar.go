@@ -64,13 +64,14 @@ type Key struct {
 func NewCListSidecar(
 	height int64,
 	memLogger log.Logger,
+	memMetrics *mempool.Metrics,
 ) *CListPriorityTxSidecar {
 	sidecar := &CListPriorityTxSidecar{
 		txs:                    clist.New(),
 		height:                 height,
 		heightForFiringAuction: height + 1,
 		logger:                 memLogger,
-		metrics:                mempool.NopMetrics(),
+		metrics:                memMetrics,
 	}
 	sidecar.cache = mempool.NewLRUTxCache(10000)
 	return sidecar

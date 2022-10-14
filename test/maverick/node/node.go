@@ -421,6 +421,7 @@ func createMempoolAndSidecarAndMempoolReactor(config *cfg.Config, proxyApp proxy
 		sidecar := mempoolv0.NewCListSidecar(
 			state.LastBlockHeight,
 			logger,
+			memplMetrics,
 		)
 
 		reactor := mempoolv0.NewReactor(

@@ -174,7 +174,7 @@ func TestReactorWithEvidence(t *testing.T) {
 				mempoolv0.WithMetrics(memplMetrics),
 				mempoolv0.WithPreCheck(sm.TxPreCheck(state)),
 				mempoolv0.WithPostCheck(sm.TxPostCheck(state)))
-			sidecar = mempoolv0.NewCListSidecar(state.LastBlockHeight, log.NewNopLogger())
+			sidecar = mempoolv0.NewCListSidecar(state.LastBlockHeight, log.NewNopLogger(), memplMetrics)
 		case cfg.MempoolV1:
 			mempool = mempoolv1.NewTxMempool(logger,
 				config.Mempool,

@@ -85,7 +85,7 @@ func newMempoolWithAppAndConfig(cc proxy.ClientCreator, cfg *config.Config) (*CL
 
 	mp := NewCListMempool(cfg.Mempool, appConnMem, 0)
 	mp.SetLogger(log.TestingLogger())
-	sidecar := NewCListSidecar(0, log.NewNopLogger())
+	sidecar := NewCListSidecar(0, log.NewNopLogger(), mempool.NopMetrics())
 
 	return mp, sidecar, func() { os.RemoveAll(cfg.RootDir) }
 }
