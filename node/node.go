@@ -897,6 +897,8 @@ func NewNode(config *cfg.Config,
 	if config.Sidecar.RelayerConnString != "" {
 		fmt.Println("[node startup]: Adding relayer as a persistent peer", )
 		persistentPeers = append(persistentPeers, config.Sidecar.RelayerConnString)
+		// Add to persistent peers so we also dial
+		config.P2P.PersistentPeers = strings.Join(persistentPeers, ",")
 	}
 	err = sw.AddPersistentPeers(persistentPeers)
 	if err != nil {
@@ -993,8 +995,9 @@ func (n *Node) OnStart() error {
 
 	// If all required info is set in config, register with sentinel
 	if n.config.Sidecar.APIKey != "" && n.config.Sidecar.ValidatorAddrHex != "" && n.config.Sidecar.RelayerConnString != "" {
-		relayerRPC := "http://" + strings.Split(n.config.Sidecar.RelayerConnString, "@")[1]
-		p2p.RegisterWithSentinel(n.config.Sidecar.APIKey, n.config.Sidecar.ValidatorAddrHex, string(n.nodeInfo.ID()), relayerRPC)
+		relayerIP := "http://" + strings.Split(strings.Split(n.config.Sidecar.RelayerConnString, "@")[1], ":")[0]
+		rpcPort := ":26657"
+		p2p.RegisterWithSentinel(n.config.Sidecar.APIKey, n.config.Sidecar.ValidatorAddrHex, string(n.nodeInfo.ID()), relayerIP+rpcPort)
 	} else {
 		fmt.Println("[node startup]: Not registering with relayer, config has API Key:", n.config.Sidecar.APIKey,
 			"validator addr hex:", n.config.Sidecar.ValidatorAddrHex,
