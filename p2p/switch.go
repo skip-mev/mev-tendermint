@@ -3,6 +3,7 @@ package p2p
 import (
 	"fmt"
 	"math"
+	"strings"
 	"sync"
 	"time"
 
@@ -90,9 +91,9 @@ type Switch struct {
 
 	rng *rand.Rand // seed for randomizing dial times and orders
 
-	metrics      *Metrics
-	sidecarPeers SidecarPeers
-	RelayerID    string
+	metrics           *Metrics
+	sidecarPeers      SidecarPeers
+	RelayerConnString string
 }
 
 // NetAddress returns the address the switch is listening on.
@@ -128,7 +129,7 @@ func NewSwitch(
 	cfg *config.P2PConfig,
 	sidecarPeers SidecarPeers,
 	transport Transport,
-	relayerID string,
+	relayerConnString string,
 	options ...SwitchOption,
 ) *Switch {
 	sw := &Switch{
@@ -145,7 +146,7 @@ func NewSwitch(
 		filterTimeout:        defaultFilterTimeout,
 		persistentPeersAddrs: make([]*NetAddress, 0),
 		unconditionalPeerIDs: make(map[ID]struct{}),
-		RelayerID:            relayerID,
+		RelayerConnString:    relayerConnString,
 	}
 
 	// Ensure we have a completely undeterministic PRNG.
@@ -397,7 +398,7 @@ func (sw *Switch) stopAndRemovePeer(peer Peer, reason interface{}) {
 		sw.metrics.Peers.Add(float64(-1))
 
 		// check if we removed sentinel, if so, alert metrics
-		relayerIDConv := ID(sw.RelayerID)
+		relayerIDConv := ID(strings.Split(sw.RelayerConnString, "@")[0])
 		if err := validateID(relayerIDConv); err == nil {
 			if peer.ID() == relayerIDConv {
 				sw.metrics.RelayConnected.Set(0)
@@ -872,7 +873,7 @@ func (sw *Switch) addPeer(p Peer) error {
 	sw.metrics.Peers.Add(float64(1))
 
 	// check if we removed sentinel, if so, alert metrics
-	relayerIDConv := ID(sw.RelayerID)
+	relayerIDConv := ID(strings.Split(sw.RelayerConnString, "@")[0])
 	if err := validateID(relayerIDConv); err == nil {
 		if p.ID() == relayerIDConv {
 			sw.metrics.RelayConnected.Set(1)
