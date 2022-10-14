@@ -73,3 +73,5 @@ func (PriorityTxSidecar) TargetValidator() []byte { return []byte{} }
 
 func (PriorityTxSidecar) Size() int       { return 0 }
 func (PriorityTxSidecar) TxsBytes() int64 { return 0 }
+
+func (PriorityTxSidecar) GetLastBundleHeight() int64 { return 0 }

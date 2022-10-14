@@ -231,7 +231,7 @@ type Node struct {
 	indexerService    *txindex.IndexerService
 	prometheusSrv     *http.Server
 
-	sidecar           *mempoolv0.CListPriorityTxSidecar
+	sidecar *mempoolv0.CListPriorityTxSidecar
 }
 
 func initDBs(config *cfg.Config, dbProvider DBProvider) (blockStore *store.BlockStore, stateDB dbm.DB, err error) {
@@ -597,13 +597,13 @@ func createSwitch(config *cfg.Config,
 	p2pLogger log.Logger) *p2p.Switch {
 	peerList := splitAndTrimEmpty(config.Sidecar.PersonalPeerIDs, ",", " ")
 
-  if config.Sidecar.RelayerConnString != "" {
-    relayerID := strings.Split(config.Sidecar.RelayerConnString, "@")[0]
-    if !contains(peerList, relayerID) {
-      peerList = append(peerList, relayerID)
-    }
+	if config.Sidecar.RelayerConnString != "" {
+		relayerID := strings.Split(config.Sidecar.RelayerConnString, "@")[0]
+		if !contains(peerList, relayerID) {
+			peerList = append(peerList, relayerID)
+		}
 	}
-  
+
 	sidecarPeers, err := p2p.NewSidecarPeers(peerList)
 	if err != nil {
 		panic(fmt.Sprintln("Problem with peer initialization", err))
@@ -613,7 +613,7 @@ func createSwitch(config *cfg.Config,
 		config.P2P,
 		sidecarPeers,
 		transport,
-		config.Sidecar.RelayerID,
+		config.Sidecar.RelayerConnString,
 		p2p.WithMetrics(p2pMetrics),
 		p2p.SwitchPeerFilters(peerFilters...),
 	)
@@ -895,7 +895,7 @@ func NewNode(config *cfg.Config,
 
 	persistentPeers := splitAndTrimEmpty(config.P2P.PersistentPeers, ",", " ")
 	if config.Sidecar.RelayerConnString != "" {
-		fmt.Println("[node startup]: Adding relayer as a persistent peer", )
+		fmt.Println("[node startup]: Adding relayer as a persistent peer")
 		persistentPeers = append(persistentPeers, config.Sidecar.RelayerConnString)
 	}
 	err = sw.AddPersistentPeers(persistentPeers)
@@ -1149,7 +1149,7 @@ func (n *Node) ConfigureRPC() error {
 
 		Logger: n.Logger.With("module", "rpc"),
 
-		Config: *n.config.RPC,
+		Config:        *n.config.RPC,
 		SidecarConfig: *n.config.Sidecar,
 	})
 	if err := rpccore.InitGenesisChunks(); err != nil {
