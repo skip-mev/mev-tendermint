@@ -418,7 +418,7 @@ func (h *Handshaker) ReplayBlocks(
 
 		case appBlockHeight == storeBlockHeight:
 			// We ran Commit, but didn't save the state, so replayBlock with mock app.
-			abciResponses, err := h.stateStore.LoadABCIResponses(storeBlockHeight)
+			abciResponses, err := h.stateStore.LoadLastABCIResponse(storeBlockHeight)
 			if err != nil {
 				return nil, err
 			}
@@ -496,7 +496,7 @@ func (h *Handshaker) replayBlock(state sm.State, height int64, proxyApp proxy.Ap
 
 	// Use stubs for both mempool and evidence pool since no transactions nor
 	// evidence are needed here - block already exists.
-	blockExec := sm.NewBlockExecutor(h.stateStore, h.logger, proxyApp, emptyMempool{}, sm.EmptyEvidencePool{})
+	blockExec := sm.NewBlockExecutor(h.stateStore, h.logger, proxyApp, emptyMempool{}, sm.EmptyEvidencePool{}, emptySidecar{})
 	blockExec.SetEventBus(h.eventBus)
 
 	var err error

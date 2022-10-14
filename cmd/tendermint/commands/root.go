@@ -29,16 +29,45 @@ func registerFlagsRootCmd(cmd *cobra.Command) {
 
 // ParseConfig retrieves the default environment configuration,
 // sets up the Tendermint root and ensures that the root exists
-func ParseConfig() (*cfg.Config, error) {
+func ParseConfig(cmd *cobra.Command) (*cfg.Config, error) {
 	conf := cfg.DefaultConfig()
 	err := viper.Unmarshal(conf)
 	if err != nil {
 		return nil, err
 	}
+
+	var home string
+	if os.Getenv("TMHOME") != "" {
+		home = os.Getenv("TMHOME")
+	} else {
+		home, err = cmd.Flags().GetString(cli.HomeFlag)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	conf.RootDir = home
+
 	conf.SetRoot(conf.RootDir)
 	cfg.EnsureRoot(conf.RootDir)
 	if err := conf.ValidateBasic(); err != nil {
 		return nil, fmt.Errorf("error in config file: %v", err)
+	}
+	// Add auction relayer to config if not present and set
+	if len(conf.Sidecar.RelayerPeerString) > 0 {
+		relayerID := strings.Split(conf.Sidecar.RelayerPeerString, "@")[0]
+		if !strings.Contains(conf.P2P.PrivatePeerIDs, relayerID) {
+			// safety check to not blow away existing private peers if any
+			if len(conf.P2P.PrivatePeerIDs) > 0 {
+				if conf.P2P.PrivatePeerIDs[len(conf.P2P.PrivatePeerIDs)-1:] == "," {
+					conf.P2P.PrivatePeerIDs = conf.P2P.PrivatePeerIDs + relayerID
+				} else {
+					conf.P2P.PrivatePeerIDs = conf.P2P.PrivatePeerIDs + "," + relayerID
+				}
+			} else {
+				conf.P2P.PrivatePeerIDs = relayerID
+			}
+		}
 	}
 	return conf, nil
 }
@@ -52,7 +81,7 @@ var RootCmd = &cobra.Command{
 			return nil
 		}
 
-		config, err = ParseConfig()
+		config, err = ParseConfig(cmd)
 		if err != nil {
 			return err
 		}
