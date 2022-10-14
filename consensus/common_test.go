@@ -410,7 +410,7 @@ func newStateWithConfigAndBlockStore(
 			mempoolv0.WithMetrics(memplMetrics),
 			mempoolv0.WithPreCheck(sm.TxPreCheck(state)),
 			mempoolv0.WithPostCheck(sm.TxPostCheck(state)))
-		sidecar = mempoolv0.NewCListSidecar(state.LastBlockHeight)
+		sidecar = mempoolv0.NewCListSidecar(state.LastBlockHeight, log.NewNopLogger())
 	case cfg.MempoolV1:
 		logger := consensusLogger()
 		mempool = mempoolv1.NewTxMempool(logger,
