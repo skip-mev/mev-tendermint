@@ -57,7 +57,7 @@ type CListMempool struct {
 	// This reduces the pressure on the proxyApp.
 	cache mempool.TxCache
 
-	Logger  log.Logger
+	logger  log.Logger
 	metrics *mempool.Metrics
 }
 
@@ -82,7 +82,7 @@ func NewCListMempool(
 		height:        height,
 		recheckCursor: nil,
 		recheckEnd:    nil,
-		Logger:        log.NewNopLogger(),
+		logger:        log.NewNopLogger(),
 		metrics:       mempool.NopMetrics(),
 	}
 
@@ -108,7 +108,7 @@ func (mem *CListMempool) EnableTxsAvailable() {
 
 // SetLogger sets the Logger.
 func (mem *CListMempool) SetLogger(l log.Logger) {
-	mem.Logger = l
+	mem.logger = l
 }
 
 // WithPreCheck sets a filter for the mempool to reject a tx if f(tx) returns
@@ -387,7 +387,7 @@ func (mem *CListMempool) resCbFirstTime(
 			if err := mem.isFull(len(tx)); err != nil {
 				// remove from cache (mempool might have a space later)
 				mem.cache.Remove(tx)
-				mem.Logger.Error(err.Error())
+				mem.logger.Error(err.Error())
 				return
 			}
 
@@ -398,7 +398,7 @@ func (mem *CListMempool) resCbFirstTime(
 			}
 			memTx.Senders.Store(peerID, true)
 			mem.addTx(memTx)
-			mem.Logger.Debug(
+			mem.logger.Debug(
 				"added good transaction",
 				"tx", types.Tx(tx).Hash(),
 				"res", r,
@@ -408,7 +408,7 @@ func (mem *CListMempool) resCbFirstTime(
 			mem.notifyTxsAvailable()
 		} else {
 			// ignore bad transaction
-			mem.Logger.Debug(
+			mem.logger.Debug(
 				"rejected bad transaction",
 				"tx", types.Tx(tx).Hash(),
 				"peerID", peerP2PID,
@@ -448,7 +448,7 @@ func (mem *CListMempool) resCbRecheck(req *abci.Request, res *abci.Response) {
 				break
 			}
 
-			mem.Logger.Error(
+			mem.logger.Error(
 				"re-CheckTx transaction mismatch",
 				"got", types.Tx(tx),
 				"expected", memTx.Tx,
@@ -475,7 +475,7 @@ func (mem *CListMempool) resCbRecheck(req *abci.Request, res *abci.Response) {
 			// Good, nothing to do.
 		} else {
 			// Tx became invalidated due to newly committed block.
-			mem.Logger.Debug("tx is no longer valid", "tx", types.Tx(tx).Hash(), "res", r, "err", postCheckErr)
+			mem.logger.Debug("tx is no longer valid", "tx", types.Tx(tx).Hash(), "res", r, "err", postCheckErr)
 			// NOTE: we remove tx from the cache because it might be good later
 			mem.removeTx(tx, mem.recheckCursor, !mem.config.KeepInvalidTxsInCache)
 		}
@@ -486,7 +486,7 @@ func (mem *CListMempool) resCbRecheck(req *abci.Request, res *abci.Response) {
 		}
 		if mem.recheckCursor == nil {
 			// Done!
-			mem.Logger.Debug("done rechecking txs")
+			mem.logger.Debug("done rechecking txs")
 
 			// incase the recheck removed all txs
 			if mem.Size() > 0 {
@@ -531,7 +531,7 @@ func (mem *CListMempool) ReapMaxBytesMaxGas(maxBytes, maxGas int64, sidecarTxs [
 	var sidecarTxsMap sync.Map
 
 	for _, scMemTx := range sidecarTxs {
-		mem.Logger.Debug(
+		mem.logger.Debug(
 			"reaped sidecar mev transaction",
 			"tx", types.Tx(scMemTx.Tx).Hash(),
 			"height", scMemTx.Height,
@@ -557,7 +557,7 @@ func (mem *CListMempool) ReapMaxBytesMaxGas(maxBytes, maxGas int64, sidecarTxs [
 
 		if _, ok := sidecarTxsMap.Load(memTx.Tx.Key()); ok {
 			// SKIP THIS TRANSACTION, ALREADY SEEN IN SIDECAR
-			mem.Logger.Debug(
+			mem.logger.Debug(
 				"skipped mempool tx, already found in sidecar",
 				"tx", types.Tx(memTx.Tx).Hash(),
 				"height", memTx.Height,
@@ -653,7 +653,7 @@ func (mem *CListMempool) Update(
 	// or just notify there're some txs left.
 	if mem.Size() > 0 {
 		if mem.config.Recheck {
-			mem.Logger.Debug("recheck txs", "numtxs", mem.Size(), "height", height)
+			mem.logger.Debug("recheck txs", "numtxs", mem.Size(), "height", height)
 			mem.recheckTxs()
 			// At this point, mem.txs are being rechecked.
 			// mem.recheckCursor re-scans mem.txs and possibly removes some txs.
