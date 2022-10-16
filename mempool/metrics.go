@@ -10,7 +10,8 @@ import (
 const (
 	// MetricsSubsystem is a subsystem shared by all metrics exposed by this
 	// package.
-	MetricsSubsystem = "mempool"
+	MetricsSubsystem        = "mempool"
+	SidecarMetricsSubsystem = "sidecar"
 )
 
 // Metrics contains metrics exposed by this package.
@@ -113,39 +114,39 @@ func PrometheusMetrics(namespace string, labelsAndValues ...string) *Metrics {
 		// SIDECAR METRICS
 		SidecarSize: prometheus.NewGaugeFrom(stdprometheus.GaugeOpts{
 			Namespace: namespace,
-			Subsystem: MetricsSubsystem,
-			Name:      "sidecar_size",
+			Subsystem: SidecarMetricsSubsystem,
+			Name:      "size",
 			Help:      "Size of the sidecar (number of uncommitted transactions).",
 		}, labels).With(labelsAndValues...),
 		SidecarTxSizeBytes: prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
 			Namespace: namespace,
-			Subsystem: MetricsSubsystem,
-			Name:      "sidecar_size_bytes",
+			Subsystem: SidecarMetricsSubsystem,
+			Name:      "size_bytes",
 			Help:      "MEV transaction sizes in bytes.",
 		}, labels).With(labelsAndValues...),
 
 		NumBundlesTotal: prometheus.NewCounterFrom(stdprometheus.CounterOpts{
 			Namespace: namespace,
-			Subsystem: MetricsSubsystem,
+			Subsystem: SidecarMetricsSubsystem,
 			Name:      "num_bundles_total",
 			Help:      "Number of MEV bundles received by the sidecar in total.",
 		}, labels).With(labelsAndValues...),
 		NumBundlesLastBlock: prometheus.NewGaugeFrom(stdprometheus.GaugeOpts{
 			Namespace: namespace,
-			Subsystem: MetricsSubsystem,
+			Subsystem: SidecarMetricsSubsystem,
 			Name:      "num_bundles_last_block",
 			Help:      "Number of MEV bundles received by the sidecar in the last block.",
 		}, labels).With(labelsAndValues...),
 
 		NumMevTxsTotal: prometheus.NewCounterFrom(stdprometheus.CounterOpts{
 			Namespace: namespace,
-			Subsystem: MetricsSubsystem,
+			Subsystem: SidecarMetricsSubsystem,
 			Name:      "num_mev_txs_total",
 			Help:      "Number of MEV transactions received to the sidecar in total.",
 		}, labels).With(labelsAndValues...),
 		NumMevTxsLastBlock: prometheus.NewGaugeFrom(stdprometheus.GaugeOpts{
 			Namespace: namespace,
-			Subsystem: MetricsSubsystem,
+			Subsystem: SidecarMetricsSubsystem,
 			Name:      "num_mev_txs_last_block",
 			Help:      "Number of MEV transactions received to the sidecar in the last block.",
 		}, labels).With(labelsAndValues...),

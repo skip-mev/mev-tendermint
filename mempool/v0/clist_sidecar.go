@@ -60,15 +60,18 @@ type Key struct {
 }
 
 // NewCListSidecar returns a new sidecar with the given configuration
+// takes in the logger for the mempool
 func NewCListSidecar(
 	height int64,
+	memLogger log.Logger,
+	memMetrics *mempool.Metrics,
 ) *CListPriorityTxSidecar {
 	sidecar := &CListPriorityTxSidecar{
 		txs:                    clist.New(),
 		height:                 height,
 		heightForFiringAuction: height + 1,
-		logger:                 log.NewNopLogger(),
-		metrics:                mempool.NopMetrics(),
+		logger:                 memLogger,
+		metrics:                memMetrics,
 	}
 	sidecar.cache = mempool.NewLRUTxCache(10000)
 	return sidecar

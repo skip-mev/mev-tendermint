@@ -408,11 +408,13 @@ func createMempoolAndSidecarAndMempoolReactor(
 			mempoolv0.WithPostCheck(sm.TxPostCheck(state)),
 		)
 
+		mp.SetLogger(logger)
+
 		sidecar := mempoolv0.NewCListSidecar(
 			state.LastBlockHeight,
+			logger,
+			memplMetrics,
 		)
-
-		mp.SetLogger(logger)
 
 		reactor := mempoolv0.NewReactor(
 			config.Mempool,
