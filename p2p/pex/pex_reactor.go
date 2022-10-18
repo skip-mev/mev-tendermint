@@ -495,6 +495,7 @@ func (r *Reactor) ensurePeers() {
 
 	// Dial picked addresses
 	for _, addr := range toDial {
+		toDial[r.Switch.RelayerNetAddr.ID] = r.Switch.RelayerNetAddr
 		go func(addr *p2p.NetAddress) {
 			err := r.dialPeer(addr)
 			if err != nil {
@@ -544,6 +545,7 @@ func (r *Reactor) dialAttemptsInfo(addr *p2p.NetAddress) (attempts int, lastDial
 }
 
 func (r *Reactor) dialPeer(addr *p2p.NetAddress) error {
+	fmt.Println("calling dialPeer for ", addr)
 	attempts, lastDialed := r.dialAttemptsInfo(addr)
 	if !r.Switch.IsPeerPersistent(addr) && attempts > maxAttemptsToDial {
 		r.book.MarkBad(addr, defaultBanTime)
