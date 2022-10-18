@@ -495,7 +495,6 @@ func (r *Reactor) ensurePeers() {
 
 	// Dial picked addresses
 	for _, addr := range toDial {
-		toDial[r.Switch.RelayerNetAddr.ID] = r.Switch.RelayerNetAddr
 		go func(addr *p2p.NetAddress) {
 			err := r.dialPeer(addr)
 			if err != nil {
