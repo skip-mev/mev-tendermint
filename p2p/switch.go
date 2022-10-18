@@ -859,6 +859,8 @@ func (sw *Switch) addOutboundPeerWithConfig(
 			_ = p.Stop()
 		}
 		return err
+	} else if addr.ID == sw.RelayerNetAddr.ID {
+		sw.Logger.Info("[relayer-reconnection]: RELAYER RECONNECTED!", "address", addr)
 	}
 
 	return nil
