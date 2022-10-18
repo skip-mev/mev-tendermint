@@ -666,6 +666,7 @@ func (sw *Switch) AddPersistentPeers(addrs []string) error {
 		}
 		return err
 	}
+	fmt.Println("[node startup]: setting persistent peers to ", netAddrs)
 	sw.persistentPeersAddrs = netAddrs
 	return nil
 }
