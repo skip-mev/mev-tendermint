@@ -416,15 +416,14 @@ func (sw *Switch) stopAndRemovePeer(peer Peer, reason interface{}) {
 }
 
 func (sw *Switch) reconnectToRelayerPeer(addr *NetAddress) {
-	fmt.Println("STARTING RELAYER RECONNECT, addr is ", addr)
+	fmt.Println("[relayer-reconnection]: starting relayer reconnect routine, addr is ", addr)
 	if sw.reconnecting.Has(string(addr.ID)) {
+		fmt.Println("[relayer-reconnection]: already have a reconnection routine for ", addr)
 		return
 	}
 	sw.reconnecting.Set(string(addr.ID), addr)
 	defer sw.reconnecting.Delete(string(addr.ID))
 
-	// start := time.Now()
-	sw.Logger.Info("Reconnecting to relayer peer", "addr", addr)
 	i := 0
 	for {
 		if !sw.IsRunning() {
@@ -609,6 +608,10 @@ func (sw *Switch) dialPeersAsync(netAddrs []*NetAddress) {
 func (sw *Switch) DialPeerWithAddress(addr *NetAddress) error {
 	if sw.IsDialingOrExistingAddress(addr) {
 		return ErrCurrentlyDialingOrExistingAddress{addr.String()}
+	}
+
+	if addr.ID == sw.RelayerNetAddr.ID {
+		sw.Logger.Info("[relayer-reconnection]: DIALING RELAYER", "address", addr, "time", time.Now())
 	}
 
 	sw.dialing.Set(string(addr.ID), addr)
