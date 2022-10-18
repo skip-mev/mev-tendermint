@@ -545,7 +545,6 @@ func (r *Reactor) dialAttemptsInfo(addr *p2p.NetAddress) (attempts int, lastDial
 }
 
 func (r *Reactor) dialPeer(addr *p2p.NetAddress) error {
-	fmt.Println("calling dialPeer for ", addr)
 	attempts, lastDialed := r.dialAttemptsInfo(addr)
 	if !r.Switch.IsPeerPersistent(addr) && attempts > maxAttemptsToDial {
 		r.book.MarkBad(addr, defaultBanTime)
@@ -563,7 +562,6 @@ func (r *Reactor) dialPeer(addr *p2p.NetAddress) error {
 		}
 	}
 
-	fmt.Println("Dial within pex reactor", addr)
 	err := r.Switch.DialPeerWithAddress(addr)
 	if err != nil {
 		if _, ok := err.(p2p.ErrCurrentlyDialingOrExistingAddress); ok {

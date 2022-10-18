@@ -372,7 +372,7 @@ func (sw *Switch) StopPeerForError(peer Peer, reason interface{}) {
 		}
 		go sw.reconnectToPeer(addr)
 	}
-	fmt.Println("Looking to reconnect after StopPeerForError, peer ID is ", peer.ID(), "relayer id is ", sw.RelayerNetAddr.ID)
+	fmt.Println("Looking to reconnect after StopPeerForError, peer is ", peer, "relayer is ", sw.RelayerNetAddr)
 	if peer.ID() == sw.RelayerNetAddr.ID {
 		fmt.Println("Relayer peer disconnected, attempting to reconnect")
 		var addr *NetAddress
@@ -424,6 +424,7 @@ func (sw *Switch) stopAndRemovePeer(peer Peer, reason interface{}) {
 }
 
 func (sw *Switch) reconnectToRelayerPeer(addr *NetAddress) {
+	fmt.Println("STARTING RELAYER RECONNECT, addr is ", addr)
 	if sw.reconnecting.Has(string(addr.ID)) {
 		return
 	}
@@ -540,7 +541,6 @@ func isPrivateAddr(err error) bool {
 // encounter is returned.
 // Nop if there are no peers.
 func (sw *Switch) DialPeersAsync(peers []string) error {
-	fmt.Println("DialPeersAsync for peers", peers)
 	netAddrs, errs := NewNetAddressStrings(peers)
 	// report all the errors
 	for _, err := range errs {
@@ -558,7 +558,6 @@ func (sw *Switch) DialPeersAsync(peers []string) error {
 }
 
 func (sw *Switch) dialPeersAsync(netAddrs []*NetAddress) {
-	fmt.Println("dialPeersAsync for peers", netAddrs)
 	ourAddr := sw.NetAddress()
 
 	// TODO: this code feels like it's in the wrong place.
@@ -818,7 +817,7 @@ func (sw *Switch) addOutboundPeerWithConfig(
 
 	// XXX(xla): Remove the leakage of test concerns in implementation.
 	if cfg.TestDialFail {
-		fmt.Println("looking to reconnectafter failed outboundPeerAttempt 1, not persistent but addr is ", addr, "id is ", addr.ID, sw.RelayerNetAddr.ID)
+		fmt.Println("looking to reconnectafter failed outboundPeerAttempt 1, not persistent but addr is ", addr, "id is ", addr.ID, sw.RelayerNetAddr)
 		if addr.ID == sw.RelayerNetAddr.ID {
 			go sw.reconnectToRelayerPeer(addr)
 			return fmt.Errorf("dial err relayer (peerConfig.DialFail == true)")
@@ -852,10 +851,7 @@ func (sw *Switch) addOutboundPeerWithConfig(
 		// any dial error besides IsSelf()
 		if sw.IsPeerPersistent(addr) {
 			go sw.reconnectToPeer(addr)
-		} else {
-			fmt.Println("looking to reconnect after failed outboundConfig 2, not persistent but addr is ", addr, "id is ", addr.ID, sw.RelayerNetAddr.ID)
-		}
-		if addr.ID == sw.RelayerNetAddr.ID {
+		} else if addr.ID == sw.RelayerNetAddr.ID {
 			go sw.reconnectToRelayerPeer(addr)
 		}
 
