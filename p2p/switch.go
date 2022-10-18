@@ -440,7 +440,6 @@ func (sw *Switch) reconnectToRelayerPeer(addr *NetAddress) {
 		sw.Logger.Info("[relayer-connection]: Error reconnecting to relayer. Trying again", "tries", i, "err", err, "addr", addr)
 		// sleep a set amount
 		sw.randomSleep(30 * time.Second)
-		sw.Logger.Info("[relayer-connection]: queuing up another relayer connection", "try", i)
 		i++
 	}
 }
