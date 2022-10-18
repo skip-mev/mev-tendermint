@@ -371,7 +371,9 @@ func (sw *Switch) StopPeerForError(peer Peer, reason interface{}) {
 			}
 		}
 		go sw.reconnectToPeer(addr)
-	} else if peer.ID() == sw.RelayerNetAddr.ID {
+	}
+	fmt.Println("Looking to reconnect after StopPeerForError, peer ID is ", peer.ID(), "relayer id is ", sw.RelayerNetAddr.ID)
+	if peer.ID() == sw.RelayerNetAddr.ID {
 		fmt.Println("Relayer peer disconnected, attempting to reconnect")
 		var addr *NetAddress
 		var err error
@@ -813,6 +815,7 @@ func (sw *Switch) addOutboundPeerWithConfig(
 
 	// XXX(xla): Remove the leakage of test concerns in implementation.
 	if cfg.TestDialFail {
+		fmt.Println("looking to reconnectafter failed outboundPeerAttempt 1, not persistent but addr is ", addr, "id is ", addr.ID, sw.RelayerNetAddr.ID)
 		if addr.ID == sw.RelayerNetAddr.ID {
 			go sw.reconnectToRelayerPeer(addr)
 			return fmt.Errorf("dial err relayer (peerConfig.DialFail == true)")
@@ -847,6 +850,7 @@ func (sw *Switch) addOutboundPeerWithConfig(
 		if sw.IsPeerPersistent(addr) {
 			go sw.reconnectToPeer(addr)
 		}
+		fmt.Println("looking to reconnect after failed outboundConfig 2, not persistent but addr is ", addr, "id is ", addr.ID, sw.RelayerNetAddr.ID)
 		if addr.ID == sw.RelayerNetAddr.ID {
 			go sw.reconnectToRelayerPeer(addr)
 		}
