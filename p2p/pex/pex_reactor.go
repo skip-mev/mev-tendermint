@@ -561,6 +561,7 @@ func (r *Reactor) dialPeer(addr *p2p.NetAddress) error {
 		}
 	}
 
+	fmt.Println("Dial within pex reactor", addr)
 	err := r.Switch.DialPeerWithAddress(addr)
 	if err != nil {
 		if _, ok := err.(p2p.ErrCurrentlyDialingOrExistingAddress); ok {

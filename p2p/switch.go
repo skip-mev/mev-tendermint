@@ -850,8 +850,9 @@ func (sw *Switch) addOutboundPeerWithConfig(
 		// any dial error besides IsSelf()
 		if sw.IsPeerPersistent(addr) {
 			go sw.reconnectToPeer(addr)
+		} else {
+			fmt.Println("looking to reconnect after failed outboundConfig 2, not persistent but addr is ", addr, "id is ", addr.ID, sw.RelayerNetAddr.ID)
 		}
-		fmt.Println("looking to reconnect after failed outboundConfig 2, not persistent but addr is ", addr, "id is ", addr.ID, sw.RelayerNetAddr.ID)
 		if addr.ID == sw.RelayerNetAddr.ID {
 			go sw.reconnectToRelayerPeer(addr)
 		}
