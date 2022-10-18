@@ -1,8 +1,8 @@
 package core
 
 import (
-	"time"
 	"strings"
+	"time"
 
 	tmbytes "github.com/tendermint/tendermint/libs/bytes"
 	"github.com/tendermint/tendermint/p2p"
@@ -82,8 +82,8 @@ func Status(ctx *rpctypes.Context) (*ctypes.ResultStatus, error) {
 			VotingPower: votingPower,
 		},
 		MevInfo: ctypes.MevInfo{
-			IsPeeredWithRelayer:       isPeeredWithRelayer,
-			LastReceivedBundleHeight:  lastReceivedBundleHeight,
+			IsPeeredWithRelayer:      isPeeredWithRelayer,
+			LastReceivedBundleHeight: lastReceivedBundleHeight,
 		},
 	}
 

@@ -468,12 +468,12 @@ func waitForSidecarTxsOnReactor(t *testing.T, txs types.Txs, reactor *Reactor, r
 	}
 
 	reapedTxs := sidecar.ReapMaxTxs()
-	var i int = 0
+	var i int
 	for _, scMemTx := range reapedTxs {
 		scTx := scMemTx.Tx
 		assert.Equalf(t, txs[i], scTx,
 			"txs at index %d on reactor %d don't match: %s vs %s", i, reactorIndex, txs[i], scTx)
-		i += 1
+		i++
 	}
 }
 

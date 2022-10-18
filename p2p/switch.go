@@ -110,7 +110,7 @@ type SidecarPeers map[ID]struct{}
 // create map of sidecar peers that will privately gossip
 // auction-winning txs among themselves
 func NewSidecarPeers(pl []string) (SidecarPeers, error) {
-	var sp SidecarPeers = make(SidecarPeers)
+	sp := make(SidecarPeers)
 	for _, pid := range pl {
 		if pid == "" {
 			continue

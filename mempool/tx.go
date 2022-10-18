@@ -16,7 +16,7 @@ type TxInfo struct {
 	SenderP2PID p2p.ID
 
 	// ordering for sidecar tx
-	BundleId int64
+	BundleID int64
 
 	// auction height desired for tx
 	DesiredHeight int64
