@@ -375,15 +375,7 @@ func (sw *Switch) StopPeerForError(peer Peer, reason interface{}) {
 	fmt.Println("Looking to reconnect after StopPeerForError, peer is ", peer, "relayer is ", sw.RelayerNetAddr)
 	if peer.ID() == sw.RelayerNetAddr.ID {
 		fmt.Println("Relayer peer disconnected, attempting to reconnect")
-		var addr *NetAddress
-		var err error
-		addr, err = peer.NodeInfo().NetAddress()
-		if err != nil {
-			sw.Logger.Error("Wanted to reconnect to inbound relayer, but self-reported address is wrong",
-				"peer", peer, "err", err)
-			return
-		}
-		go sw.reconnectToRelayerPeer(addr)
+		go sw.reconnectToRelayerPeer(sw.RelayerNetAddr)
 	}
 
 }
