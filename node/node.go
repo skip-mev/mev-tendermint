@@ -896,15 +896,14 @@ func NewNode(config *cfg.Config,
 	)
 
 	persistentPeers := splitAndTrimEmpty(config.P2P.PersistentPeers, ",", " ")
-	if config.Sidecar.RelayerConnString != "" {
-		fmt.Println("[node startup]: Adding relayer as a persistent peer")
-		persistentPeers = append(persistentPeers, config.Sidecar.RelayerConnString)
-		// Add to persistent peers so we also dial
-		config.P2P.PersistentPeers = strings.Join(persistentPeers, ",")
-	}
 	err = sw.AddPersistentPeers(persistentPeers)
 	if err != nil {
 		return nil, fmt.Errorf("could not add peers from persistent_peers field: %w", err)
+	}
+
+	err = sw.AddRelayerPeer(config.Sidecar.RelayerConnString)
+	if err != nil {
+		return nil, fmt.Errorf("could not add relayer from relayer_conn_string field: %w", err)
 	}
 
 	unconditionalPeerIDs := splitAndTrimEmpty(config.P2P.UnconditionalPeerIDs, ",", " ")
