@@ -416,9 +416,9 @@ func (sw *Switch) stopAndRemovePeer(peer Peer, reason interface{}) {
 }
 
 func (sw *Switch) reconnectToRelayerPeer(addr *NetAddress) {
-	fmt.Println("[relayer-reconnection]: starting relayer reconnect routine, addr is ", addr)
+	sw.Logger.Info("[relayer-reconnection]: starting relayer reconnect routine, addr is ", addr)
 	if sw.reconnecting.Has(string(addr.ID)) {
-		fmt.Println("[relayer-reconnection]: already have a reconnection routine for ", addr)
+		sw.Logger.Info("[relayer-reconnection]: already have a reconnection routine for ", addr)
 		return
 	}
 	sw.reconnecting.Set(string(addr.ID), addr)
@@ -437,9 +437,10 @@ func (sw *Switch) reconnectToRelayerPeer(addr *NetAddress) {
 			return
 		}
 
-		sw.Logger.Info("Error reconnecting to relayer. Trying again", "tries", i, "err", err, "addr", addr)
+		sw.Logger.Info("[relayer-connection]: Error reconnecting to relayer. Trying again", "tries", i, "err", err, "addr", addr)
 		// sleep a set amount
 		sw.randomSleep(30 * time.Second)
+		sw.Logger.Info("[relayer-connection]: queuing up another relayer connection", "try", i)
 		i++
 	}
 }
@@ -608,10 +609,6 @@ func (sw *Switch) dialPeersAsync(netAddrs []*NetAddress) {
 func (sw *Switch) DialPeerWithAddress(addr *NetAddress) error {
 	if sw.IsDialingOrExistingAddress(addr) {
 		return ErrCurrentlyDialingOrExistingAddress{addr.String()}
-	}
-
-	if addr.ID == sw.RelayerNetAddr.ID {
-		sw.Logger.Info("[relayer-reconnection]: DIALING RELAYER", "address", addr, "time", time.Now())
 	}
 
 	sw.dialing.Set(string(addr.ID), addr)
@@ -808,11 +805,15 @@ func (sw *Switch) addOutboundPeerWithConfig(
 	addr *NetAddress,
 	cfg *config.P2PConfig,
 ) error {
-	sw.Logger.Info("Dialing peer", "address", addr)
+
+	if addr.ID == sw.RelayerNetAddr.ID {
+		sw.Logger.Info("[relayer-reconnection]: DIALING RELAYER", "address", addr, "time", time.Now())
+	} else {
+		sw.Logger.Info("Dialing peer", "address", addr)
+	}
 
 	// XXX(xla): Remove the leakage of test concerns in implementation.
 	if cfg.TestDialFail {
-		fmt.Println("looking to reconnectafter failed outboundPeerAttempt 1, not persistent but addr is ", addr, "id is ", addr.ID, sw.RelayerNetAddr)
 		if addr.ID == sw.RelayerNetAddr.ID {
 			go sw.reconnectToRelayerPeer(addr)
 			return fmt.Errorf("dial err relayer (peerConfig.DialFail == true)")
