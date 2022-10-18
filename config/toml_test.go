@@ -65,7 +65,7 @@ func TestEnsureTestRoot(t *testing.T) {
 }
 
 func checkConfig(configFile string) bool {
-	var valid bool = true
+	valid := true
 
 	// list of words we expect in the config
 	var elems = []string{

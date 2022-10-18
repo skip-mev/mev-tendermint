@@ -185,7 +185,7 @@ func assertMsgReceivedWithTimeout(
 
 func TestSidecarPeerMap(t *testing.T) {
 	s1 := MakeSwitch(cfg, 1, "127.0.0.1", "123.123.123", initSwitchFunc)
-	var s1id string = string(s1.nodeInfo.ID())
+	s1id := string(s1.nodeInfo.ID())
 	sp, _ := NewSidecarPeers([]string{s1id})
 	s2 := MakeSwitchWithSidecarPeers(cfg, 2, "127.0.0.1", "123.123.124", initSwitchFunc, sp)
 	assert.True(t, s2.IsSidecarPeer(s1.nodeInfo.ID()))
@@ -705,7 +705,8 @@ func TestSwitchAcceptRoutineErrorCases(t *testing.T) {
 		require.NoError(t, err)
 	})
 
-	sw = NewSwitch(cfg, make(SidecarPeers, 0), errorTransport{ErrRejected{conn: nil, err: errors.New("filtered"), isFiltered: true}}, "")
+	sw = NewSwitch(cfg, make(SidecarPeers, 0), errorTransport{ErrRejected{
+		conn: nil, err: errors.New("filtered"), isFiltered: true}}, "")
 	assert.NotPanics(t, func() {
 		err := sw.Start()
 		require.NoError(t, err)

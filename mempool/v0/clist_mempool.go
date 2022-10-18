@@ -533,7 +533,7 @@ func (mem *CListMempool) ReapMaxBytesMaxGas(maxBytes, maxGas int64, sidecarTxs [
 	for _, scMemTx := range sidecarTxs {
 		mem.logger.Debug(
 			"reaped sidecar mev transaction",
-			"tx", types.Tx(scMemTx.Tx).Hash(),
+			"tx", scMemTx.Tx.Hash(),
 			"height", scMemTx.Height,
 		)
 		dataSize := types.ComputeProtoSizeForTxs(append(txs, scMemTx.Tx))
@@ -559,7 +559,7 @@ func (mem *CListMempool) ReapMaxBytesMaxGas(maxBytes, maxGas int64, sidecarTxs [
 			// SKIP THIS TRANSACTION, ALREADY SEEN IN SIDECAR
 			mem.logger.Debug(
 				"skipped mempool tx, already found in sidecar",
-				"tx", types.Tx(memTx.Tx).Hash(),
+				"tx", memTx.Tx.Hash(),
 				"height", memTx.Height,
 			)
 			continue

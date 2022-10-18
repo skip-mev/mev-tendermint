@@ -24,9 +24,10 @@ func RegisterWithSentinel(APIKey, validatorAddrHex, peerID, sentinel string) {
 	}
 
 	go func() {
-		_, err := http.Post(sentinel, "application/json", bytes.NewBuffer(jsonData))
+		resp, err := http.Post(sentinel, "application/json", bytes.NewBuffer(jsonData)) //nolint:gosec
 		if err != nil {
 			fmt.Println("[p2p.sentinel]: Err making post request to sentinel:", err)
 		}
+		defer resp.Body.Close()
 	}()
 }

@@ -215,24 +215,25 @@ func (e ErrTxTooLarge) Error() string {
 
 // ErrTxMalformedForBundle is a general malformed error for specific cases
 type ErrTxMalformedForBundle struct {
-	BundleId     int64
+	BundleID     int64
 	BundleSize   int64
 	BundleHeight int64
 	BundleOrder  int64
 }
 
 func (e ErrTxMalformedForBundle) Error() string {
-	return fmt.Sprintf("Tx submitted but malformed with respect to bundling, for bundleId %d, at height %d, with bundleSize %d, and bundleOrder %d", e.BundleId, e.BundleHeight, e.BundleSize, e.BundleOrder)
+	return fmt.Sprintf(`Tx submitted but malformed with respect to bundling, for bundleID %d, at height %d,
+		with bundleSize %d, and bundleOrder %d`, e.BundleID, e.BundleHeight, e.BundleSize, e.BundleOrder)
 }
 
 // ErrBundleFull means the tx is trying to enter a bundle that has already reached its limit
 type ErrBundleFull struct {
-	BundleId     int64
+	BundleID     int64
 	BundleHeight int64
 }
 
 func (e ErrBundleFull) Error() string {
-	return fmt.Sprintf("Tx submitted but bundle is full, for bundleId %d with bundle size %d", e.BundleId, e.BundleHeight)
+	return fmt.Sprintf("Tx submitted but bundle is full, for bundleID %d with bundle size %d", e.BundleID, e.BundleHeight)
 }
 
 // ErrWrongHeight means the tx is asking to be in a height that doesn't match the current auction
@@ -242,7 +243,8 @@ type ErrWrongHeight struct {
 }
 
 func (e ErrWrongHeight) Error() string {
-	return fmt.Sprintf("Tx submitted for wrong height, asked for %d, but current auction height is %d", e.DesiredHeight, e.CurrentAuctionHeight)
+	return fmt.Sprintf("Tx submitted for wrong height, asked for %d, but current auction height is %d",
+		e.DesiredHeight, e.CurrentAuctionHeight)
 }
 
 // ErrMempoolIsFull defines an error where Tendermint and the application cannot
@@ -279,7 +281,7 @@ func IsPreCheckError(err error) bool {
 }
 
 // mempoolTx is a transaction that successfully ran
-type MempoolTx struct {
+type MempoolTx struct { //nolint:revive
 	Height    int64    // height that this tx had been validated in
 	GasWanted int64    // amount of gas this tx states it will require
 	Tx        types.Tx //
@@ -292,7 +294,7 @@ type MempoolTx struct {
 // MempoolTx is a transaction that successfully ran
 type SidecarTx struct {
 	DesiredHeight int64 // height that this tx wants to be included in
-	BundleId      int64 // ordered id of bundle
+	BundleID      int64 // ordered id of bundle
 	BundleOrder   int64 // order of tx within bundle
 	BundleSize    int64 // total size of bundle
 
@@ -307,7 +309,7 @@ type SidecarTx struct {
 // Bundle stores information about a sidecar bundle
 type Bundle struct {
 	DesiredHeight int64 // height that this bundle wants to be included in
-	BundleId      int64 // ordered id of bundle
+	BundleID      int64 // ordered id of bundle
 	CurrSize      int64 // total size of bundle
 	EnforcedSize  int64 // total size of bundle
 

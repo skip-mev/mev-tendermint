@@ -199,7 +199,7 @@ func (memR *Reactor) Receive(chID byte, src p2p.Peer, msgBytes []byte) {
 		txInfo := mempool.TxInfo{
 			SenderID:      memR.ids.GetForPeer(src),
 			DesiredHeight: msg.DesiredHeight,
-			BundleId:      msg.BundleId,
+			BundleID:      msg.BundleID,
 			BundleOrder:   msg.BundleOrder,
 			BundleSize:    msg.BundleSize,
 		}
@@ -209,16 +209,16 @@ func (memR *Reactor) Receive(chID byte, src p2p.Peer, msgBytes []byte) {
 		for _, tx := range msg.Txs {
 			memR.Logger.Debug(
 				"received sidecar tx",
-				"tx", types.Tx(tx).Hash(),
+				"tx", tx.Hash(),
 				"desired height", msg.DesiredHeight,
-				"bundle ID", msg.BundleId,
+				"bundle ID", msg.BundleID,
 				"bundle order", msg.BundleOrder,
 				"bundle size", msg.BundleSize,
 			)
 
 			err = memR.sidecar.AddTx(tx, txInfo)
 			if err == mempool.ErrTxInCache {
-				memR.Logger.Debug("sidecartx already exists in cache!", "tx", types.Tx(tx).Hash())
+				memR.Logger.Debug("sidecartx already exists in cache!", "tx", tx.Hash())
 			} else if err != nil {
 				memR.Logger.Info("could not add SidecarTx", "tx", tx.String(), "err", err)
 			}
@@ -265,7 +265,7 @@ func (memR *Reactor) broadcastSidecarTxRoutine(peer p2p.Peer) {
 			memR.Logger.Debug(
 				"broadcasting a sidecarTx to peer",
 				"peer", peerID,
-				"tx", types.Tx(scTx.Tx).Hash(),
+				"tx", scTx.Tx.Hash(),
 			)
 			if _, ok := scTx.Senders.Load(peerID); !ok {
 				msg := protomem.MEVMessage{
@@ -273,7 +273,7 @@ func (memR *Reactor) broadcastSidecarTxRoutine(peer p2p.Peer) {
 						Txs: &protomem.Txs{Txs: [][]byte{scTx.Tx}},
 					},
 					DesiredHeight: scTx.DesiredHeight,
-					BundleId:      scTx.BundleId,
+					BundleId:      scTx.BundleID,
 					BundleOrder:   scTx.BundleOrder,
 					BundleSize:    scTx.BundleSize,
 				}
@@ -292,7 +292,7 @@ func (memR *Reactor) broadcastSidecarTxRoutine(peer p2p.Peer) {
 					"peer", peerID,
 					"was considered sidecarPeer", isSidecarPeer,
 					"was converted to sidecarTx", okConv,
-					"tx", types.Tx(scTx.Tx).Hash(),
+					"tx", scTx.Tx.Hash(),
 				)
 			}
 		}
@@ -412,7 +412,7 @@ func (memR *Reactor) decodeBundleMsg(bz []byte) (MEVTxsMessage, error) {
 		message = MEVTxsMessage{
 			Txs:           decoded,
 			DesiredHeight: msg.GetDesiredHeight(),
-			BundleId:      msg.GetBundleId(),
+			BundleID:      msg.GetBundleId(),
 			BundleOrder:   msg.GetBundleOrder(),
 			BundleSize:    msg.GetBundleSize(),
 		}
@@ -454,7 +454,7 @@ func (memR *Reactor) decodeMsg(bz []byte) (TxsMessage, error) {
 type MEVTxsMessage struct {
 	Txs           []types.Tx
 	DesiredHeight int64
-	BundleId      int64
+	BundleID      int64
 	BundleOrder   int64
 	BundleSize    int64
 }

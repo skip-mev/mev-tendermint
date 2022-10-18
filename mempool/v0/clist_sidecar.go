@@ -32,15 +32,15 @@ type CListPriorityTxSidecar struct {
 	txs    *clist.CList // concurrent linked-list of good SidecarTxs
 	txsMap sync.Map
 
-	// sync.Map: Key{height, bundleId} -> Bundle{
+	// sync.Map: Key{height, bundleID} -> Bundle{
 	// // height int64
 	// // enforcedSize int64
 	// // currSize int64
-	// // bundleId int64
+	// // bundleID int64
 	// // sync.Map bundleOrder -> *SidecarTx
 	// }
 	bundles     sync.Map
-	maxBundleId int64
+	maxBundleID int64
 
 	updateMtx tmsync.RWMutex
 
@@ -56,7 +56,7 @@ type CListPriorityTxSidecar struct {
 var _ mempool.PriorityTxSidecar = &CListPriorityTxSidecar{}
 
 type Key struct {
-	height, bundleId int64
+	height, bundleID int64
 }
 
 // NewCListSidecar returns a new sidecar with the given configuration
@@ -78,12 +78,12 @@ func NewCListSidecar(
 }
 
 func (sc *CListPriorityTxSidecar) PrettyPrintBundles() {
-	fmt.Println(fmt.Sprintf("-------------"))
-	for bundleIdIter := 0; bundleIdIter <= int(sc.maxBundleId); bundleIdIter++ {
-		bundleIdIter := int64(bundleIdIter)
-		if bundle, ok := sc.bundles.Load(Key{sc.heightForFiringAuction, bundleIdIter}); ok {
+	fmt.Println("-------------")
+	for bundleIDIter := 0; bundleIDIter <= int(sc.maxBundleID); bundleIDIter++ {
+		bundleIDIter := int64(bundleIDIter)
+		if bundle, ok := sc.bundles.Load(Key{sc.heightForFiringAuction, bundleIDIter}); ok {
 			bundle := bundle.(*mempool.Bundle)
-			fmt.Println(fmt.Sprintf("BUNDLE ID: %d", bundleIdIter))
+			fmt.Printf("BUNDLE ID: %d\n", bundleIDIter)
 
 			innerOrderMap := bundle.OrderedTxsMap
 			bundleSize := bundle.CurrSize
@@ -92,12 +92,12 @@ func (sc *CListPriorityTxSidecar) PrettyPrintBundles() {
 
 				if scTx, ok := innerOrderMap.Load(bundleOrderIter); ok {
 					scTx := scTx.(*mempool.SidecarTx)
-					fmt.Println(fmt.Sprintf("---> ORDER %d: %s", bundleOrderIter, scTx.Tx))
+					fmt.Printf("---> ORDER %d: %s\n", bundleOrderIter, scTx.Tx)
 				}
 			}
 		}
 	}
-	fmt.Println(fmt.Sprintf("-------------"))
+	fmt.Println("-------------")
 }
 
 //--------------------------------------------------------------------------------
@@ -138,9 +138,9 @@ func (sc *CListPriorityTxSidecar) AddTx(tx types.Tx, txInfo mempool.TxInfo) erro
 	if !sc.cache.Push(tx) {
 		sc.logger.Debug(
 			"rejected sidecarTx: already in cache",
-			"bundle id", txInfo.BundleId,
+			"bundle id", txInfo.BundleID,
 			"bundle order", txInfo.BundleOrder,
-			"tx", types.Tx(tx).Hash(),
+			"tx", tx.Hash(),
 		)
 		// Record a new sender for a tx we've already seen.
 		// Note it's possible a tx is still in the cache but no longer in the mempool
@@ -159,7 +159,7 @@ func (sc *CListPriorityTxSidecar) AddTx(tx types.Tx, txInfo mempool.TxInfo) erro
 	scTx := &mempool.SidecarTx{
 		DesiredHeight: txInfo.DesiredHeight,
 		Tx:            tx,
-		BundleId:      txInfo.BundleId,
+		BundleID:      txInfo.BundleID,
 		BundleOrder:   txInfo.BundleOrder,
 		BundleSize:    txInfo.BundleSize,
 	}
@@ -175,9 +175,9 @@ func (sc *CListPriorityTxSidecar) AddTx(tx types.Tx, txInfo mempool.TxInfo) erro
 			"failed adding sidecarTx",
 			"trying to add a tx for height", txInfo.DesiredHeight,
 			"whereas height for curr auction is", sc.heightForFiringAuction,
-			"bundle id", txInfo.BundleId,
+			"bundle id", txInfo.BundleID,
 			"bundle order", txInfo.BundleOrder,
-			"tx", types.Tx(tx).Hash(),
+			"tx", tx.Hash(),
 		)
 		return mempool.ErrWrongHeight{
 			DesiredHeight:        int(txInfo.DesiredHeight),
@@ -190,13 +190,13 @@ func (sc *CListPriorityTxSidecar) AddTx(tx types.Tx, txInfo mempool.TxInfo) erro
 		sc.logger.Info(
 			"failed adding sidecarTx",
 			"trying to insert a tx for bundle at an order greater than the size of the bundle...",
-			"bundle id", txInfo.BundleId,
+			"bundle id", txInfo.BundleID,
 			"bundle order", txInfo.BundleOrder,
 			"bundle size", txInfo.BundleSize,
-			"tx", types.Tx(tx).Hash(),
+			"tx", tx.Hash(),
 		)
 		return mempool.ErrTxMalformedForBundle{
-			BundleId:     txInfo.BundleId,
+			BundleID:     txInfo.BundleID,
 			BundleSize:   txInfo.BundleSize,
 			BundleHeight: txInfo.DesiredHeight,
 			BundleOrder:  txInfo.BundleOrder,
@@ -207,9 +207,9 @@ func (sc *CListPriorityTxSidecar) AddTx(tx types.Tx, txInfo mempool.TxInfo) erro
 
 	var bundle *mempool.Bundle
 	// load existing bundle, or MAKE NEW if not
-	existingBundle, _ := sc.bundles.LoadOrStore(Key{txInfo.DesiredHeight, txInfo.BundleId}, &mempool.Bundle{
+	existingBundle, _ := sc.bundles.LoadOrStore(Key{txInfo.DesiredHeight, txInfo.BundleID}, &mempool.Bundle{
 		DesiredHeight: txInfo.DesiredHeight,
-		BundleId:      txInfo.BundleId,
+		BundleID:      txInfo.BundleID,
 		CurrSize:      int64(0),
 		EnforcedSize:  txInfo.BundleSize,
 		// TODO: add from gossip info?
@@ -225,13 +225,13 @@ func (sc *CListPriorityTxSidecar) AddTx(tx types.Tx, txInfo mempool.TxInfo) erro
 		sc.logger.Info(
 			"failed adding sidecarTx",
 			"trying to insert a tx for bundle at an order greater than the size of the bundle...",
-			"bundle id", txInfo.BundleId,
+			"bundle id", txInfo.BundleID,
 			"bundle size", txInfo.BundleSize,
 			"enforced size", bundle.EnforcedSize,
-			"tx", types.Tx(tx).Hash(),
+			"tx", tx.Hash(),
 		)
 		return mempool.ErrTxMalformedForBundle{
-			BundleId:     txInfo.BundleId,
+			BundleID:     txInfo.BundleID,
 			BundleSize:   txInfo.BundleSize,
 			BundleHeight: txInfo.DesiredHeight,
 			BundleOrder:  txInfo.BundleOrder,
@@ -244,13 +244,13 @@ func (sc *CListPriorityTxSidecar) AddTx(tx types.Tx, txInfo mempool.TxInfo) erro
 		sc.logger.Info(
 			"failed adding sidecarTx",
 			"bundle already full for this BundleID...",
-			"bundle id", txInfo.BundleId,
+			"bundle id", txInfo.BundleID,
 			"bundle curr size", bundle.CurrSize,
 			"enforced size", bundle.EnforcedSize,
-			"tx", types.Tx(tx).Hash(),
+			"tx", tx.Hash(),
 		)
 		return mempool.ErrBundleFull{
-			BundleId:     txInfo.BundleId,
+			BundleID:     txInfo.BundleID,
 			BundleHeight: txInfo.BundleSize,
 		}
 	}
@@ -260,27 +260,26 @@ func (sc *CListPriorityTxSidecar) AddTx(tx types.Tx, txInfo mempool.TxInfo) erro
 	// get the map of order -> scTx
 	orderedTxsMap := bundle.OrderedTxsMap
 
-	// if we already have a tx at this bundleId, bundleOrder, and height, then skip this one!
+	// if we already have a tx at this BundleID, bundleOrder, and height, then skip this one!
 	if _, loaded := orderedTxsMap.LoadOrStore(txInfo.BundleOrder, scTx); loaded {
 		// if we had the tx already, then skip
 		sc.logger.Info(
 			"failed adding sidecarTx",
-			"already have a tx for this bundleID, height, and bundleOrder...",
-			"bundle id", txInfo.BundleId,
+			"already have a tx for this BundleID, height, and bundleOrder...",
+			"bundle id", txInfo.BundleID,
 			"bundle height", txInfo.DesiredHeight,
 			"bundle order", txInfo.BundleOrder,
-			"tx", types.Tx(tx).Hash(),
+			"tx", tx.Hash(),
 		)
 		return nil
-	} else {
-		// if we added, then increment bundle size for bundleId
-		atomic.AddInt64(&bundle.CurrSize, int64(1))
 	}
+	// if we added, then increment bundle size for BundleID
+	atomic.AddInt64(&bundle.CurrSize, int64(1))
 
 	// -------- UPDATE MAX BUNDLE ---------
 
-	if txInfo.BundleId >= sc.maxBundleId {
-		sc.maxBundleId = txInfo.BundleId
+	if txInfo.BundleID >= sc.maxBundleID {
+		sc.maxBundleID = txInfo.BundleID
 	}
 
 	// -------- TX INSERTION INTO MAIN TXS LIST ---------
@@ -305,7 +304,7 @@ func (sc *CListPriorityTxSidecar) AddTx(tx types.Tx, txInfo mempool.TxInfo) erro
 	sc.logger.Info(
 		"Added sidecar tx successfully",
 		"tx", tx,
-		"bundleId", txInfo.BundleId,
+		"BundleID", txInfo.BundleID,
 		"bundleOrder", txInfo.BundleOrder,
 		"desiredHeight", txInfo.DesiredHeight,
 		"bundleSize", txInfo.BundleSize,
@@ -372,7 +371,7 @@ func (sc *CListPriorityTxSidecar) Update(
 	}
 
 	sc.cache.Reset()
-	sc.maxBundleId = 0
+	sc.maxBundleID = 0
 
 	// remove from txs list and txmap
 	for e := sc.txs.Front(); e != nil; e = e.Next() {
@@ -397,7 +396,7 @@ func (sc *CListPriorityTxSidecar) Update(
 			if bundle.DesiredHeight <= height {
 				sc.logger.Debug(
 					"removed bundle from sidecar",
-					"bundle id", bundle.BundleId,
+					"bundle id", bundle.BundleID,
 					"tx desired height", bundle.DesiredHeight,
 					"mempool updated height", height,
 					"sidecar total size", sc.Size(),
@@ -420,7 +419,7 @@ func (sc *CListPriorityTxSidecar) Flush() {
 	sc.cache.Reset()
 
 	sc.notifiedTxsAvailable = false
-	sc.maxBundleId = 0
+	sc.maxBundleID = 0
 
 	_ = atomic.SwapInt64(&sc.txsBytes, 0)
 
@@ -456,8 +455,8 @@ func (sc *CListPriorityTxSidecar) NumBundles() int {
 }
 
 // Safe for concurrent use by multiple goroutines.
-func (sc *CListPriorityTxSidecar) MaxBundleId() int64 {
-	return sc.maxBundleId
+func (sc *CListPriorityTxSidecar) MaxBundleID() int64 {
+	return sc.maxBundleID
 }
 
 func (sc *CListPriorityTxSidecar) HeightForFiringAuction() int64 {
@@ -465,31 +464,29 @@ func (sc *CListPriorityTxSidecar) HeightForFiringAuction() int64 {
 }
 
 // Safe for concurrent use by multiple goroutines.
-func (sc *CListPriorityTxSidecar) GetEnforcedBundleSize(bundleId int64) int {
-	if bundle, ok := sc.bundles.Load(Key{sc.heightForFiringAuction, bundleId}); ok {
+func (sc *CListPriorityTxSidecar) GetEnforcedBundleSize(bundleID int64) int {
+	if bundle, ok := sc.bundles.Load(Key{sc.heightForFiringAuction, bundleID}); ok {
 		bundle := bundle.(*mempool.Bundle)
 		return int(bundle.EnforcedSize)
-	} else {
-		sc.logger.Info(
-			"error GetEnforcedBundleSize: Don't have a bundle for bundleId",
-			"bundleId", bundleId,
-		)
-		return 0
 	}
+	sc.logger.Info(
+		"error GetEnforcedBundleSize: Don't have a bundle for bundleID",
+		"BundleID", bundleID,
+	)
+	return 0
 }
 
 // Safe for concurrent use by multiple goroutines.
-func (sc *CListPriorityTxSidecar) GetCurrBundleSize(bundleId int64) int {
-	if bundle, ok := sc.bundles.Load(Key{sc.heightForFiringAuction, bundleId}); ok {
+func (sc *CListPriorityTxSidecar) GetCurrBundleSize(bundleID int64) int {
+	if bundle, ok := sc.bundles.Load(Key{sc.heightForFiringAuction, bundleID}); ok {
 		bundle := bundle.(*mempool.Bundle)
 		return int(bundle.CurrSize)
-	} else {
-		sc.logger.Info(
-			"error GetBundleSize: Don't have a bundle for bundleId",
-			"bundleId", bundleId,
-		)
-		return 0
 	}
+	sc.logger.Info(
+		"error GetBundleSize: Don't have a bundle for bundleID",
+		"BundleID", bundleID,
+	)
+	return 0
 }
 
 // Safe for concurrent use by multiple goroutines.
@@ -498,7 +495,7 @@ func (sc *CListPriorityTxSidecar) TxsBytes() int64 {
 }
 
 // Called from:
-//  - FlushSidecar (lock held) if tx was committed
+//   - FlushSidecar (lock held) if tx was committed
 func (sc *CListPriorityTxSidecar) removeTx(tx types.Tx, elem *clist.CElement, removeFromCache bool) {
 	sc.txs.Remove(elem)
 	elem.DetachPrev()
@@ -512,7 +509,7 @@ func (sc *CListPriorityTxSidecar) removeTx(tx types.Tx, elem *clist.CElement, re
 
 // Safe for concurrent use by multiple goroutines.
 
-// this reap function iterates over all the bundleIds up to maxBundleId
+// this reap function iterates over all the bundleIDs up to maxBundleID
 // ... then goes over each bundle via the bundleOrders (up to enforcedSize for bundle)
 // ... and reaps them in this order
 func (sc *CListPriorityTxSidecar) ReapMaxTxs() []*mempool.MempoolTx {
@@ -532,12 +529,13 @@ func (sc *CListPriorityTxSidecar) ReapMaxTxs() []*mempool.MempoolTx {
 	completedBundles := 0
 	numTxsInBundles := 0
 
-	// iterate over all bundleIds up to the max we've seen
-	// CONTRACT: this assumes that bundles don't care about previous bundles, so still want to execute if any missing between
-	for bundleIdIter := 0; bundleIdIter <= int(sc.maxBundleId); bundleIdIter++ {
-		bundleIdIter := int64(bundleIdIter)
+	// iterate over all BundleIDs up to the max we've seen
+	// CONTRACT: this assumes that bundles don't care about previous bundles,
+	// so still want to execute if any missing between
+	for bundleIDIter := 0; bundleIDIter <= int(sc.maxBundleID); bundleIDIter++ {
+		bundleIDIter := int64(bundleIDIter)
 
-		if bundle, ok := sc.bundles.Load(Key{sc.heightForFiringAuction, bundleIdIter}); ok {
+		if bundle, ok := sc.bundles.Load(Key{sc.heightForFiringAuction, bundleIDIter}); ok {
 			bundle := bundle.(*mempool.Bundle)
 			bundleOrderedTxsMap := bundle.OrderedTxsMap
 
@@ -545,7 +543,7 @@ func (sc *CListPriorityTxSidecar) ReapMaxTxs() []*mempool.MempoolTx {
 			if bundle.CurrSize != bundle.EnforcedSize {
 				sc.logger.Info(
 					"In reap: skipping bundle, size mismatch",
-					"bundleId", bundleIdIter,
+					"bundleID", bundleIDIter,
 					"height", sc.heightForFiringAuction,
 					"currSize", bundle.CurrSize,
 					"enforcedSize", bundle.EnforcedSize,
@@ -562,18 +560,19 @@ func (sc *CListPriorityTxSidecar) ReapMaxTxs() []*mempool.MempoolTx {
 					// loading as sidecar tx, but casting to MempoolTx to return
 					scTx := scTx.(*mempool.SidecarTx)
 					memTx := &mempool.MempoolTx{
-						// CONTRACT: since the only height this could have been added into is desiredHeight = mem.height + 1, then this tx must have been validated against mem.height
+						// CONTRACT: since the only height this could have been added into is desiredHeight = mem.height + 1,
+						// then this tx must have been validated against mem.height
 						Height:    scTx.DesiredHeight - 1,
 						GasWanted: scTx.GasWanted,
 						Tx:        scTx.Tx,
-						Senders:   scTx.Senders,
+						Senders:   scTx.Senders, //nolint:govet // TODO: fix
 					}
 					innerTxs = append(innerTxs, memTx)
 				} else {
-					// can't find tx at this bundleOrder for this bundleId
+					// can't find tx at this bundleOrder for this bundleID
 					sc.logger.Info(
 						"In reap: skipping bundle, don't have a tx for bundle",
-						"bundleId", bundleIdIter,
+						"bundleID", bundleIDIter,
 						"bundleOrder", bundleOrderIter,
 						"height", sc.heightForFiringAuction,
 					)
@@ -584,7 +583,7 @@ func (sc *CListPriorityTxSidecar) ReapMaxTxs() []*mempool.MempoolTx {
 			if bundle.EnforcedSize == int64(len(innerTxs)) {
 				// check to see if we've reaped the right number of txs expected for the bundle
 				memTxs = append(memTxs, innerTxs...)
-				completedBundles += 1
+				completedBundles++
 				numTxsInBundles += len(innerTxs)
 
 				// update metrics with total number of bundles reaped
@@ -595,15 +594,15 @@ func (sc *CListPriorityTxSidecar) ReapMaxTxs() []*mempool.MempoolTx {
 					"num txs reaped", len(innerTxs),
 					"bundle current size", bundle.CurrSize,
 					"bundle enforced size", bundle.EnforcedSize,
-					"bundleId", bundleIdIter,
+					"bundleID", bundleIDIter,
 					"height", sc.heightForFiringAuction,
 				)
 			}
 		} else {
-			// can't find a bundle for this bundleId, panic! (incomplete gossipping)
+			// can't find a bundle for this bundleID, panic! (incomplete gossipping)
 			sc.logger.Info(
 				"In reap: skipping bundle, don't have a bundle entry",
-				"bundleId", bundleIdIter,
+				"bundleID", bundleIDIter,
 				"height", sc.heightForFiringAuction,
 			)
 		}
