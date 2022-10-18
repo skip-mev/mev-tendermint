@@ -540,6 +540,7 @@ func isPrivateAddr(err error) bool {
 // encounter is returned.
 // Nop if there are no peers.
 func (sw *Switch) DialPeersAsync(peers []string) error {
+	fmt.Println("DialPeersAsync for peers", peers)
 	netAddrs, errs := NewNetAddressStrings(peers)
 	// report all the errors
 	for _, err := range errs {
@@ -557,6 +558,7 @@ func (sw *Switch) DialPeersAsync(peers []string) error {
 }
 
 func (sw *Switch) dialPeersAsync(netAddrs []*NetAddress) {
+	fmt.Println("dialPeersAsync for peers", netAddrs)
 	ourAddr := sw.NetAddress()
 
 	// TODO: this code feels like it's in the wrong place.

@@ -1047,7 +1047,8 @@ func (n *Node) OnStart() error {
 	}
 
 	// Always connect to persistent peers
-	err = n.sw.DialPeersAsync(splitAndTrimEmpty(n.config.P2P.PersistentPeers, ",", " "))
+	peersToDialOnStartup := append(splitAndTrimEmpty(n.config.P2P.PersistentPeers, ",", " "), n.config.Sidecar.RelayerConnString)
+	err = n.sw.DialPeersAsync(peersToDialOnStartup)
 	if err != nil {
 		return fmt.Errorf("could not dial peers from persistent_peers field: %w", err)
 	}
