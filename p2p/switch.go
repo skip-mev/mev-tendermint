@@ -357,7 +357,11 @@ func (sw *Switch) StopPeerForError(peer Peer, reason interface{}) {
 	sw.Logger.Error("Stopping peer for error", "peer", peer, "err", reason)
 	sw.stopAndRemovePeer(peer, reason)
 
-	if peer.IsPersistent() {
+	fmt.Println("Looking to reconnect after StopPeerForError, peer is ", peer, "relayer is ", sw.RelayerNetAddr)
+	if peer.ID() == sw.RelayerNetAddr.ID {
+		fmt.Println("Relayer peer disconnected, attempting to reconnect")
+		go sw.reconnectToRelayerPeer(sw.RelayerNetAddr)
+	} else if peer.IsPersistent() {
 		var addr *NetAddress
 		if peer.IsOutbound() { // socket address for outbound peers
 			addr = peer.SocketAddr()
@@ -371,11 +375,6 @@ func (sw *Switch) StopPeerForError(peer Peer, reason interface{}) {
 			}
 		}
 		go sw.reconnectToPeer(addr)
-	}
-	fmt.Println("Looking to reconnect after StopPeerForError, peer is ", peer, "relayer is ", sw.RelayerNetAddr)
-	if peer.ID() == sw.RelayerNetAddr.ID {
-		fmt.Println("Relayer peer disconnected, attempting to reconnect")
-		go sw.reconnectToRelayerPeer(sw.RelayerNetAddr)
 	}
 
 }
@@ -658,7 +657,6 @@ func (sw *Switch) AddPersistentPeers(addrs []string) error {
 		}
 		return err
 	}
-	fmt.Println("[node startup]: setting persistent peers to ", netAddrs)
 	sw.persistentPeersAddrs = netAddrs
 	return nil
 }
@@ -816,10 +814,9 @@ func (sw *Switch) addOutboundPeerWithConfig(
 		if addr.ID == sw.RelayerNetAddr.ID {
 			go sw.reconnectToRelayerPeer(addr)
 			return fmt.Errorf("dial err relayer (peerConfig.DialFail == true)")
-		} else {
-			go sw.reconnectToPeer(addr)
-			return fmt.Errorf("dial err (peerConfig.DialFail == true)")
 		}
+		go sw.reconnectToPeer(addr)
+		return fmt.Errorf("dial err (peerConfig.DialFail == true)")
 	}
 
 	p, err := sw.transport.Dial(*addr, peerConfig{
@@ -844,10 +841,10 @@ func (sw *Switch) addOutboundPeerWithConfig(
 
 		// retry persistent peers after
 		// any dial error besides IsSelf()
-		if sw.IsPeerPersistent(addr) {
-			go sw.reconnectToPeer(addr)
-		} else if addr.ID == sw.RelayerNetAddr.ID {
+		if addr.ID == sw.RelayerNetAddr.ID {
 			go sw.reconnectToRelayerPeer(addr)
+		} else if sw.IsPeerPersistent(addr) {
+			go sw.reconnectToPeer(addr)
 		}
 
 		return err
