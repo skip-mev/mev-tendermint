@@ -357,7 +357,7 @@ func (sw *Switch) StopPeerForError(peer Peer, reason interface{}) {
 	sw.Logger.Error("Stopping peer for error", "peer", peer, "err", reason)
 	sw.stopAndRemovePeer(peer, reason)
 
-	fmt.Println("Looking to reconnect after StopPeerForError, peer is ", peer, "relayer is ", sw.RelayerNetAddr)
+	sw.Logger.Info("Looking to reconnect after StopPeerForError, peer is ", peer, "relayer is ", sw.RelayerNetAddr)
 	if sw.RelayerNetAddr != nil && peer.ID() == sw.RelayerNetAddr.ID {
 		fmt.Println("Relayer peer disconnected, attempting to reconnect")
 		go sw.reconnectToRelayerPeer(sw.RelayerNetAddr)
