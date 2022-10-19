@@ -437,7 +437,7 @@ func (sw *Switch) reconnectToRelayerPeer(addr *NetAddress) {
 			return
 		}
 
-		sw.Logger.Info("[relayer-connection]: Error reconnecting to relayer. Trying again", "tries", i, "err", err, "addr", addr)
+		sw.Logger.Info("[relayer-reconnection]: Error reconnecting to relayer. Trying again", "tries", i, "err", err, "addr", addr)
 		// sleep a set amount
 		sw.randomSleep(30 * time.Second)
 		i++
