@@ -896,15 +896,14 @@ func NewNode(config *cfg.Config,
 	)
 
 	persistentPeers := splitAndTrimEmpty(config.P2P.PersistentPeers, ",", " ")
-	if config.Sidecar.RelayerConnString != "" {
-		fmt.Println("[node startup]: Adding relayer as a persistent peer")
-		persistentPeers = append(persistentPeers, config.Sidecar.RelayerConnString)
-		// Add to persistent peers so we also dial
-		config.P2P.PersistentPeers = strings.Join(persistentPeers, ",")
-	}
 	err = sw.AddPersistentPeers(persistentPeers)
 	if err != nil {
 		return nil, fmt.Errorf("could not add peers from persistent_peers field: %w", err)
+	}
+
+	err = sw.AddRelayerPeer(config.Sidecar.RelayerConnString)
+	if err != nil {
+		return nil, fmt.Errorf("could not add relayer from relayer_conn_string field: %w", err)
 	}
 
 	unconditionalPeerIDs := splitAndTrimEmpty(config.P2P.UnconditionalPeerIDs, ",", " ")
@@ -1048,7 +1047,8 @@ func (n *Node) OnStart() error {
 	}
 
 	// Always connect to persistent peers
-	err = n.sw.DialPeersAsync(splitAndTrimEmpty(n.config.P2P.PersistentPeers, ",", " "))
+	peersToDialOnStartup := append(splitAndTrimEmpty(n.config.P2P.PersistentPeers, ",", " "), n.config.Sidecar.RelayerConnString)
+	err = n.sw.DialPeersAsync(peersToDialOnStartup)
 	if err != nil {
 		return fmt.Errorf("could not dial peers from persistent_peers field: %w", err)
 	}

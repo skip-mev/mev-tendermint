@@ -94,6 +94,7 @@ type Switch struct {
 	metrics           *Metrics
 	sidecarPeers      SidecarPeers
 	RelayerConnString string
+	RelayerNetAddr    *NetAddress
 }
 
 // NetAddress returns the address the switch is listening on.
@@ -356,7 +357,11 @@ func (sw *Switch) StopPeerForError(peer Peer, reason interface{}) {
 	sw.Logger.Error("Stopping peer for error", "peer", peer, "err", reason)
 	sw.stopAndRemovePeer(peer, reason)
 
-	if peer.IsPersistent() {
+	fmt.Println("Looking to reconnect after StopPeerForError, peer is ", peer, "relayer is ", sw.RelayerNetAddr)
+	if peer.ID() == sw.RelayerNetAddr.ID {
+		fmt.Println("Relayer peer disconnected, attempting to reconnect")
+		go sw.reconnectToRelayerPeer(sw.RelayerNetAddr)
+	} else if peer.IsPersistent() {
 		var addr *NetAddress
 		if peer.IsOutbound() { // socket address for outbound peers
 			addr = peer.SocketAddr()
@@ -371,6 +376,7 @@ func (sw *Switch) StopPeerForError(peer Peer, reason interface{}) {
 		}
 		go sw.reconnectToPeer(addr)
 	}
+
 }
 
 // StopPeerGracefully disconnects from a peer gracefully.
@@ -405,6 +411,35 @@ func (sw *Switch) stopAndRemovePeer(peer Peer, reason interface{}) {
 			}
 		}
 
+	}
+}
+
+func (sw *Switch) reconnectToRelayerPeer(addr *NetAddress) {
+	sw.Logger.Info("[relayer-reconnection]: starting relayer reconnect routine, addr is ", addr)
+	if sw.reconnecting.Has(string(addr.ID)) {
+		sw.Logger.Info("[relayer-reconnection]: already have a reconnection routine for ", addr)
+		return
+	}
+	sw.reconnecting.Set(string(addr.ID), addr)
+	defer sw.reconnecting.Delete(string(addr.ID))
+
+	i := 0
+	for {
+		if !sw.IsRunning() {
+			return
+		}
+
+		err := sw.DialPeerWithAddress(addr)
+		if err == nil {
+			return // success
+		} else if _, ok := err.(ErrCurrentlyDialingOrExistingAddress); ok {
+			return
+		}
+
+		sw.Logger.Info("[relayer-reconnection]: Error reconnecting to relayer. Trying again", "tries", i, "err", err, "addr", addr)
+		// sleep a set amount
+		sw.randomSleep(30 * time.Second)
+		i++
 	}
 }
 
@@ -594,6 +629,17 @@ func (sw *Switch) IsDialingOrExistingAddress(addr *NetAddress) bool {
 		(!sw.config.AllowDuplicateIP && sw.peers.HasIP(addr.IP))
 }
 
+func (sw *Switch) AddRelayerPeer(addr string) error {
+	sw.Logger.Info("Adding relayer as peer", "addr", addr)
+	netAddr, err := NewNetAddressString(addr)
+	if err != nil {
+		sw.Logger.Error("Error in relayer's address", "err", err)
+		return err
+	}
+	sw.RelayerNetAddr = netAddr
+	return nil
+}
+
 // AddPersistentPeers allows you to set persistent peers. It ignores
 // ErrNetAddressLookup. However, if there are other errors, first encounter is
 // returned.
@@ -756,10 +802,19 @@ func (sw *Switch) addOutboundPeerWithConfig(
 	addr *NetAddress,
 	cfg *config.P2PConfig,
 ) error {
-	sw.Logger.Info("Dialing peer", "address", addr)
+
+	if addr.ID == sw.RelayerNetAddr.ID {
+		sw.Logger.Info("[relayer-reconnection]: DIALING RELAYER", "address", addr, "time", time.Now())
+	} else {
+		sw.Logger.Info("Dialing peer", "address", addr)
+	}
 
 	// XXX(xla): Remove the leakage of test concerns in implementation.
 	if cfg.TestDialFail {
+		if addr.ID == sw.RelayerNetAddr.ID {
+			go sw.reconnectToRelayerPeer(addr)
+			return fmt.Errorf("dial err relayer (peerConfig.DialFail == true)")
+		}
 		go sw.reconnectToPeer(addr)
 		return fmt.Errorf("dial err (peerConfig.DialFail == true)")
 	}
@@ -786,7 +841,9 @@ func (sw *Switch) addOutboundPeerWithConfig(
 
 		// retry persistent peers after
 		// any dial error besides IsSelf()
-		if sw.IsPeerPersistent(addr) {
+		if addr.ID == sw.RelayerNetAddr.ID {
+			go sw.reconnectToRelayerPeer(addr)
+		} else if sw.IsPeerPersistent(addr) {
 			go sw.reconnectToPeer(addr)
 		}
 
@@ -799,6 +856,8 @@ func (sw *Switch) addOutboundPeerWithConfig(
 			_ = p.Stop()
 		}
 		return err
+	} else if addr.ID == sw.RelayerNetAddr.ID {
+		sw.Logger.Info("[relayer-reconnection]: RELAYER RECONNECTED!", "address", addr)
 	}
 
 	return nil
