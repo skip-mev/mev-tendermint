@@ -1005,7 +1005,7 @@ func (n *Node) OnStart() error {
 		rpcPort := ":26657"
 		p2p.RegisterWithSentinel(n.config.Sidecar.APIKey, n.config.Sidecar.ValidatorAddrHex, string(n.nodeInfo.ID()), relayerIP+rpcPort)
 	} else {
-		fmt.Println("[node startup]: Not registering with relayer, config has API Key:", n.config.Sidecar.APIKey,
+		n.Logger.Info("[node startup]: Not registering with relayer, config has API Key:", n.config.Sidecar.APIKey,
 			"validator addr hex:", n.config.Sidecar.ValidatorAddrHex,
 			"relayer conn string:", n.config.Sidecar.RelayerConnString)
 	}
