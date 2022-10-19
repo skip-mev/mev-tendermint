@@ -61,7 +61,9 @@ func Status(ctx *rpctypes.Context) (*ctypes.ResultStatus, error) {
 		isPeeredWithRelayer = env.P2PPeers.Peers().Has(p2p.ID(strings.Split(relayer, "@")[0]))
 	}
 
-	lastReceivedBundleHeight = env.Sidecar.GetLastBundleHeight()
+	if env.Sidecar != nil {
+		lastReceivedBundleHeight = env.Sidecar.GetLastBundleHeight()
+	}
 
 	result := &ctypes.ResultStatus{
 		NodeInfo: env.P2PTransport.NodeInfo().(p2p.DefaultNodeInfo),

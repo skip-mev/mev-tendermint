@@ -316,6 +316,9 @@ func (sc *CListPriorityTxSidecar) AddTx(tx types.Tx, txInfo mempool.TxInfo) erro
 
 // Gets the height of the last received bundle tx. For status rpc purposes.
 func (sc *CListPriorityTxSidecar) GetLastBundleHeight() int64 {
+	if sc == nil {
+		return 0
+	}
 	return sc.lastBundleHeight
 }
 

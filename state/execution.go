@@ -108,7 +108,12 @@ func (blockExec *BlockExecutor) CreateProposalBlock(
 	// Fetch a limited amount of valid txs
 	maxDataBytes := types.MaxDataBytes(maxBytes, evSize, state.Validators.Size())
 
-	sidecarTxs := blockExec.sidecar.ReapMaxTxs()
+	sidecarTxs := make([]*mempl.MempoolTx, 0)
+	if blockExec.sidecar != nil {
+		sidecarTxs = blockExec.sidecar.ReapMaxTxs()
+	} else {
+		fmt.Println("Sidecar is nil, not reaping")
+	}
 	txs := blockExec.mempool.ReapMaxBytesMaxGas(maxDataBytes, maxGas, sidecarTxs)
 
 	return state.MakeBlock(height, txs, commit, evidence, proposerAddr)
@@ -243,15 +248,17 @@ func (blockExec *BlockExecutor) Commit(
 		"app_hash", fmt.Sprintf("%X", res.Data),
 	)
 
-	// update sidecar mempool
-	err = blockExec.sidecar.Update(
-		block.Height,
-		block.Txs,
-		deliverTxResponses,
-	)
-	if err != nil {
-		blockExec.logger.Error("error while updating sidecar", "err", err)
-		return nil, 0, err
+	if blockExec.sidecar != nil {
+		// update sidecar mempool
+		err = blockExec.sidecar.Update(
+			block.Height,
+			block.Txs,
+			deliverTxResponses,
+		)
+		if err != nil {
+			blockExec.logger.Error("error while updating sidecar", "err", err)
+			return nil, 0, err
+		}
 	}
 
 	// Update mempool.

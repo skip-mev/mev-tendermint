@@ -946,6 +946,11 @@ func NewNode(config *cfg.Config,
 		}()
 	}
 
+	typeAssertedSidecar, ok := sidecar.(*mempoolv0.CListPriorityTxSidecar)
+	if !ok {
+		fmt.Println("[node startup]: Creating node with nil sidecar")
+	}
+
 	node := &Node{
 		config:        config,
 		genesisDoc:    genDoc,
@@ -974,7 +979,7 @@ func NewNode(config *cfg.Config,
 		indexerService:   indexerService,
 		blockIndexer:     blockIndexer,
 		eventBus:         eventBus,
-		sidecar:          sidecar.(*mempoolv0.CListPriorityTxSidecar),
+		sidecar:          typeAssertedSidecar,
 	}
 	node.BaseService = *service.NewBaseService(logger, "Node", node)
 
