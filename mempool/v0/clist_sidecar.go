@@ -130,9 +130,9 @@ func (sc *CListPriorityTxSidecar) notifyTxsAvailable() {
 
 func (sc *CListPriorityTxSidecar) AddTx(tx types.Tx, txInfo mempool.TxInfo) error {
 
-	sc.updateMtx.RLock()
+	sc.updateMtx.Lock()
 	// use defer to unlock mutex because application (*local client*) might panic
-	defer sc.updateMtx.RUnlock()
+	defer sc.updateMtx.Unlock()
 
 	// don't add any txs already in cache
 	if !sc.cache.Push(tx) {

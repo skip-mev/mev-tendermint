@@ -1098,7 +1098,11 @@ func DefaultSidecarConfig() *SidecarConfig {
 }
 
 func TestSidecarConfig() *SidecarConfig {
-	return &SidecarConfig{}
+	return &SidecarConfig{
+		RelayerConnString: "79044d1d81d24a8ff3c7fd7e010f455f7ae9e1ad@1.2.3.4:26656",
+		ValidatorAddrHex:  "AAAAEBCB678E19447F2889A54172E7EA49AEB3BA",
+		APIKey:            "api-key",
+	}
 }
 
 // no-op validation

@@ -5,10 +5,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+
+	"github.com/tendermint/tendermint/libs/log"
 )
 
-func RegisterWithSentinel(APIKey, validatorAddrHex, peerID, sentinel string) {
-	fmt.Println("[p2p.sentinel]: Registering with sentinel", APIKey, validatorAddrHex, peerID, sentinel)
+func RegisterWithSentinel(logger log.Logger, APIKey, validatorAddrHex, peerID, sentinel string) {
+	logger.Info("[p2p.sentinel]: Registering with sentinel", APIKey, validatorAddrHex, peerID, sentinel)
 
 	params := [3]string{APIKey, validatorAddrHex, peerID}
 	data := map[string]interface{}{
@@ -26,9 +28,9 @@ func RegisterWithSentinel(APIKey, validatorAddrHex, peerID, sentinel string) {
 	go func() {
 		resp, err := http.Post(sentinel, "application/json", bytes.NewBuffer(jsonData)) //nolint:gosec
 		if err != nil {
-			fmt.Println("[p2p.sentinel]: Err making post request to sentinel:", err)
+			logger.Info("[p2p.sentinel]: Err making post request to sentinel:", err)
 		} else {
-			fmt.Println("[p2p.sentinel]: Successfully registered with sentinel", resp)
+			logger.Info("[p2p.sentinel]: Successfully registered with sentinel", resp)
 			defer resp.Body.Close()
 		}
 	}()

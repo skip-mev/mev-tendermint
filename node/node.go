@@ -901,15 +901,19 @@ func NewNode(config *cfg.Config,
 		return nil, fmt.Errorf("could not add peers from persistent_peers field: %w", err)
 	}
 
-	err = sw.AddRelayerPeer(config.Sidecar.RelayerConnString)
-	if err != nil {
-		return nil, fmt.Errorf("could not add relayer from relayer_conn_string field: %w", err)
+	if config.Sidecar.RelayerConnString != "" {
+		err = sw.AddRelayerPeer(config.Sidecar.RelayerConnString)
+		if err != nil {
+			return nil, fmt.Errorf("could not add relayer from relayer_conn_string field: %w", err)
+		}
+	} else {
+		logger.Info("[node startup]: No relayer_conn_string specified, not adding relayer as peer")
 	}
 
 	unconditionalPeerIDs := splitAndTrimEmpty(config.P2P.UnconditionalPeerIDs, ",", " ")
 	if config.Sidecar.RelayerConnString != "" {
 		relayerID := strings.Split(config.Sidecar.RelayerConnString, "@")[0]
-		fmt.Println("[node startup]: Adding relayer as an unconditional peer", relayerID)
+		logger.Info("[node startup]: Adding relayer as an unconditional peer", relayerID)
 		unconditionalPeerIDs = append(unconditionalPeerIDs, relayerID)
 	}
 	err = sw.AddUnconditionalPeerIDs(unconditionalPeerIDs)
@@ -948,7 +952,7 @@ func NewNode(config *cfg.Config,
 
 	typeAssertedSidecar, ok := sidecar.(*mempoolv0.CListPriorityTxSidecar)
 	if !ok {
-		fmt.Println("[node startup]: Creating node with nil sidecar")
+		logger.Info("[node startup]: Creating node with nil sidecar")
 	}
 
 	node := &Node{
@@ -1003,7 +1007,7 @@ func (n *Node) OnStart() error {
 	if n.config.Sidecar.APIKey != "" && n.config.Sidecar.ValidatorAddrHex != "" && n.config.Sidecar.RelayerConnString != "" {
 		relayerIP := "http://" + strings.Split(strings.Split(n.config.Sidecar.RelayerConnString, "@")[1], ":")[0]
 		rpcPort := ":26657"
-		p2p.RegisterWithSentinel(n.config.Sidecar.APIKey, n.config.Sidecar.ValidatorAddrHex, string(n.nodeInfo.ID()), relayerIP+rpcPort)
+		p2p.RegisterWithSentinel(n.Logger, n.config.Sidecar.APIKey, n.config.Sidecar.ValidatorAddrHex, string(n.nodeInfo.ID()), relayerIP+rpcPort)
 	} else {
 		n.Logger.Info("[node startup]: Not registering with relayer, config has API Key:", n.config.Sidecar.APIKey,
 			"validator addr hex:", n.config.Sidecar.ValidatorAddrHex,
@@ -1014,7 +1018,7 @@ func (n *Node) OnStart() error {
 	privateIDs := splitAndTrimEmpty(n.config.P2P.PrivatePeerIDs, ",", " ")
 	if n.config.Sidecar.RelayerConnString != "" {
 		relayerID := strings.Split(n.config.Sidecar.RelayerConnString, "@")[0]
-		fmt.Println("[node startup]: Adding relayer as a private peer", relayerID)
+		n.Logger.Info("[node startup]: Adding relayer as a private peer", relayerID)
 		privateIDs = append(privateIDs, relayerID)
 	}
 	n.addrBook.AddPrivateIDs(privateIDs)
@@ -1052,7 +1056,12 @@ func (n *Node) OnStart() error {
 	}
 
 	// Always connect to persistent peers
-	peersToDialOnStartup := append(splitAndTrimEmpty(n.config.P2P.PersistentPeers, ",", " "), n.config.Sidecar.RelayerConnString)
+	peersToDialOnStartup := splitAndTrimEmpty(n.config.P2P.PersistentPeers, ",", " ")
+	if n.config.Sidecar.RelayerConnString != "" {
+		peersToDialOnStartup = append(peersToDialOnStartup, n.config.Sidecar.RelayerConnString)
+	} else {
+		n.Logger.Info("[node startup]: No relayer_conn_string specified, not dialing relayer on startup")
+	}
 	err = n.sw.DialPeersAsync(peersToDialOnStartup)
 	if err != nil {
 		return fmt.Errorf("could not dial peers from persistent_peers field: %w", err)
