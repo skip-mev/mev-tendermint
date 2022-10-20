@@ -995,14 +995,15 @@ func (n *Node) OnStart() error {
 	}
 
 	// If all required info is set in config, register with sentinel
-	if n.config.Sidecar.APIKey != "" && n.config.Sidecar.ValidatorAddrHex != "" && n.config.Sidecar.RelayerConnString != "" {
+	if n.config.Sidecar.APIKey != "" && n.config.Sidecar.ValidatorAddrHex != "" && n.config.Sidecar.RelayerConnString != "" && n.config.Sidecar.ValidatorPaymentAddr != "" {
 		relayerIP := "http://" + strings.Split(strings.Split(n.config.Sidecar.RelayerConnString, "@")[1], ":")[0]
 		rpcPort := ":26657"
-		p2p.RegisterWithSentinel(n.config.Sidecar.APIKey, n.config.Sidecar.ValidatorAddrHex, string(n.nodeInfo.ID()), relayerIP+rpcPort)
+		p2p.RegisterWithSentinel(n.config.Sidecar.APIKey, n.config.Sidecar.ValidatorAddrHex, string(n.nodeInfo.ID()), relayerIP+rpcPort, n.config.Sidecar.ValidatorPaymentAddr)
 	} else {
 		fmt.Println("[node startup]: Not registering with relayer, config has API Key:", n.config.Sidecar.APIKey,
 			"validator addr hex:", n.config.Sidecar.ValidatorAddrHex,
-			"relayer conn string:", n.config.Sidecar.RelayerConnString)
+			"relayer conn string:", n.config.Sidecar.RelayerConnString,
+			"validator payment addr:", n.config.Sidecar.ValidatorPaymentAddr)
 	}
 
 	// Add private IDs to addrbook to block those peers being added
