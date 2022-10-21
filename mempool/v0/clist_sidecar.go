@@ -568,7 +568,6 @@ func (sc *CListPriorityTxSidecar) ReapMaxTxs() []*mempool.MempoolTx {
 						Height:    scTx.DesiredHeight - 1,
 						GasWanted: scTx.GasWanted,
 						Tx:        scTx.Tx,
-						Senders:   *copySyncMap(&scTx.Senders),
 					}
 					innerTxs = append(innerTxs, memTx)
 				} else {
@@ -628,15 +627,4 @@ func (sc *CListPriorityTxSidecar) Lock() {
 // Safe for concurrent use by multiple goroutines.
 func (sc *CListPriorityTxSidecar) Unlock() {
 	sc.updateMtx.Unlock()
-}
-
-func copySyncMap(m *sync.Map) *sync.Map {
-	var cp sync.Map
-
-	m.Range(func(k, v interface{}) bool {
-		cp.Store(k, v)
-		return true
-	})
-
-	return &cp
 }
