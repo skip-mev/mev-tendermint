@@ -357,8 +357,8 @@ func (sw *Switch) StopPeerForError(peer Peer, reason interface{}) {
 	sw.Logger.Error("Stopping peer for error", "peer", peer, "err", reason)
 	sw.stopAndRemovePeer(peer, reason)
 
-	fmt.Println("Looking to reconnect after StopPeerForError, peer is ", peer, "relayer is ", sw.RelayerNetAddr)
-	if peer.ID() == sw.RelayerNetAddr.ID {
+	sw.Logger.Info("Looking to reconnect after StopPeerForError, peer is ", peer, "relayer is ", sw.RelayerNetAddr)
+	if sw.RelayerNetAddr != nil && peer.ID() == sw.RelayerNetAddr.ID {
 		fmt.Println("Relayer peer disconnected, attempting to reconnect")
 		go sw.reconnectToRelayerPeer(sw.RelayerNetAddr)
 	} else if peer.IsPersistent() {
@@ -803,7 +803,7 @@ func (sw *Switch) addOutboundPeerWithConfig(
 	cfg *config.P2PConfig,
 ) error {
 
-	if addr.ID == sw.RelayerNetAddr.ID {
+	if sw.RelayerNetAddr != nil && addr.ID == sw.RelayerNetAddr.ID {
 		sw.Logger.Info("[relayer-reconnection]: DIALING RELAYER", "address", addr, "time", time.Now())
 	} else {
 		sw.Logger.Info("Dialing peer", "address", addr)
@@ -811,7 +811,7 @@ func (sw *Switch) addOutboundPeerWithConfig(
 
 	// XXX(xla): Remove the leakage of test concerns in implementation.
 	if cfg.TestDialFail {
-		if addr.ID == sw.RelayerNetAddr.ID {
+		if sw.RelayerNetAddr != nil && addr.ID == sw.RelayerNetAddr.ID {
 			go sw.reconnectToRelayerPeer(addr)
 			return fmt.Errorf("dial err relayer (peerConfig.DialFail == true)")
 		}
@@ -841,7 +841,7 @@ func (sw *Switch) addOutboundPeerWithConfig(
 
 		// retry persistent peers after
 		// any dial error besides IsSelf()
-		if addr.ID == sw.RelayerNetAddr.ID {
+		if sw.RelayerNetAddr != nil && addr.ID == sw.RelayerNetAddr.ID {
 			go sw.reconnectToRelayerPeer(addr)
 		} else if sw.IsPeerPersistent(addr) {
 			go sw.reconnectToPeer(addr)
@@ -856,7 +856,7 @@ func (sw *Switch) addOutboundPeerWithConfig(
 			_ = p.Stop()
 		}
 		return err
-	} else if addr.ID == sw.RelayerNetAddr.ID {
+	} else if sw.RelayerNetAddr != nil && addr.ID == sw.RelayerNetAddr.ID {
 		sw.Logger.Info("[relayer-reconnection]: RELAYER RECONNECTED!", "address", addr)
 	}
 

@@ -44,6 +44,9 @@ type CListPriorityTxSidecar struct {
 
 	updateMtx tmsync.RWMutex
 
+	maxBundleIDMtx sync.Mutex
+	bundleSizeMtx  sync.Mutex
+
 	// Keep a cache of already-seen txs.
 	// This reduces the pressure on the proxyApp.
 	cache mempool.TxCache
@@ -238,49 +241,64 @@ func (sc *CListPriorityTxSidecar) AddTx(tx types.Tx, txInfo mempool.TxInfo) erro
 		}
 	}
 
-	// Can't add transactions if the bundle is already full
-	// check if the current size of this bundle is greater than the expected size for the bundle, if so skip
-	if bundle.CurrSize >= bundle.EnforcedSize {
-		sc.logger.Info(
-			"failed adding sidecarTx",
-			"bundle already full for this BundleID...",
-			"bundle id", txInfo.BundleID,
-			"bundle curr size", bundle.CurrSize,
-			"enforced size", bundle.EnforcedSize,
-			"tx", tx.Hash(),
-		)
-		return mempool.ErrBundleFull{
-			BundleID:     txInfo.BundleID,
-			BundleHeight: txInfo.BundleSize,
+	shouldReturn, err := func() (bool, error) {
+		// TODO: make this a lock per bundle?
+		sc.bundleSizeMtx.Lock()
+		defer sc.bundleSizeMtx.Unlock()
+		// Can't add transactions if the bundle is already full
+		// check if the current size of this bundle is greater than the expected size for the bundle, if so skip
+		if bundle.CurrSize >= bundle.EnforcedSize {
+			sc.logger.Info(
+				"failed adding sidecarTx",
+				"bundle already full for this BundleID...",
+				"bundle id", txInfo.BundleID,
+				"bundle curr size", bundle.CurrSize,
+				"enforced size", bundle.EnforcedSize,
+				"tx", tx.Hash(),
+			)
+			return false, mempool.ErrBundleFull{
+				BundleID:     txInfo.BundleID,
+				BundleHeight: txInfo.BundleSize,
+			}
 		}
-	}
 
-	// -------- TX INSERTION INTO BUNDLE ---------
+		// -------- TX INSERTION INTO BUNDLE ---------
 
-	// get the map of order -> scTx
-	orderedTxsMap := bundle.OrderedTxsMap
+		// get the map of order -> scTx
+		orderedTxsMap := bundle.OrderedTxsMap
 
-	// if we already have a tx at this BundleID, bundleOrder, and height, then skip this one!
-	if _, loaded := orderedTxsMap.LoadOrStore(txInfo.BundleOrder, scTx); loaded {
-		// if we had the tx already, then skip
-		sc.logger.Info(
-			"failed adding sidecarTx",
-			"already have a tx for this BundleID, height, and bundleOrder...",
-			"bundle id", txInfo.BundleID,
-			"bundle height", txInfo.DesiredHeight,
-			"bundle order", txInfo.BundleOrder,
-			"tx", tx.Hash(),
-		)
+		// if we already have a tx at this BundleID, bundleOrder, and height, then skip this one!
+		if _, loaded := orderedTxsMap.LoadOrStore(txInfo.BundleOrder, scTx); loaded {
+			// if we had the tx already, then skip
+			sc.logger.Info(
+				"failed adding sidecarTx",
+				"already have a tx for this BundleID, height, and bundleOrder...",
+				"bundle id", txInfo.BundleID,
+				"bundle height", txInfo.DesiredHeight,
+				"bundle order", txInfo.BundleOrder,
+				"tx", tx.Hash(),
+			)
+			return true, nil
+		}
+		// if we added, then increment bundle size for BundleID
+		atomic.AddInt64(&bundle.CurrSize, int64(1))
+		return false, nil
+	}()
+	if err != nil {
+		return err
+	} else if shouldReturn {
 		return nil
 	}
-	// if we added, then increment bundle size for BundleID
-	atomic.AddInt64(&bundle.CurrSize, int64(1))
 
 	// -------- UPDATE MAX BUNDLE ---------
 
-	if txInfo.BundleID >= sc.maxBundleID {
-		sc.maxBundleID = txInfo.BundleID
-	}
+	func() {
+		sc.maxBundleIDMtx.Lock()
+		defer sc.maxBundleIDMtx.Unlock()
+		if txInfo.BundleID >= sc.maxBundleID {
+			sc.maxBundleID = txInfo.BundleID
+		}
+	}()
 
 	// -------- TX INSERTION INTO MAIN TXS LIST ---------
 	// -------- TODO: In the future probably want to refactor to not have txs clist ---------
@@ -316,6 +334,9 @@ func (sc *CListPriorityTxSidecar) AddTx(tx types.Tx, txInfo mempool.TxInfo) erro
 
 // Gets the height of the last received bundle tx. For status rpc purposes.
 func (sc *CListPriorityTxSidecar) GetLastBundleHeight() int64 {
+	if sc == nil {
+		return 0
+	}
 	return sc.lastBundleHeight
 }
 
@@ -565,7 +586,6 @@ func (sc *CListPriorityTxSidecar) ReapMaxTxs() []*mempool.MempoolTx {
 						Height:    scTx.DesiredHeight - 1,
 						GasWanted: scTx.GasWanted,
 						Tx:        scTx.Tx,
-						Senders:   scTx.Senders, //nolint:govet // TODO: fix
 					}
 					innerTxs = append(innerTxs, memTx)
 				} else {
