@@ -845,3 +845,13 @@ func BenchmarkSwitchBroadcast(b *testing.B) {
 
 	b.Logf("success: %v, failure: %v", numSuccess, numFailure)
 }
+
+func TestAddRelayerPeer(t *testing.T) {
+	sw := MakeSwitch(cfg, 1, "testing", "123.123.123", initSwitchFunc)
+	relayerString := "79044d1d81d24a8ff3c7fd7e010f455f7ae9e1ad@1.2.3.4:26656"
+	relayerNetAddr, _ := NewNetAddressString(relayerString)
+
+	sw.AddRelayerPeer(relayerString)
+
+	assert.Equal(t, relayerNetAddr, sw.RelayerNetAddr, "Expected RelayerNetAddr %s, got %s", relayerNetAddr, sw.RelayerNetAddr)
+}
