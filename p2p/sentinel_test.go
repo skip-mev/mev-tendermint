@@ -2,10 +2,11 @@ package p2p
 
 import (
 	"encoding/json"
-	"github.com/tendermint/tendermint/libs/log"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/tendermint/tendermint/libs/log"
 )
 
 func TestPostRequestRoutine(t *testing.T) {
@@ -23,7 +24,10 @@ func TestPostRequestRoutine(t *testing.T) {
 		n, _ := r.Body.Read(bodyBytes)
 
 		var body map[string]interface{}
-		json.Unmarshal(bodyBytes[:n], &body)
+		err := json.Unmarshal(bodyBytes[:n], &body)
+		if err != nil {
+			t.Errorf("Erred while unmarshalling body: %s", err)
+		}
 
 		if id := body["id"].(float64); id != float64(1) {
 			t.Errorf("Expected post body to have id=%f, got %f", float64(1), id)

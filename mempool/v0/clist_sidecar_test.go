@@ -440,7 +440,6 @@ func TestBasicAddMultipleBundles(t *testing.T) {
 	}
 }
 
-
 func TestSpecificAddTxsToMultipleBundles(t *testing.T) {
 	app := kvstore.NewApplication()
 	cc := proxy.NewLocalClientCreator(app)

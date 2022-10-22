@@ -197,9 +197,9 @@ func TestReapMaxBytesMaxGas_ReapsSidecar(t *testing.T) {
 	expectedTxs[0] = tx
 	sidecarTxs := []*mempool.MempoolTx{
 		{
-			Height: 5,
+			Height:    5,
 			GasWanted: 100,
-			Tx: tx,
+			Tx:        tx,
 		},
 	}
 
@@ -221,9 +221,9 @@ func TestReapMaxBytesMaxGas_SkipsSidecarTxsInMempoolReap(t *testing.T) {
 	// Put the same tx in sidecarTxs
 	sidecarTxs := []*mempool.MempoolTx{
 		{
-			Height: 5,
+			Height:    5,
 			GasWanted: 100,
-			Tx: expectedTxs[0],
+			Tx:        expectedTxs[0],
 		},
 	}
 
