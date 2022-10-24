@@ -94,9 +94,7 @@ type Switch struct {
 	metrics           *Metrics
 	sidecarPeers      SidecarPeers
 	RelayerConnString string
-	RelayerAPIKey     string
 	RelayerNetAddr    *NetAddress
-	ValidatorAddrHex  string
 }
 
 // NetAddress returns the address the switch is listening on.
@@ -133,8 +131,6 @@ func NewSwitch(
 	sidecarPeers SidecarPeers,
 	transport Transport,
 	relayerConnString string,
-	relayerAPIKey string,
-	validatorAddrHex string,
 	options ...SwitchOption,
 ) *Switch {
 	sw := &Switch{
@@ -152,8 +148,6 @@ func NewSwitch(
 		persistentPeersAddrs: make([]*NetAddress, 0),
 		unconditionalPeerIDs: make(map[ID]struct{}),
 		RelayerConnString:    relayerConnString,
-		RelayerAPIKey:        relayerAPIKey,
-		ValidatorAddrHex:     validatorAddrHex,
 	}
 
 	// Ensure we have a completely undeterministic PRNG.
@@ -434,23 +428,6 @@ func (sw *Switch) reconnectToRelayerPeer(addr *NetAddress) {
 		if !sw.IsRunning() {
 			return
 		}
-
-		// If all required info is set in config, register with sentinel
-		sw.Logger.Info("[relayer-reconnection]: Attempting to reregister via Sentinel API")
-		if sw.RelayerAPIKey != "" && sw.ValidatorAddrHex != "" && sw.RelayerConnString != "" {
-			relayerIP := "http://" + strings.Split(strings.Split(sw.RelayerConnString, "@")[1], ":")[0]
-			rpcPort := ":26657"
-			RegisterWithSentinel(sw.Logger, sw.RelayerAPIKey, sw.ValidatorAddrHex, string(sw.nodeInfo.ID()), relayerIP+rpcPort)
-		} else {
-			sw.Logger.Info("[relayer-reconnection]: Not registering with relayer via API (missing data), switch has",
-				"API Key:", sw.RelayerAPIKey,
-				"validator addr hex:", sw.ValidatorAddrHex,
-				"relayer conn string:", sw.RelayerConnString,
-				"node ID:", string(sw.nodeInfo.ID()),
-			)
-		}
-
-		sw.randomSleep(5 * time.Second)
 
 		err := sw.DialPeerWithAddress(addr)
 		if err == nil {

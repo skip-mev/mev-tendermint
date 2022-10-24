@@ -9,7 +9,13 @@ import (
 )
 
 func RegisterWithSentinel(logger log.Logger, APIKey, validatorAddrHex, peerID, sentinel string) {
-	logger.Info("[p2p.sentinel]: Registering with sentinel", APIKey, validatorAddrHex, peerID, sentinel)
+	logger.Info(
+		"[p2p.sentinel]: Registering with sentinel (first try)",
+		"API Key", APIKey,
+		"validatorAddrHex", validatorAddrHex,
+		"peerID", peerID,
+		"sentinel string", sentinel,
+	)
 
 	jsonData, err := makePostRequestData(APIKey, validatorAddrHex, peerID)
 	if err != nil {
