@@ -28,9 +28,9 @@ func RegisterWithSentinel(logger log.Logger, APIKey, validatorAddrHex, peerID, s
 	go func() {
 		resp, err := http.Post(sentinel, "application/json", bytes.NewBuffer(jsonData)) //nolint:gosec
 		if err != nil {
-			logger.Info("[p2p.sentinel]: Err making post request to sentinel:", err)
+			logger.Info("[p2p.sentinel]: Err making post request to sentinel:", err.Error())
 		} else {
-			logger.Info("[p2p.sentinel]: Successfully registered with sentinel", resp)
+			logger.Info("[p2p.sentinel]: SUCCESSFULLY REGISTERED WITH SENTINEL!", resp)
 			defer resp.Body.Close()
 		}
 	}()
