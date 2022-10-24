@@ -192,7 +192,7 @@ func (memR *Reactor) Receive(chID byte, src p2p.Peer, msgBytes []byte) {
 	} else if chID == mempool.SidecarChannel && isSidecarPeer {
 		msg, err := memR.decodeBundleMsg(msgBytes)
 		if err != nil {
-			memR.Logger.Error("Error decoding sidecar message", "src", src, "chId", chID, "err", err)
+			memR.Logger.Info("ERR decoding sidecar message", "src", src, "chId", chID, "err", err)
 			memR.Switch.StopPeerForError(src, err)
 			return
 		}
@@ -207,7 +207,7 @@ func (memR *Reactor) Receive(chID byte, src p2p.Peer, msgBytes []byte) {
 			txInfo.SenderP2PID = src.ID()
 		}
 		for _, tx := range msg.Txs {
-			memR.Logger.Debug(
+			memR.Logger.Info(
 				"received sidecar tx",
 				"tx", tx.Hash(),
 				"desired height", msg.DesiredHeight,
@@ -218,9 +218,9 @@ func (memR *Reactor) Receive(chID byte, src p2p.Peer, msgBytes []byte) {
 
 			err = memR.sidecar.AddTx(tx, txInfo)
 			if err == mempool.ErrTxInCache {
-				memR.Logger.Debug("sidecartx already exists in cache!", "tx", tx.Hash())
+				memR.Logger.Info("ERR rejecting sidecar tx: already exists in cache!", "tx", tx.Hash())
 			} else if err != nil {
-				memR.Logger.Info("could not add SidecarTx", "tx", tx.String(), "err", err)
+				memR.Logger.Info("ERR could not add SidecarTx", "tx", tx.String(), "err", err)
 			}
 		}
 	}

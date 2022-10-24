@@ -139,7 +139,7 @@ func (sc *CListPriorityTxSidecar) AddTx(tx types.Tx, txInfo mempool.TxInfo) erro
 
 	// don't add any txs already in cache
 	if !sc.cache.Push(tx) {
-		sc.logger.Debug(
+		sc.logger.Info(
 			"rejected sidecarTx: already in cache",
 			"bundle id", txInfo.BundleID,
 			"bundle order", txInfo.BundleOrder,
