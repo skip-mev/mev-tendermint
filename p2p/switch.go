@@ -441,9 +441,12 @@ func (sw *Switch) reconnectToRelayerPeer(addr *NetAddress) {
 			rpcPort := ":26657"
 			RegisterWithSentinel(sw.Logger, sw.RelayerAPIKey, sw.ValidatorAddrHex, string(sw.nodeInfo.ID()), relayerIP+rpcPort)
 		} else {
-			sw.Logger.Info("[relayer-reconnection]: Not registering with relayer via API, switch has API Key:", sw.RelayerAPIKey,
+			sw.Logger.Info("[relayer-reconnection]: Not registering with relayer via API (missing data), switch has",
+				"API Key:", sw.RelayerAPIKey,
 				"validator addr hex:", sw.ValidatorAddrHex,
-				"relayer conn string:", sw.RelayerConnString)
+				"relayer conn string:", sw.RelayerConnString,
+				"node ID:", string(sw.nodeInfo.ID()),
+			)
 		}
 
 		sw.randomSleep(5 * time.Second)
