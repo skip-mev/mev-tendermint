@@ -186,13 +186,22 @@ func (memR *Reactor) Receive(chID byte, src p2p.Peer, msgBytes []byte) {
 			if errors.Is(err, mempool.ErrTxInCache) {
 				memR.Logger.Debug("Tx already exists in cache", "tx", tx.String())
 			} else if err != nil {
-				memR.Logger.Info("Could not check tx", "tx", tx.String(), "err", err)
+				memR.Logger.Info(
+					"Could not check tx",
+					"tx", tx.String(),
+					"err", err,
+				)
 			}
 		}
 	} else if chID == mempool.SidecarChannel && isSidecarPeer {
 		msg, err := memR.decodeBundleMsg(msgBytes)
 		if err != nil {
-			memR.Logger.Error("Error decoding sidecar message", "src", src, "chId", chID, "err", err)
+			memR.Logger.Error(
+				"Error decoding sidecar message",
+				"src", src,
+				"chId", chID,
+				"err", err,
+			)
 			memR.Switch.StopPeerForError(src, err)
 			return
 		}
