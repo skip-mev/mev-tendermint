@@ -857,4 +857,8 @@ func TestAddRelayerPeer(t *testing.T) {
 	}
 
 	assert.Equal(t, relayerNetAddr, sw.RelayerNetAddr, "Expected RelayerNetAddr %s, got %s", relayerNetAddr, sw.RelayerNetAddr)
+
+	errRelayerString := "abcd@1.2.3.4:26656"
+	err = sw.AddRelayerPeer(errRelayerString)
+	assert.True(t, err != nil, "Expected err with invalid relayer string")
 }

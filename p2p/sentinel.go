@@ -26,7 +26,9 @@ func postRequestRoutine(logger log.Logger, sentinel string, jsonData []byte) {
 		logger.Info("[p2p.sentinel]: Err making post request to sentinel:", err)
 	} else {
 		logger.Info("[p2p.sentinel]: Successfully registered with sentinel", resp)
-		defer resp.Body.Close()
+		if resp != nil && resp.Body != nil {
+			defer resp.Body.Close()
+		}
 	}
 }
 

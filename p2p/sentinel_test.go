@@ -52,3 +52,20 @@ func TestPostRequestRoutine(t *testing.T) {
 	jsonData, _ := makePostRequestData("test-api-key", "ABCD1234", "a1b2c3d4")
 	postRequestRoutine(log.NewNopLogger(), server.URL, jsonData)
 }
+
+func TestPostRequestRoutine_DoesNotPanicOn500(t *testing.T) {
+	defer func() {
+		if r := recover(); r != nil {
+			t.Errorf("Unexpected panic from postRequestRoutine")
+		}
+	}()
+
+	// Make a mock http server to receive the register request
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer server.Close()
+
+	jsonData, _ := makePostRequestData("test-api-key", "ABCD1234", "a1b2c3d4")
+	postRequestRoutine(log.NewNopLogger(), server.URL, jsonData)
+}
