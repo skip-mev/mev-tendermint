@@ -436,6 +436,7 @@ func (sw *Switch) reconnectToRelayerPeer(addr *NetAddress) {
 		}
 
 		// If all required info is set in config, register with sentinel
+		sw.Logger.Info("[relayer-reconnection]: Attempting to reregister via Sentinel API")
 		if sw.RelayerAPIKey != "" && sw.ValidatorAddrHex != "" && sw.RelayerConnString != "" {
 			relayerIP := "http://" + strings.Split(strings.Split(sw.RelayerConnString, "@")[1], ":")[0]
 			rpcPort := ":26657"
