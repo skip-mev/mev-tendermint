@@ -62,3 +62,5 @@ test/fuzz/**/*.zip
 *.pdf
 *.gz
 *.dvi
+
+coverage.out
