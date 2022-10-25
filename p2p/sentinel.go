@@ -48,12 +48,14 @@ func postRequestRoutine(logger log.Logger, sentinel string, jsonData []byte) {
 					)
 				}
 			} else {
-				logger.Info("[p2p.sentinel]: SUCCESSFULLY REGISTERED WITH SENTINEL!",
-					"responseStatusCode", resp.StatusCode,
-					"responseStatus", resp.Status,
-				)
-				if resp != nil && resp.Body != nil {
-					defer resp.Body.Close()
+				if resp != nil {
+					logger.Info("[p2p.sentinel]: SUCCESSFULLY REGISTERED WITH SENTINEL!",
+						"responseStatusCode", resp.StatusCode,
+						"responseStatus", resp.Status,
+					)
+					if resp.Body != nil {
+						defer resp.Body.Close()
+					}
 				}
 				return
 			}
