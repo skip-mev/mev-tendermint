@@ -36,10 +36,15 @@ func postRequestRoutine(logger log.Logger, sentinel string, jsonData []byte) {
 				"try #", tries,
 			)
 			resp, err := http.Post(sentinel, "application/json", bytes.NewBuffer(jsonData)) //nolint:gosec
-			if err != nil {
+			if resp.StatusCode != http.StatusOK {
 				logger.Info("[p2p.sentinel]: reregister with Sentinel API failed",
-					"error:", err.Error(),
+					"status code", resp.StatusCode,
 				)
+				if err != nil {
+					logger.Info("[p2p.sentinel]: error was",
+						"err:", err,
+					)
+				}
 			} else {
 				logger.Info("[p2p.sentinel]: SUCCESSFULLY REGISTERED WITH SENTINEL!",
 					"responseStatusCode", resp.StatusCode,
