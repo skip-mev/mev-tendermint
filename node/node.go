@@ -1005,7 +1005,8 @@ func (n *Node) OnStart() error {
 
 	// If all required info is set in config, register with sentinel
 	if n.config.Sidecar.APIKey != "" && n.config.Sidecar.ValidatorAddrHex != "" && n.config.Sidecar.RelayerRPCString != "" {
-		p2p.RegisterWithSentinel(n.Logger, n.config.Sidecar.APIKey, n.config.Sidecar.ValidatorAddrHex, string(n.nodeInfo.ID()), n.config.Sidecar.RelayerRPCString)
+		p2p.RegisterWithSentinel(n.Logger, n.config.Sidecar.APIKey, n.config.Sidecar.ValidatorAddrHex,
+			string(n.nodeInfo.ID()), n.config.Sidecar.RelayerRPCString)
 	} else {
 		n.Logger.Info("[node startup]: Not registering with relayer, config has API Key:", n.config.Sidecar.APIKey,
 			"validator addr hex:", n.config.Sidecar.ValidatorAddrHex,
