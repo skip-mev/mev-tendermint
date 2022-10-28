@@ -1087,10 +1087,12 @@ func (cfg *ConsensusConfig) ValidateBasic() error {
 // mempool among the relayer and the nodes that belong to a particular proposer
 type SidecarConfig struct {
 	RootDir           string `mapstructure:"home"`
-	RelayerConnString string `mapstructure:"relayer_conn_string"`
-	PersonalPeerIDs   string `mapstructure:"personal_peer_ids"`
-	ValidatorAddrHex  string `mapstructure:"validator_addr_hex"`
-	APIKey            string `mapstructure:"api_key"`
+	RelayerRPCString  string `mapstructure:"relayer_rpc_string"`
+	RelayerPeerString string `mapstructure:"relayer_peer_string"`
+
+	PersonalPeerIDs  string `mapstructure:"personal_peer_ids"`
+	ValidatorAddrHex string `mapstructure:"validator_addr_hex"`
+	APIKey           string `mapstructure:"api_key"`
 }
 
 func DefaultSidecarConfig() *SidecarConfig {
@@ -1099,7 +1101,8 @@ func DefaultSidecarConfig() *SidecarConfig {
 
 func TestSidecarConfig() *SidecarConfig {
 	return &SidecarConfig{
-		RelayerConnString: "79044d1d81d24a8ff3c7fd7e010f455f7ae9e1ad@1.2.3.4:26656",
+		RelayerRPCString:  "test-api.skip.money",
+		RelayerPeerString: "79044d1d81d24a8ff3c7fd7e010f455f7ae9e1ad@1.2.3.4:26656",
 		ValidatorAddrHex:  "AAAAEBCB678E19447F2889A54172E7EA49AEB3BA",
 		APIKey:            "api-key",
 	}

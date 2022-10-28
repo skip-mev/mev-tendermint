@@ -93,7 +93,7 @@ type Switch struct {
 
 	metrics           *Metrics
 	sidecarPeers      SidecarPeers
-	RelayerConnString string
+	RelayerPeerString string
 	RelayerNetAddr    *NetAddress
 }
 
@@ -130,7 +130,7 @@ func NewSwitch(
 	cfg *config.P2PConfig,
 	sidecarPeers SidecarPeers,
 	transport Transport,
-	relayerConnString string,
+	relayerPeerString string,
 	options ...SwitchOption,
 ) *Switch {
 	sw := &Switch{
@@ -147,7 +147,7 @@ func NewSwitch(
 		filterTimeout:        defaultFilterTimeout,
 		persistentPeersAddrs: make([]*NetAddress, 0),
 		unconditionalPeerIDs: make(map[ID]struct{}),
-		RelayerConnString:    relayerConnString,
+		RelayerPeerString:    relayerPeerString,
 	}
 
 	// Ensure we have a completely undeterministic PRNG.
@@ -404,7 +404,7 @@ func (sw *Switch) stopAndRemovePeer(peer Peer, reason interface{}) {
 		sw.metrics.Peers.Add(float64(-1))
 
 		// check if we removed sentinel, if so, alert metrics
-		relayerIDConv := ID(strings.Split(sw.RelayerConnString, "@")[0])
+		relayerIDConv := ID(strings.Split(sw.RelayerPeerString, "@")[0])
 		if err := validateID(relayerIDConv); err == nil {
 			if peer.ID() == relayerIDConv {
 				sw.metrics.RelayConnected.Set(0)
@@ -932,7 +932,7 @@ func (sw *Switch) addPeer(p Peer) error {
 	sw.metrics.Peers.Add(float64(1))
 
 	// check if we removed sentinel, if so, alert metrics
-	relayerIDConv := ID(strings.Split(sw.RelayerConnString, "@")[0])
+	relayerIDConv := ID(strings.Split(sw.RelayerPeerString, "@")[0])
 	if err := validateID(relayerIDConv); err == nil {
 		if p.ID() == relayerIDConv {
 			sw.metrics.RelayConnected.Set(1)
