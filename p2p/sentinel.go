@@ -3,6 +3,8 @@ package p2p
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
+	"io"
 	"net/http"
 	"time"
 
@@ -67,6 +69,12 @@ func postRequestRoutine(logger log.Logger, sentinel string, jsonData []byte) {
 		if resp != nil && resp.Body != nil {
 			logger.Info("[p2p.sentinel]: SUCCESSFULLY REGISTERED WITH SENTINEL", resp)
 			defer resp.Body.Close()
+			bodyBytes, err := io.ReadAll(resp.Body)
+			if err != nil {
+				fmt.Println("[p2p.sentinel]: Error unmarshalling body", err)
+			}
+			bodyString := string(bodyBytes)
+			logger.Info("[p2p.sentinel]:", bodyString)
 		}
 	}
 }
