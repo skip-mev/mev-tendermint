@@ -43,6 +43,7 @@ func TestPostRequestRoutine(t *testing.T) {
 			t.Errorf("Expected post body params to have apikey %s, got %s", "test-api-key", apikey)
 		}
 		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"jsonrpc": "2.0", "id": 1, "result": "success"}`))
 	}))
 	defer server.Close()
 
@@ -64,5 +65,28 @@ func TestPostRequestRoutine_DoesNotPanicOn500(t *testing.T) {
 	defer server.Close()
 
 	jsonData, _ := makePostRequestData("a1b2c3d4", "test-api-key")
-	postRequestRoutine(log.NewNopLogger(), server.URL, jsonData)
+	attemptRegisterOnce(log.NewNopLogger(), server.URL, jsonData)
+}
+
+func TestErrorOnJSONRPCError(t *testing.T) {
+	// Make a mock http server to receive the register request
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"jsonrpc": "2.0", "id": 1, "error": "some error"}`))
+	}))
+	defer server.Close()
+
+	jsonData, _ := makePostRequestData("a1b2c3d4", "test-api-key")
+	err := attemptRegisterOnce(log.NewNopLogger(), server.URL, jsonData)
+	if err == nil {
+		t.Errorf("Expected error on jsonrpc error")
+	}
+}
+
+func TestErrorOnFailedToRespond(t *testing.T) {
+	jsonData, _ := makePostRequestData("a1b2c3d4", "test-api-key")
+	err := attemptRegisterOnce(log.NewNopLogger(), "http://1.2.3.4:6969", jsonData)
+	if err == nil {
+		t.Errorf("Expected error on fake server")
+	}
 }

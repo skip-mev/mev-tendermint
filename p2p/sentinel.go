@@ -3,12 +3,13 @@ package p2p
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
+	"errors"
 	"io"
 	"net/http"
 	"time"
 
 	"github.com/tendermint/tendermint/libs/log"
+	"github.com/tendermint/tendermint/rpc/jsonrpc/types"
 )
 
 func RegisterWithSentinel(logger log.Logger, APIKey, peerID, sentinel string) {
@@ -28,52 +29,62 @@ func RegisterWithSentinel(logger log.Logger, APIKey, peerID, sentinel string) {
 	go postRequestRoutine(logger, sentinel, jsonData)
 }
 
-func postRequestRoutine(logger log.Logger, sentinel string, jsonData []byte) {
-	resp, err := http.Post(sentinel, "application/json", bytes.NewBuffer(jsonData)) //nolint:gosec
+func attemptRegisterOnce(logger log.Logger, sentinel string, jsonData []byte) error {
+	client := http.Client{
+		Timeout: 5 * time.Second,
+	}
+	resp, err := client.Post(sentinel, "application/json", bytes.NewBuffer(jsonData)) //nolint:gosec
 	if err != nil {
-		tries := 1
-		for {
-			logger.Info("[p2p.sentinel]: Attempt to reregister via Sentinel API",
-				"try #", tries,
-			)
-			resp, err := http.Post(sentinel, "application/json", bytes.NewBuffer(jsonData)) //nolint:gosec
-			if err != nil || (resp == nil) || (resp != nil && resp.StatusCode != http.StatusOK) {
-				if resp != nil {
-					logger.Info("[p2p.sentinel]: reregister with Sentinel API failed",
-						"status code", resp.StatusCode,
-					)
-				}
-				if err != nil {
-					logger.Info("[p2p.sentinel]: error was",
-						"err:", err,
-					)
-				}
-			} else {
-				if resp != nil {
-					logger.Info("[p2p.sentinel]: SUCCESSFULLY REGISTERED WITH SENTINEL!",
-						"responseStatusCode", resp.StatusCode,
-						"responseStatus", resp.Status,
-					)
-					if resp.Body != nil {
-						defer resp.Body.Close()
-					}
-				}
-				return
-			}
-			time.Sleep(30 * time.Second)
-			tries++
+		logger.Info("[p2p.sentinel]: Err registering with sentinel:", err)
+		return err
+	}
+	if resp == nil {
+		logger.Info("[p2p.sentinel]: No response from sentinel")
+		return errors.New("no response from sentinel")
+	}
+	if resp.StatusCode != http.StatusOK {
+		logger.Info("[p2p.sentinel]: Bad status code from sentinel", "status code", resp.StatusCode)
+		return errors.New("bad status code from sentinel")
+	}
+	if resp.Body == nil {
+		logger.Info("[p2p.sentinel]: No body in response from sentinel")
+		return errors.New("no body in response from sentinel")
+	}
+	defer resp.Body.Close()
+
+	unmarshalledResponse := &types.RPCResponse{}
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		logger.Info("[p2p.sentinel]: error was", "err:", err)
+		return errors.New("error reading response body")
+	}
+	err = json.Unmarshal(bodyBytes, unmarshalledResponse)
+	if err != nil {
+		logger.Info("[p2p.sentinel]: error was", "err:", err)
+		return errors.New("error unmarshalling response body")
+	}
+	if unmarshalledResponse.Error != nil {
+		logger.Info("[p2p.sentinel]: error was", "err:", unmarshalledResponse.Error)
+		return errors.New("error in response body")
+	}
+	return nil
+}
+
+func postRequestRoutine(logger log.Logger, sentinel string, jsonData []byte) {
+	tries := 1
+	for {
+		logger.Info("[p2p.sentinel]: Attempt to reregister via Sentinel API",
+			"try #", tries,
+		)
+		err := attemptRegisterOnce(logger, sentinel, jsonData)
+		if err == nil {
+			logger.Info("[p2p.sentinel]: Successfully registered with Sentinel API")
+			return
+		} else {
+			logger.Info("[p2p.sentinel]: Failed to register with Sentinel API: ", err)
 		}
-	} else {
-		if resp != nil && resp.Body != nil {
-			logger.Info("[p2p.sentinel]: SUCCESSFULLY REGISTERED WITH SENTINEL", resp)
-			defer resp.Body.Close()
-			bodyBytes, err := io.ReadAll(resp.Body)
-			if err != nil {
-				fmt.Println("[p2p.sentinel]: Error unmarshalling body", err)
-			}
-			bodyString := string(bodyBytes)
-			logger.Info("[p2p.sentinel]:", bodyString)
-		}
+		time.Sleep(30 * time.Second)
+		tries++
 	}
 }
 
