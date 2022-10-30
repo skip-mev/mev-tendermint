@@ -69,8 +69,8 @@ func postRequestRoutine(logger log.Logger, sentinel string, jsonData []byte) {
 	}
 }
 
-func makePostRequestData(APIKey, peerID string) ([]byte, error) {
-	params := [3]string{peerID, APIKey}
+func makePostRequestData(peerID, APIKey string) ([]byte, error) {
+	params := [2]string{peerID, APIKey}
 	data := map[string]interface{}{
 		"method": "register_node_api",
 		"params": params,

@@ -32,24 +32,21 @@ func TestPostRequestRoutine(t *testing.T) {
 		if id := body["id"].(float64); id != float64(1) {
 			t.Errorf("Expected post body to have id=%f, got %f", float64(1), id)
 		}
-		if method := body["method"].(string); method != "register_peer" {
-			t.Errorf("Expected post body to have method=%s, got %s", "register_peer", method)
+		if method := body["method"].(string); method != "register_node_api" {
+			t.Errorf("Expected post body to have method=%s, got %s", "add_node_api", method)
 		}
 		params := body["params"].([]interface{})
-		if apikey := params[0].(string); apikey != "test-api-key" {
-			t.Errorf("Expected post body params to have apikey %s, got %s", "test-api-key", apikey)
-		}
-		if valhex := params[1].(string); valhex != "ABCD1234" {
-			t.Errorf("Expected post body params to have valhex %s, got %s", "ABCD1234", valhex)
-		}
-		if peerID := params[2].(string); peerID != "a1b2c3d4" {
+		if peerID := params[0].(string); peerID != "a1b2c3d4" {
 			t.Errorf("Expected post body params to have peerID %s, got %s", "a1b2c3d4", peerID)
+		}
+		if apikey := params[1].(string); apikey != "test-api-key" {
+			t.Errorf("Expected post body params to have apikey %s, got %s", "test-api-key", apikey)
 		}
 		w.WriteHeader(http.StatusOK)
 	}))
 	defer server.Close()
 
-	jsonData, _ := makePostRequestData("test-api-key", "a1b2c3d4")
+	jsonData, _ := makePostRequestData("a1b2c3d4", "test-api-key")
 	postRequestRoutine(log.NewNopLogger(), server.URL, jsonData)
 }
 
@@ -66,6 +63,6 @@ func TestPostRequestRoutine_DoesNotPanicOn500(t *testing.T) {
 	}))
 	defer server.Close()
 
-	jsonData, _ := makePostRequestData("test-api-key", "a1b2c3d4")
+	jsonData, _ := makePostRequestData("a1b2c3d4", "test-api-key")
 	postRequestRoutine(log.NewNopLogger(), server.URL, jsonData)
 }
