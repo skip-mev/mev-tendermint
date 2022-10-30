@@ -545,7 +545,6 @@ namespace = "{{ .Instrumentation.Namespace }}"
 personal_peer_ids = "{{ .Sidecar.PersonalPeerIDs }}"
 relayer_peer_string = "{{ .Sidecar.RelayerPeerString }}"
 relayer_rpc_string = "{{ .Sidecar.RelayerRPCString }}"
-validator_addr_hex = "{{ .Sidecar.ValidatorAddrHex }}"
 api_key = "{{ .Sidecar.APIKey }}"
 `
 
