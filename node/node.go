@@ -918,7 +918,9 @@ func NewNode(config *cfg.Config,
 			logger.Info("[node startup]: Adding relayer as an unconditional peer", relayerID)
 			unconditionalPeerIDs = append(unconditionalPeerIDs, relayerID)
 		} else {
-			fmt.Println("[node startup]: ERR: Could not parse relayer peer string to add as unconditional peer, is it correctly configured?", config.Sidecar.RelayerPeerString)
+			fmt.Println("[node startup]: ERR: Could not parse relayer peer string",
+				" to add as unconditional peer, is it correctly configured?",
+				config.Sidecar.RelayerPeerString)
 		}
 	}
 	err = sw.AddUnconditionalPeerIDs(unconditionalPeerIDs)
@@ -1021,12 +1023,14 @@ func (n *Node) OnStart() error {
 	privateIDs := splitAndTrimEmpty(n.config.P2P.PrivatePeerIDs, ",", " ")
 	if n.config.Sidecar.RelayerPeerString != "" {
 		splitStr := strings.Split(n.config.Sidecar.RelayerPeerString, "@")
-		if len(splitStr) > 0 {
+		if len(splitStr) > 1 {
 			relayerID := splitStr[0]
 			n.Logger.Info("[node startup]: Adding relayer as a private peer", relayerID)
 			privateIDs = append(privateIDs, relayerID)
 		} else {
-			fmt.Println("[node startup]: ERR Could not parse relayer peer string to add as private peer, is it correctly configured?", n.config.Sidecar.RelayerPeerString)
+			n.Logger.Info("[node startup]: ERR Could not parse relayer peer string ",
+				"to add as private peer, is it correctly configured?",
+				n.config.Sidecar.RelayerPeerString)
 		}
 	}
 	n.addrBook.AddPrivateIDs(privateIDs)

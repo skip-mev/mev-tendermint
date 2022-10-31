@@ -405,7 +405,7 @@ func (sw *Switch) stopAndRemovePeer(peer Peer, reason interface{}) {
 
 		// check if we removed sentinel, if so, alert metrics
 		splitStr := strings.Split(sw.RelayerPeerString, "@")
-		if len(splitStr) > 0 {
+		if len(splitStr) > 1 {
 			relayerIDConv := ID(splitStr[0])
 			if err := validateID(relayerIDConv); err == nil {
 				if peer.ID() == relayerIDConv {
@@ -940,7 +940,7 @@ func (sw *Switch) addPeer(p Peer) error {
 
 	// check if we removed sentinel, if so, alert metrics
 	splitStr := strings.Split(sw.RelayerPeerString, "@")
-	if len(splitStr) > 0 {
+	if len(splitStr) > 1 {
 		relayerIDConv := ID(splitStr[0])
 		if err := validateID(relayerIDConv); err == nil {
 			if p.ID() == relayerIDConv {
