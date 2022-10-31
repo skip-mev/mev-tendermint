@@ -404,11 +404,18 @@ func (sw *Switch) stopAndRemovePeer(peer Peer, reason interface{}) {
 		sw.metrics.Peers.Add(float64(-1))
 
 		// check if we removed sentinel, if so, alert metrics
-		relayerIDConv := ID(strings.Split(sw.RelayerPeerString, "@")[0])
-		if err := validateID(relayerIDConv); err == nil {
-			if peer.ID() == relayerIDConv {
-				sw.metrics.RelayConnected.Set(0)
+		splitStr := strings.Split(sw.RelayerPeerString, "@")
+		if len(splitStr) > 1 {
+			relayerIDConv := ID(splitStr[0])
+			if err := validateID(relayerIDConv); err == nil {
+				if peer.ID() == relayerIDConv {
+					sw.metrics.RelayConnected.Set(0)
+				}
+			} else {
+				sw.Logger.Error("Error validating relayer ID", "err", err, "is it correctly configured?", sw.RelayerPeerString)
 			}
+		} else {
+			sw.Logger.Error("Error splitting relayer ID", "is it correctly configured?", sw.RelayerPeerString)
 		}
 
 	}
@@ -932,11 +939,18 @@ func (sw *Switch) addPeer(p Peer) error {
 	sw.metrics.Peers.Add(float64(1))
 
 	// check if we removed sentinel, if so, alert metrics
-	relayerIDConv := ID(strings.Split(sw.RelayerPeerString, "@")[0])
-	if err := validateID(relayerIDConv); err == nil {
-		if p.ID() == relayerIDConv {
-			sw.metrics.RelayConnected.Set(1)
+	splitStr := strings.Split(sw.RelayerPeerString, "@")
+	if len(splitStr) > 1 {
+		relayerIDConv := ID(splitStr[0])
+		if err := validateID(relayerIDConv); err == nil {
+			if p.ID() == relayerIDConv {
+				sw.metrics.RelayConnected.Set(1)
+			}
+		} else {
+			sw.Logger.Error("Error validating relayer ID", "err", err, "is it correctly configured?", sw.RelayerPeerString)
 		}
+	} else {
+		sw.Logger.Error("Error splitting relayer ID", "is it correctly configured?", sw.RelayerPeerString)
 	}
 
 	// Start all the reactor protocols on the peer.

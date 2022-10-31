@@ -912,9 +912,16 @@ func NewNode(config *cfg.Config,
 
 	unconditionalPeerIDs := splitAndTrimEmpty(config.P2P.UnconditionalPeerIDs, ",", " ")
 	if config.Sidecar.RelayerPeerString != "" {
-		relayerID := strings.Split(config.Sidecar.RelayerPeerString, "@")[0]
-		logger.Info("[node startup]: Adding relayer as an unconditional peer", relayerID)
-		unconditionalPeerIDs = append(unconditionalPeerIDs, relayerID)
+		splitStr := strings.Split(config.Sidecar.RelayerPeerString, "@")
+		if len(splitStr) > 0 {
+			relayerID := splitStr[0]
+			logger.Info("[node startup]: Adding relayer as an unconditional peer", relayerID)
+			unconditionalPeerIDs = append(unconditionalPeerIDs, relayerID)
+		} else {
+			fmt.Println("[node startup]: ERR: Could not parse relayer peer string",
+				" to add as unconditional peer, is it correctly configured?",
+				config.Sidecar.RelayerPeerString)
+		}
 	}
 	err = sw.AddUnconditionalPeerIDs(unconditionalPeerIDs)
 	if err != nil {
@@ -1015,9 +1022,16 @@ func (n *Node) OnStart() error {
 	// Add private IDs to addrbook to block those peers being added
 	privateIDs := splitAndTrimEmpty(n.config.P2P.PrivatePeerIDs, ",", " ")
 	if n.config.Sidecar.RelayerPeerString != "" {
-		relayerID := strings.Split(n.config.Sidecar.RelayerPeerString, "@")[0]
-		n.Logger.Info("[node startup]: Adding relayer as a private peer", relayerID)
-		privateIDs = append(privateIDs, relayerID)
+		splitStr := strings.Split(n.config.Sidecar.RelayerPeerString, "@")
+		if len(splitStr) > 1 {
+			relayerID := splitStr[0]
+			n.Logger.Info("[node startup]: Adding relayer as a private peer", relayerID)
+			privateIDs = append(privateIDs, relayerID)
+		} else {
+			n.Logger.Info("[node startup]: ERR Could not parse relayer peer string ",
+				"to add as private peer, is it correctly configured?",
+				n.config.Sidecar.RelayerPeerString)
+		}
 	}
 	n.addrBook.AddPrivateIDs(privateIDs)
 
