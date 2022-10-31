@@ -43,7 +43,10 @@ func TestPostRequestRoutine(t *testing.T) {
 			t.Errorf("Expected post body params to have apikey %s, got %s", "test-api-key", apikey)
 		}
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"jsonrpc": "2.0", "id": 1, "result": "success"}`))
+		_, err = w.Write([]byte(`{"jsonrpc": "2.0", "id": 1, "result": "success"}`))
+		if err != nil {
+			t.Errorf("Error writing response: %s", err)
+		}
 	}))
 	defer server.Close()
 
@@ -65,14 +68,20 @@ func TestPostRequestRoutine_DoesNotPanicOn500(t *testing.T) {
 	defer server.Close()
 
 	jsonData, _ := makePostRequestData("a1b2c3d4", "test-api-key")
-	attemptRegisterOnce(log.NewNopLogger(), server.URL, jsonData)
+	err := attemptRegisterOnce(log.NewNopLogger(), server.URL, jsonData)
+	if err == nil {
+		t.Errorf("Expected error on fake server")
+	}
 }
 
 func TestErrorOnJSONRPCError(t *testing.T) {
 	// Make a mock http server to receive the register request
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"jsonrpc": "2.0", "id": 1, "error": "some error"}`))
+		_, err := w.Write([]byte(`{"jsonrpc": "2.0", "id": 1, "error": "some error"}`))
+		if err != nil {
+			t.Errorf("Error writing response: %s", err)
+		}
 	}))
 	defer server.Close()
 

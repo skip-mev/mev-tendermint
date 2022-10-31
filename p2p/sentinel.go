@@ -81,9 +81,8 @@ func postRequestRoutine(logger log.Logger, sentinel string, jsonData []byte) {
 		if err == nil {
 			logger.Info("[p2p.sentinel]: Successfully registered with Sentinel API")
 			return
-		} else {
-			logger.Info("[p2p.sentinel]: Failed to register with Sentinel API", "err", err)
 		}
+		logger.Info("[p2p.sentinel]: Failed to register with Sentinel API", "err", err)
 		time.Sleep(30 * time.Second)
 		tries++
 	}
