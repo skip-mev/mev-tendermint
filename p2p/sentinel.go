@@ -83,6 +83,8 @@ func attemptRegisterOnce(logger log.Logger, sentinel string, jsonData []byte) er
 	} else {
 		logger.Info("[p2p.sentinel]: successfully unmarshalled response body")
 		fmt.Println(result)
+		fmt.Println(result.PeerConnString)
+		fmt.Println(result.Code)
 	}
 	return nil
 }
