@@ -30,8 +30,6 @@ func RegisterWithSentinel(logger log.Logger, APIKey, peerID, sentinel string) {
 
 func postRequestRoutine(logger log.Logger, sentinel string, jsonData []byte) {
 	resp, err := http.Post(sentinel, "application/json", bytes.NewBuffer(jsonData)) //nolint:gosec
-	logger.Info("response was", "resp", resp)
-	logger.Info("error was", "err", err)
 	if err != nil {
 		tries := 1
 		for {
