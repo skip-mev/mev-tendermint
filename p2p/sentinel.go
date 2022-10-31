@@ -13,6 +13,11 @@ import (
 	"github.com/tendermint/tendermint/rpc/jsonrpc/types"
 )
 
+type ResultRegisterNodeApi struct {
+	PeerConnString string `json:"peer_conn_string"`
+	Code           uint32 `json:"code"`
+}
+
 func RegisterWithSentinel(logger log.Logger, APIKey, peerID, sentinel string) {
 	logger.Info(
 		"[p2p.sentinel]: Registering with sentinel (first try)",
@@ -70,7 +75,15 @@ func attemptRegisterOnce(logger log.Logger, sentinel string, jsonData []byte) er
 		return errors.New("error in response body")
 	}
 	fmt.Println("unmarshalledResponse")
-	fmt.Println(unmarshalledResponse)
+	fmt.Println(unmarshalledResponse.Result)
+	result := &ResultRegisterNodeApi{}
+	err = json.Unmarshal(unmarshalledResponse.Result, result)
+	if err != nil {
+		logger.Info("[p2p.sentinel]: error unmarshalling response body", "err", err)
+	} else {
+		logger.Info("[p2p.sentinel]: successfully unmarshalled response body")
+		fmt.Println(result)
+	}
 	return nil
 }
 
