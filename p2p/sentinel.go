@@ -77,7 +77,7 @@ func attemptRegisterOnce(logger log.Logger, sentinel string, jsonData []byte) er
 	fmt.Println("unmarshalledResponse")
 	fmt.Println(unmarshalledResponse.Result)
 	result := &ResultRegisterNodeApi{}
-	err = json.Unmarshal(unmarshalledResponse.Result, result)
+	err = json.Unmarshal(bodyBytes, result)
 	if err != nil {
 		logger.Info("[p2p.sentinel]: error unmarshalling response body", "err", err)
 	} else {
