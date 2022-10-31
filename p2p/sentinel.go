@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"time"
@@ -68,6 +69,8 @@ func attemptRegisterOnce(logger log.Logger, sentinel string, jsonData []byte) er
 		logger.Info("[p2p.sentinel]: error from sentinel rpc", "err", unmarshalledResponse.Error)
 		return errors.New("error in response body")
 	}
+	fmt.Println("unmarshalledResponse")
+	fmt.Println(unmarshalledResponse)
 	return nil
 }
 
