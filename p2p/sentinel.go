@@ -35,11 +35,11 @@ func attemptRegisterOnce(logger log.Logger, sentinel string, jsonData []byte) er
 	}
 	resp, err := client.Post(sentinel, "application/json", bytes.NewBuffer(jsonData)) //nolint:gosec
 	if err != nil {
-		logger.Info("[p2p.sentinel]: Err registering with sentinel:", err)
+		logger.Info("[p2p.sentinel]: Err registering with sentinel", "err", err.Error())
 		return err
 	}
 	if resp == nil {
-		logger.Info("[p2p.sentinel]: No response from sentinel")
+		logger.Info("[p2p.sentinel]: No response from sentinel", "err", err.Error())
 		return errors.New("no response from sentinel")
 	}
 	if resp.StatusCode != http.StatusOK {
@@ -47,7 +47,8 @@ func attemptRegisterOnce(logger log.Logger, sentinel string, jsonData []byte) er
 		return errors.New("bad status code from sentinel")
 	}
 	if resp.Body == nil {
-		logger.Info("[p2p.sentinel]: No body in response from sentinel")
+		logger.Info("[p2p.sentinel]: No body in response from sentinel", "err", err.Error())
+
 		return errors.New("no body in response from sentinel")
 	}
 	defer resp.Body.Close()
@@ -55,16 +56,16 @@ func attemptRegisterOnce(logger log.Logger, sentinel string, jsonData []byte) er
 	unmarshalledResponse := &types.RPCResponse{}
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
-		logger.Info("[p2p.sentinel]: error was", "err:", err)
+		logger.Info("[p2p.sentinel]: error reading body", "err", err)
 		return errors.New("error reading response body")
 	}
 	err = json.Unmarshal(bodyBytes, unmarshalledResponse)
 	if err != nil {
-		logger.Info("[p2p.sentinel]: error was", "err:", err)
+		logger.Info("[p2p.sentinel]: error unmarshalling response body", "err", err)
 		return errors.New("error unmarshalling response body")
 	}
 	if unmarshalledResponse.Error != nil {
-		logger.Info("[p2p.sentinel]: error was", "err:", unmarshalledResponse.Error)
+		logger.Info("[p2p.sentinel]: error from sentinel rpc", "err", unmarshalledResponse.Error)
 		return errors.New("error in response body")
 	}
 	return nil
@@ -81,7 +82,7 @@ func postRequestRoutine(logger log.Logger, sentinel string, jsonData []byte) {
 			logger.Info("[p2p.sentinel]: Successfully registered with Sentinel API")
 			return
 		} else {
-			logger.Info("[p2p.sentinel]: Failed to register with Sentinel API: ", err)
+			logger.Info("[p2p.sentinel]: Failed to register with Sentinel API", "err", err)
 		}
 		time.Sleep(30 * time.Second)
 		tries++
