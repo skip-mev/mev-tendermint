@@ -75,7 +75,7 @@ Here’s an explanation of what these are:
 - This is the unique string key Skip uses to ensure a node establishing a connection with our relay actually belongs to your validator.
 - If you don't have one, please request one from the Skip team on our **[discord](https://discord.gg/amAgf9Z39w)**
 
-### `**personal_peer_ids**`
+### `personal_peer_ids`
 
 - **You only need to set this if you use sentries, otherwise leave empty.**
 - This is the list of peer nodes your node will gossip Skip bundles to after receiving them.
@@ -108,10 +108,10 @@ After you have completed the steps above, you can check you connectivity either 
 - Check if you are running `mev-tendermint` by running either:
     
     ```bash
-    **# by running binary**
+    # by running binary
     curl -sL localhost:26657/status | jq .result.mev_info
     
-    **# or by checking version detail**
+    # or by checking version detail
     junod version --long | grep mev
     ```
     
