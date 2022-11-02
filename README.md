@@ -1,8 +1,6 @@
 ![banner](https://skip-protocol.notion.site/image/https%3A%2F%2Fs3-us-west-2.amazonaws.com%2Fsecure.notion-static.com%2F33ea763f-bfa3-4c65-ad35-ad0ee1fd312d%2FGroup_6.png?table=block&id=4e75ce44-3f92-482e-a199-4aa75631706b&spaceId=4ee2f125-c8d3-4d79-9a63-1a260c9b8377&width=2000&userId=&cache=v2)
 # mev-tendermint (.8)
 
-![Group 6.png](mev-tendermint%20(%208)%20b5f300d29c15466e863cd849121d6beb/Group_6.png)
-
 ***The purpose of mev-tendermint is to create a private mempool (the “sidecar”) containing atomic bundles of txs and gossip bundles of transactions specifically to the proposer of the next block.***
 
 ---
@@ -31,7 +29,7 @@ In the `go.mod` file of the directory you use to compile your chain binary, add 
 // ---------------------------------
 replace (
 	// Other stuff...
-	****github.com/tendermint/tendermint => github.com/skip-mev/mev-tendermint <USE CORRECT TAG FOR YOUR CHAIN>
+	github.com/tendermint/tendermint => github.com/skip-mev/mev-tendermint <USE CORRECT TAG FOR YOUR CHAIN>
 )
 ```
 
@@ -43,19 +41,19 @@ replace (
 
 mev-tendermint introduces a new section of config in `config.toml` called `[sidecar].`
 
-…by the end, the end of your `config.toml` will look something like this (with different string values). ****************************************************************Make sure to include the line `[sidecar]` at the top of this section in `config.toml`.**
+…by the end, the end of your `config.toml` will look something like this (with different string values). **Make sure to include the line `[sidecar]` at the top of this section in `config.toml`.**
 
-🚨 ********************FIND THE CORRECT VALUES TO USE HERE: [⚙️ Skip Configurations By Chain](https://www.notion.so/Skip-Configurations-By-Chain-a6076cfa743f4ab38194096403e62f3c)** 
+🚨 **FIND THE CORRECT VALUES TO USE HERE: [⚙️ Skip Configurations By Chain](https://www.notion.so/Skip-Configurations-By-Chain-a6076cfa743f4ab38194096403e62f3c)** 
 
 ```bash
 # OTHER CONFIG...
 
 # **EXAMPLE** below (please use the correct values)
-**[sidecar]
+[sidecar]
 relayer_peer_string = "d1463b730c6e0dcea59db726836aeaff13a8119f@uni-5-sentinel.skip.money:26656"
 relayer_rpc_string = "uni-5-gateway.skip.money"
 api_key = "2314ajinashg2389jfjap"
-personal_peer_ids = "557611c7a7307ce023a7d13486b570282521296d,5740acbf39a9ae59953801fe4997421b6736e091"**
+personal_peer_ids = "557611c7a7307ce023a7d13486b570282521296d,5740acbf39a9ae59953801fe4997421b6736e091"
 ```
 
 Here’s an explanation of what these are:
