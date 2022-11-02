@@ -1,5 +1,7 @@
 ![banner](https://skip-protocol.notion.site/image/https%3A%2F%2Fs3-us-west-2.amazonaws.com%2Fsecure.notion-static.com%2F33ea763f-bfa3-4c65-ad35-ad0ee1fd312d%2FGroup_6.png?table=block&id=4e75ce44-3f92-482e-a199-4aa75631706b&spaceId=4ee2f125-c8d3-4d79-9a63-1a260c9b8377&width=2000&userId=&cache=v2)
-# mev-tendermint (.7)
+# mev-tendermint (.8)
+
+![Group 6.png](mev-tendermint%20(%208)%20b5f300d29c15466e863cd849121d6beb/Group_6.png)
 
 ***The purpose of mev-tendermint is to create a private mempool (the “sidecar”) containing atomic bundles of txs and gossip bundles of transactions specifically to the proposer of the next block.***
 
@@ -11,53 +13,17 @@
 
 ---
 
-## 1. Information Skip Requires from you first  ℹ️
+## 1. Get an API Key  🔑
 
-In order to participate in the network, you must share with Skip (feel free to contact us at on our **[website](https://skip.money/)** or discord): 
+**🚨**  If you don’t already have an API Key, **please get one from the [Skip registration site](https://skip.money/register) 🚨**
 
-1. Your public **validator address hex** (see below for how to find)
-2. After you share this, we will give you an **API Key** (for now, please contact us on our [**discord](https://discord.gg/amAgf9Z39w)** to request)
-
-***How to find your validator / proposer address hex  (run on your validator node)…***
-
-Via command line:
-
-```bash
-# run this command in terminal, substituting your HOME_DIR
-junod debug pubkey --home <HOME_DIR> $(junod tendermint show-validator --home <HOME_DIR>) |grep Address
-```
-
-From the `priv_validator_key.json`:
-
-```bash
-# run this command in terminal, substituting your HOME_DIR
-jq -r .address < <HOME_DIR>/config/priv_validator_key.json
-```
-
-Using Horcrux
-
-```bash
-# run this command in terminal
-horcrux cosigner address juno |jq -r .HexAddress
-```
-
-Via RPC to the validator node:
-
-```bash
-#run this command in terminal
-curl -s localhost:26657/status |jq -r .result.validator_info.address
-```
-
-***What is `<HOME_DIR>`?*** 
-
-- `*HOME_DIR` referenced above is the directory that stores your node config and data in subdirectories called `config` and `data`.*
-- *It defaults to `.<NETWORK_NAME>` if you don’t provide it (e.g. `.juno` or `.osmosis`). It is the same value you pass to the `--home` flag when starting your node.*
+💵 **You can also configure your MEV payments on the site.** Remember - Skip takes no fees 🎉
 
 ---
 
 ## 2. Tendermint replacement ♻️
 
-In the `go.mod` file of the directory you use to compile your chain binary, you need to add a line to your `replace` to import the correct `mev-tendermint` version.
+In the `go.mod` file of the directory you use to compile your chain binary, add a line into `replace` to import the correct `mev-tendermint` version.
 
 🚨  **You can find the correct version of the `replace` you should use here:** [⚙️ Skip Configurations By Chain](https://www.notion.so/Skip-Configurations-By-Chain-a6076cfa743f4ab38194096403e62f3c) 
 
@@ -84,78 +50,98 @@ mev-tendermint introduces a new section of config in `config.toml` called `[side
 ```bash
 # OTHER CONFIG...
 
-[sidecar]
-relayer_conn_string = "d1463b730c6e0dcea59db726836aeaff13a8119f@<CORRECT RELAYER IP>:<CORRECT RELAYER PORT>"
+# **EXAMPLE** below (please use the correct values)
+**[sidecar]
+relayer_peer_string = "d1463b730c6e0dcea59db726836aeaff13a8119f@uni-5-sentinel.skip.money:26656"
+relayer_rpc_string = "uni-5-gateway.skip.money"
 api_key = "2314ajinashg2389jfjap"
-validator_addr_hex = "B31A3C8EF75EDE09B6A3EC995EBB9E080B002DAE"
-personal_peer_ids = "557611c7a7307ce023a7d13486b570282521296d,5740acbf39a9ae59953801fe4997421b6736e091"
-
+personal_peer_ids = "557611c7a7307ce023a7d13486b570282521296d,5740acbf39a9ae59953801fe4997421b6736e091"**
 ```
 
 Here’s an explanation of what these are:
 
-### `relayer_conn_string`
+### `relayer_peer_string`
 
 - The `p2p@ip:port` for the Skip Sentinel that is used to establish a secret, authenticated handshake between your node and the Skip sentinel
 - For nodes that should not communicate with the sentinel directly (e.g. validator nodes that have sentries), this does not need to be set.
-- **⭐  You can find the correct version of the `relayer_conn_string` here:** [⚙️ Skip Configurations By Chain](https://www.notion.so/Skip-Configurations-By-Chain-a6076cfa743f4ab38194096403e62f3c)
+- **⭐  Find the `relayer_peer_string` here:** [⚙️ Skip Configurations By Chain](https://www.notion.so/Skip-Configurations-By-Chain-a6076cfa743f4ab38194096403e62f3c)
+
+### `relayer_rpc_string`
+
+- The `api` for the Skip Sentinel that is used to register your node
+- For nodes that should not communicate with the sentinel directly (e.g. validator nodes that have sentries), this does not need to be set.
+- **⭐  Find the `relayer_rpc_string` here:** [⚙️ Skip Configurations By Chain](https://www.notion.so/Skip-Configurations-By-Chain-a6076cfa743f4ab38194096403e62f3c)
 
 ### `api_key`
 
 - This is the unique string key Skip uses to ensure a node establishing a connection with our relay actually belongs to your validator.
 - If you don't have one, please request one from the Skip team on our **[discord](https://discord.gg/amAgf9Z39w)**
 
-### `validator_addr_hex`
-
-- This is the unique identifier of your validator node. See step 1 for how to find.
-
 ### `**personal_peer_ids**`
 
-- **You only need to set this if you use sentries. If you run bare or use an offline signer, you can leave this as an empty string**
+- **You only need to set this if you use sentries, otherwise leave empty.**
 - This is the list of peer nodes your node will gossip Skip bundles to after receiving them.
     - For your validator, this should be the `p2p ids` of all your **sentry nodes**
     - For your sentry nodes, this should be the `p2p ids` of all your **other** sentry nodes, **and your validator**
 - You can find a node’s p2p id using (on the machine for the node):
 
 ```json
-junod tendermint show-node --home <HOME_DIR>
+junod tendermint show-node-id --home <HOME_DIR>
 ```
 
 ---
 
-## 4. Configure your MEV Payments 💵
+## 4. Recompile your binary, and start! 🎉
 
-MEV payments are configured in two ways:
-
-1. ************************************************************Where you want MEV payments to go************************************************************ (i.e. a valid, bech32 `payment_address`)
-2. **********************************How much of MEV revenue you want to keep********************************** (i.e. `50%` - the **rest goes to stakers**)
-
-You can set all this in **one command**, and change it any time without restarting your node!
-
-```bash
-# Fill out with proper info
-curl --header "Contenation/json" --request POST --data '{"method": "set_validator_payment_addr_and_percentage", "params": ["<API KEY>", "<VALIDATOR ADDR HEX>", "<BECH32 PAYMENT ADDRESS>", "<MEV% TO KEEP 0-100>"], "id": 1}' http://<SENTINEL IP>:26657/
-
-# EXAMPLE after filling out
-curl --header "Contenation/json" --request POST --data '{"method": "set_validator_payment_addr_and_percentage", "params": ["key123-ser-234", "E8C4E0DE6E1514FC83BB1BC63A169718F0741541", "juno1dxays0mrk84uyr8ztr93e6ext9qutcgxhq5lvv", "50"], "id": 1}' http://uni-5-sentinel.skip.money:26657/
-
-```
-
-**🚨 You can get the right `<RELAYER IP>` from [⚙️ Skip Configurations By Chain](https://www.notion.so/Skip-Configurations-By-Chain-a6076cfa743f4ab38194096403e62f3c)**
-
-You should have your `<API KEY>` and `<VALIDATOR ADDR HEX>` from step 1.
+That’s it! After making the changes above, you can recompile your binary (e.g. `junod`, probably using `make install`),  and restart your node(s)! You will now begin receiving MEV bundles and higher rewards.
 
 ---
 
-## 5. Recompile your binary, and start! 🎉
+# ✍️ Monitoring & Troubleshooting
 
-That’s it! After making the changes above, you can recompile your binary (e.g. `junod`, probably using `make install`),  and restart your node(s)! You will now begin receiving MEV bundles from Skip.
+After you have completed the steps above, you can check you connectivity either via:
+
+- Check if you are peered with the sentinel by calling `curl http://localhost:26657/status`
+    
+    ```jsx
+     ”is_peered_with_relayer”: true
+    ```
+    
+- Check if you are running `mev-tendermint` by running either:
+    
+    ```bash
+    **# by running binary**
+    curl -sL localhost:26657/status | jq .result.mev_info
+    
+    **# or by checking version detail**
+    junod version --long | grep mev
+    ```
+    
+- Via the new prometheus metrics exposed on mev-tendermint, in particular `sidecar_relay_connected`
+
+---
+
+# ⚙️ Handling Chain Upgrades
+
+Handling chain upgrades is simple:
+
+1. Apply the latest patch to your validators & nodes, **without `mev-tendermint`**
+    1. If you have local changes to `go.mod` and `go.sum` that prevent you from pulling the new version, you can run:
+    
+    ```bash
+    git stash
+    git stash apply
+    ```
+    
+    1. to remove them first, then pull again
+2. Recompile your binary with `mev-tendermint` (**same as step 2)**, keeping the same config
+3. Restart your nodes and validators, you’re back up! 🎉
 
 ---
 
 # 🤿 About `mev-tendermint`
 
-## ✅  Design Goals
+## ✅  Design
 
 The design goals of MEV-Tendermint is to allow & preserve:
 
