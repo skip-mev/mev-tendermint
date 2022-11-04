@@ -183,6 +183,14 @@ func assertMsgReceivedWithTimeout(
 	}
 }
 
+func TestSidecarPeerMap(t *testing.T) {
+	s1 := MakeSwitch(cfg, 1, "127.0.0.1", "123.123.123", initSwitchFunc)
+	s1id := string(s1.nodeInfo.ID())
+	sp, _ := NewSidecarPeers([]string{s1id})
+	s2 := MakeSwitchWithSidecarPeers(cfg, 2, "127.0.0.1", "123.123.124", initSwitchFunc, sp)
+	assert.True(t, s2.IsSidecarPeer(s1.nodeInfo.ID()))
+}
+
 func TestSwitchFiltersOutItself(t *testing.T) {
 	s1 := MakeSwitch(cfg, 1, "127.0.0.1", "123.123.123", initSwitchFunc)
 
@@ -689,7 +697,7 @@ func (errorTransport) Cleanup(Peer) {
 }
 
 func TestSwitchAcceptRoutineErrorCases(t *testing.T) {
-	sw := NewSwitch(cfg, errorTransport{ErrFilterTimeout{}})
+	sw := NewSwitch(cfg, make(SidecarPeers, 0), errorTransport{ErrFilterTimeout{}}, "")
 	assert.NotPanics(t, func() {
 		err := sw.Start()
 		require.NoError(t, err)
@@ -697,7 +705,8 @@ func TestSwitchAcceptRoutineErrorCases(t *testing.T) {
 		require.NoError(t, err)
 	})
 
-	sw = NewSwitch(cfg, errorTransport{ErrRejected{conn: nil, err: errors.New("filtered"), isFiltered: true}})
+	sw = NewSwitch(cfg, make(SidecarPeers, 0), errorTransport{ErrRejected{
+		conn: nil, err: errors.New("filtered"), isFiltered: true}}, "")
 	assert.NotPanics(t, func() {
 		err := sw.Start()
 		require.NoError(t, err)
@@ -706,7 +715,7 @@ func TestSwitchAcceptRoutineErrorCases(t *testing.T) {
 	})
 	// TODO(melekes) check we remove our address from addrBook
 
-	sw = NewSwitch(cfg, errorTransport{ErrTransportClosed{}})
+	sw = NewSwitch(cfg, make(SidecarPeers, 0), errorTransport{ErrTransportClosed{}}, "")
 	assert.NotPanics(t, func() {
 		err := sw.Start()
 		require.NoError(t, err)
@@ -838,7 +847,6 @@ func BenchmarkSwitchBroadcast(b *testing.B) {
 }
 
 func TestSwitchRemovalErr(t *testing.T) {
-
 	sw1, sw2 := MakeSwitchPair(t, func(i int, sw *Switch) *Switch {
 		return initSwitchFunc(i, sw)
 	})
@@ -848,4 +856,21 @@ func TestSwitchRemovalErr(t *testing.T) {
 	sw2.StopPeerForError(p, fmt.Errorf("peer should error"))
 
 	assert.Equal(t, sw2.peers.Add(p).Error(), ErrPeerRemoval{}.Error())
+}
+
+func TestAddRelayerPeer(t *testing.T) {
+	sw := MakeSwitch(cfg, 1, "testing", "123.123.123", initSwitchFunc)
+	relayerString := "79044d1d81d24a8ff3c7fd7e010f455f7ae9e1ad@1.2.3.4:26656"
+	relayerNetAddr, _ := NewNetAddressString(relayerString)
+
+	err := sw.AddRelayerPeer(relayerString)
+	if err != nil {
+		t.Errorf("Err in AddRelayerPeer: %s", err)
+	}
+
+	assert.Equal(t, relayerNetAddr, sw.RelayerNetAddr, "Expected RelayerNetAddr %s, got %s", relayerNetAddr, sw.RelayerNetAddr)
+
+	errRelayerString := "abcd@1.2.3.4:26656"
+	err = sw.AddRelayerPeer(errRelayerString)
+	assert.True(t, err != nil, "Expected err with invalid relayer string")
 }

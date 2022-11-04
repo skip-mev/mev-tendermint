@@ -242,8 +242,8 @@ func (mem *CListMempool) CheckTx(
 		// (eg. after committing a block, txs are removed from mempool but not cache),
 		// so we only record the sender for txs still in the mempool.
 		if e, ok := mem.txsMap.Load(tx.Key()); ok {
-			memTx := e.(*clist.CElement).Value.(*mempoolTx)
-			memTx.senders.LoadOrStore(txInfo.SenderID, true)
+			memTx := e.(*clist.CElement).Value.(*mempool.MempoolTx)
+			memTx.Senders.LoadOrStore(txInfo.SenderID, true)
 			// TODO: consider punishing peer for dups,
 			// its non-trivial since invalid txs can become valid,
 			// but they can spam the same tx with little cost to them atm.
@@ -313,11 +313,11 @@ func (mem *CListMempool) reqResCb(
 
 // Called from:
 //   - resCbFirstTime (lock not held) if tx is valid
-func (mem *CListMempool) addTx(memTx *mempoolTx) {
+func (mem *CListMempool) addTx(memTx *mempool.MempoolTx) {
 	e := mem.txs.PushBack(memTx)
-	mem.txsMap.Store(memTx.tx.Key(), e)
-	atomic.AddInt64(&mem.txsBytes, int64(len(memTx.tx)))
-	mem.metrics.TxSizeBytes.Observe(float64(len(memTx.tx)))
+	mem.txsMap.Store(memTx.Tx.Key(), e)
+	atomic.AddInt64(&mem.txsBytes, int64(len(memTx.Tx)))
+	mem.metrics.TxSizeBytes.Observe(float64(len(memTx.Tx)))
 }
 
 // Called from:
@@ -337,9 +337,9 @@ func (mem *CListMempool) removeTx(tx types.Tx, elem *clist.CElement, removeFromC
 // RemoveTxByKey removes a transaction from the mempool by its TxKey index.
 func (mem *CListMempool) RemoveTxByKey(txKey types.TxKey) error {
 	if e, ok := mem.txsMap.Load(txKey); ok {
-		memTx := e.(*clist.CElement).Value.(*mempoolTx)
+		memTx := e.(*clist.CElement).Value.(*mempool.MempoolTx)
 		if memTx != nil {
-			mem.removeTx(memTx.tx, e.(*clist.CElement), false)
+			mem.removeTx(memTx.Tx, e.(*clist.CElement), false)
 			return nil
 		}
 		return errors.New("transaction not found")
@@ -391,18 +391,18 @@ func (mem *CListMempool) resCbFirstTime(
 				return
 			}
 
-			memTx := &mempoolTx{
-				height:    mem.height,
-				gasWanted: r.CheckTx.GasWanted,
-				tx:        tx,
+			memTx := &mempool.MempoolTx{
+				Height:    mem.height,
+				GasWanted: r.CheckTx.GasWanted,
+				Tx:        tx,
 			}
-			memTx.senders.Store(peerID, true)
+			memTx.Senders.Store(peerID, true)
 			mem.addTx(memTx)
 			mem.logger.Debug(
 				"added good transaction",
 				"tx", types.Tx(tx).Hash(),
 				"res", r,
-				"height", memTx.height,
+				"height", memTx.Height,
 				"total", mem.Size(),
 			)
 			mem.notifyTxsAvailable()
@@ -436,12 +436,12 @@ func (mem *CListMempool) resCbRecheck(req *abci.Request, res *abci.Response) {
 	switch r := res.Value.(type) {
 	case *abci.Response_CheckTx:
 		tx := req.GetCheckTx().Tx
-		memTx := mem.recheckCursor.Value.(*mempoolTx)
+		memTx := mem.recheckCursor.Value.(*mempool.MempoolTx)
 
 		// Search through the remaining list of tx to recheck for a transaction that matches
 		// the one we received from the ABCI application.
 		for {
-			if bytes.Equal(tx, memTx.tx) {
+			if bytes.Equal(tx, memTx.Tx) {
 				// We've found a tx in the recheck list that matches the tx that we
 				// received from the ABCI application.
 				// Break, and use this transaction for further checks.
@@ -451,7 +451,7 @@ func (mem *CListMempool) resCbRecheck(req *abci.Request, res *abci.Response) {
 			mem.logger.Error(
 				"re-CheckTx transaction mismatch",
 				"got", types.Tx(tx),
-				"expected", memTx.tx,
+				"expected", memTx.Tx,
 			)
 
 			if mem.recheckCursor == mem.recheckEnd {
@@ -463,7 +463,7 @@ func (mem *CListMempool) resCbRecheck(req *abci.Request, res *abci.Response) {
 			}
 
 			mem.recheckCursor = mem.recheckCursor.Next()
-			memTx = mem.recheckCursor.Value.(*mempoolTx)
+			memTx = mem.recheckCursor.Value.(*mempool.MempoolTx)
 		}
 
 		var postCheckErr error
@@ -518,7 +518,7 @@ func (mem *CListMempool) notifyTxsAvailable() {
 }
 
 // Safe for concurrent use by multiple goroutines.
-func (mem *CListMempool) ReapMaxBytesMaxGas(maxBytes, maxGas int64) types.Txs {
+func (mem *CListMempool) ReapMaxBytesMaxGas(maxBytes, maxGas int64, sidecarTxs []*mempool.MempoolTx) types.Txs {
 	mem.updateMtx.RLock()
 	defer mem.updateMtx.RUnlock()
 
@@ -527,16 +527,47 @@ func (mem *CListMempool) ReapMaxBytesMaxGas(maxBytes, maxGas int64) types.Txs {
 		runningSize int64
 	)
 
-	// TODO: we will get a performance boost if we have a good estimate of avg
-	// size per tx, and set the initial capacity based off of that.
-	// txs := make([]types.Tx, 0, tmmath.MinInt(mem.txs.Len(), max/mem.avgTxSize))
-	txs := make([]types.Tx, 0, mem.txs.Len())
+	txs := make([]types.Tx, 0, (mem.txs.Len() + len(sidecarTxs)))
+	var sidecarTxsMap sync.Map
+
+	for _, scMemTx := range sidecarTxs {
+		mem.logger.Debug(
+			"reaped sidecar mev transaction",
+			"tx", scMemTx.Tx.Hash(),
+			"height", scMemTx.Height,
+		)
+		dataSize := types.ComputeProtoSizeForTxs(append(txs, scMemTx.Tx))
+
+		// Check total size requirement
+		if maxBytes > -1 && dataSize > maxBytes {
+			return txs
+		}
+
+		newTotalGas := totalGas + scMemTx.GasWanted
+		if maxGas > -1 && newTotalGas > maxGas {
+			return txs
+		}
+		totalGas = newTotalGas
+		txs = append(txs, scMemTx.Tx)
+		sidecarTxsMap.Store(scMemTx.Tx.Key(), true)
+	}
+
 	for e := mem.txs.Front(); e != nil; e = e.Next() {
-		memTx := e.Value.(*mempoolTx)
+		memTx := e.Value.(*mempool.MempoolTx)
 
-		txs = append(txs, memTx.tx)
+		if _, ok := sidecarTxsMap.Load(memTx.Tx.Key()); ok {
+			// SKIP THIS TRANSACTION, ALREADY SEEN IN SIDECAR
+			mem.logger.Debug(
+				"skipped mempool tx, already found in sidecar",
+				"tx", memTx.Tx.Hash(),
+				"height", memTx.Height,
+			)
+			continue
+		}
 
-		dataSize := types.ComputeProtoSizeForTxs([]types.Tx{memTx.tx})
+		txs = append(txs, memTx.Tx)
+
+		dataSize := types.ComputeProtoSizeForTxs([]types.Tx{memTx.Tx})
 
 		// Check total size requirement
 		if maxBytes > -1 && runningSize+dataSize > maxBytes {
@@ -549,7 +580,7 @@ func (mem *CListMempool) ReapMaxBytesMaxGas(maxBytes, maxGas int64) types.Txs {
 		// If maxGas is negative, skip this check.
 		// Since newTotalGas < masGas, which
 		// must be non-negative, it follows that this won't overflow.
-		newTotalGas := totalGas + memTx.gasWanted
+		newTotalGas := totalGas + memTx.GasWanted
 		if maxGas > -1 && newTotalGas > maxGas {
 			return txs[:len(txs)-1]
 		}
@@ -569,8 +600,8 @@ func (mem *CListMempool) ReapMaxTxs(max int) types.Txs {
 
 	txs := make([]types.Tx, 0, tmmath.MinInt(mem.txs.Len(), max))
 	for e := mem.txs.Front(); e != nil && len(txs) <= max; e = e.Next() {
-		memTx := e.Value.(*mempoolTx)
-		txs = append(txs, memTx.tx)
+		memTx := e.Value.(*mempool.MempoolTx)
+		txs = append(txs, memTx.Tx)
 	}
 	return txs
 }
@@ -649,9 +680,9 @@ func (mem *CListMempool) recheckTxs() {
 	// Push txs to proxyAppConn
 	// NOTE: globalCb may be called concurrently.
 	for e := mem.txs.Front(); e != nil; e = e.Next() {
-		memTx := e.Value.(*mempoolTx)
+		memTx := e.Value.(*mempool.MempoolTx)
 		mem.proxyAppConn.CheckTxAsync(abci.RequestCheckTx{
-			Tx:   memTx.tx,
+			Tx:   memTx.Tx,
 			Type: abci.CheckTxType_Recheck,
 		})
 	}
@@ -660,19 +691,3 @@ func (mem *CListMempool) recheckTxs() {
 }
 
 //--------------------------------------------------------------------------------
-
-// mempoolTx is a transaction that successfully ran
-type mempoolTx struct {
-	height    int64    // height that this tx had been validated in
-	gasWanted int64    // amount of gas this tx states it will require
-	tx        types.Tx //
-
-	// ids of peers who've sent us this tx (as a map for quick lookups).
-	// senders: PeerID -> bool
-	senders sync.Map
-}
-
-// Height returns the height for this transaction
-func (memTx *mempoolTx) Height() int64 {
-	return atomic.LoadInt64(&memTx.height)
-}

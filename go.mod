@@ -26,7 +26,7 @@ require (
 	github.com/minio/highwayhash v1.0.2
 	github.com/ory/dockertest v3.3.5+incompatible
 	github.com/pkg/errors v0.9.1
-	github.com/prometheus/client_golang v1.12.2
+	github.com/prometheus/client_golang v1.13.0
 	github.com/rcrowley/go-metrics v0.0.0-20201227073835-cf1acfcdf475
 	github.com/rs/cors v1.8.2
 	github.com/sasha-s/go-deadlock v0.3.1
@@ -48,7 +48,7 @@ require (
 
 require (
 	github.com/golangci/golangci-lint v1.43.0
-	github.com/prometheus/common v0.34.0 // indirect
+	github.com/prometheus/common v0.37.0 // indirect
 	github.com/vektra/mockery/v2 v2.14.0
 )
 
@@ -61,7 +61,7 @@ require (
 require (
 	4d63.com/gochecknoglobals v0.1.0 // indirect
 	github.com/Antonboom/errname v0.1.7 // indirect
-	github.com/Antonboom/nilnil v0.1.1 // indirect
+	github.com/Antonboom/nilnil v0.1.0 // indirect
 	github.com/Azure/go-ansiterm v0.0.0-20210617225240-d185dfc1b5a1 // indirect
 	github.com/DataDog/zstd v1.4.1 // indirect
 	github.com/Djarvur/go-err113 v0.0.0-20210108212216-aea10b59be24 // indirect
@@ -74,7 +74,7 @@ require (
 	github.com/ashanbrown/makezero v1.1.1 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bkielbasa/cyclop v1.2.0 // indirect
-	github.com/blizzy78/varnamelen v0.8.0 // indirect
+	github.com/blizzy78/varnamelen v0.3.0 // indirect
 	github.com/bombsimon/wsl/v3 v3.3.0 // indirect
 	github.com/breml/bidichk v0.2.3 // indirect
 	github.com/bufbuild/connect-go v0.4.0 // indirect
@@ -195,7 +195,7 @@ require (
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/polyfloyd/go-errorlint v1.0.2 // indirect
 	github.com/prometheus/client_model v0.2.0 // indirect
-	github.com/prometheus/procfs v0.7.3 // indirect
+	github.com/prometheus/procfs v0.8.0 // indirect
 	github.com/quasilyte/go-ruleguard v0.3.17 // indirect
 	github.com/quasilyte/gogrep v0.0.0-20220120141003-628d8b3623b5 // indirect
 	github.com/quasilyte/regex/syntax v0.0.0-20200407221936-30656e2c4a95 // indirect

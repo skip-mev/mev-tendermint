@@ -94,7 +94,7 @@ func createOutboundPeerAndPerformHandshake(
 		return nil, err
 	}
 
-	p := newPeer(pc, mConfig, peerNodeInfo, reactorsByCh, chDescs, func(p Peer, r interface{}) {})
+	p := newPeer(pc, mConfig, peerNodeInfo, reactorsByCh, chDescs, true, func(p Peer, r interface{}) {})
 	p.SetLogger(log.TestingLogger().With("peer", addr))
 	return p, nil
 }

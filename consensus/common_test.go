@@ -54,7 +54,7 @@ type cleanupFunc func()
 var (
 	config                *cfg.Config // NOTE: must be reset for each _test.go file
 	consensusReplayConfig *cfg.Config
-	ensureTimeout         = time.Millisecond * 200
+	ensureTimeout         = time.Millisecond * 1000
 )
 
 func ensureDir(dir string, mode os.FileMode) {
@@ -400,6 +400,7 @@ func newStateWithConfigAndBlockStore(
 
 	// Make Mempool
 	var mempool mempl.Mempool
+	var sidecar mempl.PriorityTxSidecar
 
 	switch config.Mempool.Version {
 	case cfg.MempoolV0:
@@ -409,6 +410,7 @@ func newStateWithConfigAndBlockStore(
 			mempoolv0.WithMetrics(memplMetrics),
 			mempoolv0.WithPreCheck(sm.TxPreCheck(state)),
 			mempoolv0.WithPostCheck(sm.TxPostCheck(state)))
+		sidecar = mempoolv0.NewCListSidecar(state.LastBlockHeight, log.NewNopLogger(), memplMetrics)
 	case cfg.MempoolV1:
 		logger := consensusLogger()
 		mempool = mempoolv1.NewTxMempool(logger,
@@ -419,6 +421,7 @@ func newStateWithConfigAndBlockStore(
 			mempoolv1.WithPreCheck(sm.TxPreCheck(state)),
 			mempoolv1.WithPostCheck(sm.TxPostCheck(state)),
 		)
+		sidecar = nil
 	}
 	if thisConfig.Consensus.WaitForTxs() {
 		mempool.EnableTxsAvailable()
@@ -435,7 +438,7 @@ func newStateWithConfigAndBlockStore(
 		panic(err)
 	}
 
-	blockExec := sm.NewBlockExecutor(stateStore, log.TestingLogger(), proxyAppConnCon, mempool, evpool)
+	blockExec := sm.NewBlockExecutor(stateStore, log.TestingLogger(), proxyAppConnCon, mempool, evpool, sidecar)
 	cs := NewState(thisConfig.Consensus, state, blockExec, blockStore, mempool, evpool)
 	cs.SetLogger(log.TestingLogger().With("module", "consensus"))
 	cs.SetPrivValidator(pv)
