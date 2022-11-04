@@ -109,6 +109,20 @@ func (_m *Peer) IsRunning() bool {
 	return r0
 }
 
+// IsSidecarPeer provides a mock function with given fields:
+func (_m *Peer) IsSidecarPeer() bool {
+	ret := _m.Called()
+
+	var r0 bool
+	if rf, ok := ret.Get(0).(func() bool); ok {
+		r0 = rf()
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+
+	return r0
+}
+
 // NodeInfo provides a mock function with given fields:
 func (_m *Peer) NodeInfo() p2p.NodeInfo {
 	ret := _m.Called()

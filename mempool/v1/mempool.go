@@ -333,7 +333,7 @@ func (txmp *TxMempool) allEntriesSorted() []*WrappedTx {
 //
 // If the mempool is empty or has no transactions fitting within the given
 // constraints, the result will also be empty.
-func (txmp *TxMempool) ReapMaxBytesMaxGas(maxBytes, maxGas int64) types.Txs {
+func (txmp *TxMempool) ReapMaxBytesMaxGas(maxBytes, maxGas int64, nilTxs []*mempool.MempoolTx) types.Txs {
 	var totalGas, totalBytes int64
 
 	var keep []types.Tx //nolint:prealloc

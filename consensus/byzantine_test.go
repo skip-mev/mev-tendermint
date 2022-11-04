@@ -69,6 +69,7 @@ func TestByzantinePrevoteEquivocation(t *testing.T) {
 
 		// Make Mempool
 		var mempool mempl.Mempool
+		var sidecar mempl.PriorityTxSidecar
 
 		switch thisConfig.Mempool.Version {
 		case cfg.MempoolV0:
@@ -77,6 +78,7 @@ func TestByzantinePrevoteEquivocation(t *testing.T) {
 				state.LastBlockHeight,
 				mempoolv0.WithPreCheck(sm.TxPreCheck(state)),
 				mempoolv0.WithPostCheck(sm.TxPostCheck(state)))
+			sidecar = mempoolv0.NewCListSidecar(state.LastBlockHeight, log.NewNopLogger(), mempl.NopMetrics())
 		case cfg.MempoolV1:
 			mempool = mempoolv1.NewTxMempool(logger,
 				config.Mempool,
@@ -85,6 +87,7 @@ func TestByzantinePrevoteEquivocation(t *testing.T) {
 				mempoolv1.WithPreCheck(sm.TxPreCheck(state)),
 				mempoolv1.WithPostCheck(sm.TxPostCheck(state)),
 			)
+			sidecar = nil
 		}
 
 		if thisConfig.Consensus.WaitForTxs() {
@@ -98,7 +101,7 @@ func TestByzantinePrevoteEquivocation(t *testing.T) {
 		evpool.SetLogger(logger.With("module", "evidence"))
 
 		// Make State
-		blockExec := sm.NewBlockExecutor(stateStore, log.TestingLogger(), proxyAppConnCon, mempool, evpool)
+		blockExec := sm.NewBlockExecutor(stateStore, log.TestingLogger(), proxyAppConnCon, mempool, evpool, sidecar)
 		cs := NewState(thisConfig.Consensus, state, blockExec, blockStore, mempool, evpool)
 		cs.SetLogger(cs.Logger)
 		// set private validator

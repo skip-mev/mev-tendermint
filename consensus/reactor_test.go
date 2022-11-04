@@ -162,6 +162,7 @@ func TestReactorWithEvidence(t *testing.T) {
 
 		// Make Mempool
 		var mempool mempl.Mempool
+		var sidecar mempl.PriorityTxSidecar
 
 		switch config.Mempool.Version {
 		case cfg.MempoolV0:
@@ -171,6 +172,7 @@ func TestReactorWithEvidence(t *testing.T) {
 				mempoolv0.WithMetrics(memplMetrics),
 				mempoolv0.WithPreCheck(sm.TxPreCheck(state)),
 				mempoolv0.WithPostCheck(sm.TxPostCheck(state)))
+			sidecar = mempoolv0.NewCListSidecar(state.LastBlockHeight, log.NewNopLogger(), memplMetrics)
 		case cfg.MempoolV1:
 			mempool = mempoolv1.NewTxMempool(logger,
 				config.Mempool,
@@ -180,6 +182,7 @@ func TestReactorWithEvidence(t *testing.T) {
 				mempoolv1.WithPreCheck(sm.TxPreCheck(state)),
 				mempoolv1.WithPostCheck(sm.TxPostCheck(state)),
 			)
+			sidecar = nil
 		}
 		if thisConfig.Consensus.WaitForTxs() {
 			mempool.EnableTxsAvailable()
@@ -198,7 +201,7 @@ func TestReactorWithEvidence(t *testing.T) {
 		evpool2 := sm.EmptyEvidencePool{}
 
 		// Make State
-		blockExec := sm.NewBlockExecutor(stateStore, log.TestingLogger(), proxyAppConnCon, mempool, evpool)
+		blockExec := sm.NewBlockExecutor(stateStore, log.TestingLogger(), proxyAppConnCon, mempool, evpool, sidecar)
 		cs := NewState(thisConfig.Consensus, state, blockExec, blockStore, mempool, evpool2)
 		cs.SetLogger(log.TestingLogger().With("module", "consensus"))
 		cs.SetPrivValidator(pv)

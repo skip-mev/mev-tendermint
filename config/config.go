@@ -76,6 +76,7 @@ type Config struct {
 	Consensus       *ConsensusConfig       `mapstructure:"consensus"`
 	TxIndex         *TxIndexConfig         `mapstructure:"tx_index"`
 	Instrumentation *InstrumentationConfig `mapstructure:"instrumentation"`
+	Sidecar         *SidecarConfig         `mapstructure:"sidecar"`
 }
 
 // DefaultConfig returns a default configuration for a Tendermint node
@@ -90,6 +91,7 @@ func DefaultConfig() *Config {
 		Consensus:       DefaultConsensusConfig(),
 		TxIndex:         DefaultTxIndexConfig(),
 		Instrumentation: DefaultInstrumentationConfig(),
+		Sidecar:         DefaultSidecarConfig(),
 	}
 }
 
@@ -105,6 +107,7 @@ func TestConfig() *Config {
 		Consensus:       TestConsensusConfig(),
 		TxIndex:         TestTxIndexConfig(),
 		Instrumentation: TestInstrumentationConfig(),
+		Sidecar:         TestSidecarConfig(),
 	}
 }
 
@@ -115,6 +118,7 @@ func (cfg *Config) SetRoot(root string) *Config {
 	cfg.P2P.RootDir = root
 	cfg.Mempool.RootDir = root
 	cfg.Consensus.RootDir = root
+	cfg.Sidecar.RootDir = root
 	return cfg
 }
 
@@ -144,6 +148,9 @@ func (cfg *Config) ValidateBasic() error {
 	}
 	if err := cfg.Instrumentation.ValidateBasic(); err != nil {
 		return fmt.Errorf("error in [instrumentation] section: %w", err)
+	}
+	if err := cfg.Sidecar.ValidateBasic(); err != nil {
+		return fmt.Errorf("error in [Sidecar] section: %w", err)
 	}
 	return nil
 }
@@ -1071,11 +1078,72 @@ func (cfg *ConsensusConfig) ValidateBasic() error {
 }
 
 //-----------------------------------------------------------------------------
+// SidecarConfig
+
+// Sidecar defines configuration for gossiping the private sidecar
+// mempool among the relayer and the nodes that belong to a particular proposer
+type SidecarConfig struct {
+	RootDir           string `mapstructure:"home"`
+	RelayerRPCString  string `mapstructure:"relayer_rpc_string"`
+	RelayerPeerString string `mapstructure:"relayer_peer_string"`
+
+	PersonalPeerIDs string `mapstructure:"personal_peer_ids"`
+	APIKey          string `mapstructure:"api_key"`
+}
+
+func DefaultSidecarConfig() *SidecarConfig {
+	return &SidecarConfig{}
+}
+
+func TestSidecarConfig() *SidecarConfig {
+	return &SidecarConfig{
+		RelayerRPCString:  "test-api.skip.money",
+		RelayerPeerString: "79044d1d81d24a8ff3c7fd7e010f455f7ae9e1ad@1.2.3.4:26656",
+		APIKey:            "api-key",
+	}
+}
+
+// no-op validation
+func (s *SidecarConfig) ValidateBasic() error {
+	return nil
+}
+
+//-----------------------------------------------------------------------------
+// StorageConfig
+
+// StorageConfig allows more fine-grained control over certain storage-related
+// behavior.
+type StorageConfig struct {
+	// Set to false to ensure ABCI responses are persisted. ABCI responses are
+	// required for `/block_results` RPC queries, and to reindex events in the
+	// command-line tool.
+	DiscardABCIResponses bool `mapstructure:"discard_abci_responses"`
+}
+
+// DefaultStorageConfig returns the default configuration options relating to
+// Tendermint storage optimization.
+func DefaultStorageConfig() *StorageConfig {
+	return &StorageConfig{
+		DiscardABCIResponses: false,
+	}
+}
+
+// TestStorageConfig returns storage configuration that can be used for
+// testing.
+func TestStorageConfig() *StorageConfig {
+	return &StorageConfig{
+		DiscardABCIResponses: false,
+	}
+}
+
+// -----------------------------------------------------------------------------
 // TxIndexConfig
 // Remember that Event has the following structure:
 // type: [
-//  key: value,
-//  ...
+//
+//	key: value,
+//	...
+//
 // ]
 //
 // CompositeKeys are constructed by `type.key`
