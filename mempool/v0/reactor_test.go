@@ -63,8 +63,84 @@ func TestReactorBroadcastTxsMessage(t *testing.T) {
 		}
 	}
 
-	txs := checkTxs(t, reactors[0].mempool, numTxs, mempool.UnknownPeerID)
-	waitForTxsOnReactors(t, txs, reactors)
+	txs := checkTxs(t, reactors[0].mempool, numTxs, mempool.UnknownPeerID, reactors[0].sidecar, false)
+	waitForTxsOnReactors(t, txs, reactors, false)
+}
+
+func TestReactorBroadcastSidecarOnly(t *testing.T) {
+	config := cfg.TestConfig()
+	const N = 8
+	reactors := makeAndConnectReactorsEvensSidecar(config, N)
+	defer func() {
+		for _, r := range reactors {
+			if err := r.Stop(); err != nil {
+				assert.NoError(t, err)
+			}
+		}
+	}()
+	for _, r := range reactors {
+		for _, peer := range r.Switch.Peers().List() {
+			peer.Set(types.PeerStateKey, peerState{1})
+		}
+	}
+	txs := addNumBundlesToSidecar(t, reactors[0].sidecar, 5, 10, mempool.UnknownPeerID)
+	time.Sleep(2000)
+	reactors[0].sidecar.PrettyPrintBundles()
+	waitForTxsOnReactors(t, txs, reactors[2:3], true)
+	waitForTxsOnReactors(t, txs, reactors[4:5], true)
+	waitForTxsOnReactors(t, txs, reactors[6:7], true)
+	assert.Equal(t, 0, reactors[1].sidecar.Size())
+	assert.Equal(t, 0, reactors[5].sidecar.Size())
+	assert.Equal(t, 0, reactors[7].sidecar.Size())
+	assert.Equal(t, 0, reactors[3].sidecar.Size())
+}
+
+// Send a bunch of txs to the first reactor's sidecar and wait for them all to
+// be received in the others, IN THE RIGHT ORDER
+func TestReactorBroadcastSidecarTxsMessage(t *testing.T) {
+	config := cfg.TestConfig()
+	const N = 2
+	reactors := makeAndConnectReactors(config, N)
+	defer func() {
+		for _, r := range reactors {
+			if err := r.Stop(); err != nil {
+				assert.NoError(t, err)
+			}
+		}
+	}()
+	for _, r := range reactors {
+		for _, peer := range r.Switch.Peers().List() {
+			peer.Set(types.PeerStateKey, peerState{1})
+		}
+	}
+	txs := addNumBundlesToSidecar(t, reactors[0].sidecar, 5, 10, mempool.UnknownPeerID)
+	time.Sleep(2000)
+	reactors[0].sidecar.PrettyPrintBundles()
+	waitForTxsOnReactors(t, txs, reactors, true)
+	reactors[1].sidecar.PrettyPrintBundles()
+}
+
+func TestReactorInsertOutOfOrderThenReap(t *testing.T) {
+	config := cfg.TestConfig()
+	const N = 2
+	reactors := makeAndConnectReactors(config, N)
+	defer func() {
+		for _, r := range reactors {
+			if err := r.Stop(); err != nil {
+				assert.NoError(t, err)
+			}
+		}
+	}()
+	for _, r := range reactors {
+		for _, peer := range r.Switch.Peers().List() {
+			peer.Set(types.PeerStateKey, peerState{1})
+		}
+	}
+	txs := addNumBundlesToSidecar(t, reactors[0].sidecar, 5, 10, mempool.UnknownPeerID)
+	time.Sleep(2000)
+	reactors[0].sidecar.PrettyPrintBundles()
+	waitForTxsOnReactors(t, txs, reactors, true)
+	reactors[1].sidecar.PrettyPrintBundles()
 }
 
 // regression test for https://github.com/tendermint/tendermint/issues/5408
@@ -93,7 +169,7 @@ func TestReactorConcurrency(t *testing.T) {
 
 		// 1. submit a bunch of txs
 		// 2. update the whole mempool
-		txs := checkTxs(t, reactors[0].mempool, numTxs, mempool.UnknownPeerID)
+		txs := checkTxs(t, reactors[0].mempool, numTxs, mempool.UnknownPeerID, nil, false)
 		go func() {
 			defer wg.Done()
 
@@ -110,7 +186,7 @@ func TestReactorConcurrency(t *testing.T) {
 
 		// 1. submit a bunch of txs
 		// 2. update none
-		_ = checkTxs(t, reactors[1].mempool, numTxs, mempool.UnknownPeerID)
+		_ = checkTxs(t, reactors[1].mempool, numTxs, mempool.UnknownPeerID, nil, false)
 		go func() {
 			defer wg.Done()
 
@@ -147,7 +223,7 @@ func TestReactorNoBroadcastToSender(t *testing.T) {
 	}
 
 	const peerID = 1
-	checkTxs(t, reactors[0].mempool, numTxs, peerID)
+	checkTxs(t, reactors[0].mempool, numTxs, peerID, nil, false)
 	ensureNoTxs(t, reactors[peerID], 100*time.Millisecond)
 }
 
@@ -174,7 +250,7 @@ func TestReactor_MaxTxBytes(t *testing.T) {
 	tx1 := tmrand.Bytes(config.Mempool.MaxTxBytes)
 	err := reactors[0].mempool.CheckTx(tx1, nil, mempool.TxInfo{SenderID: mempool.UnknownPeerID})
 	require.NoError(t, err)
-	waitForTxsOnReactors(t, []types.Tx{tx1}, reactors)
+	waitForTxsOnReactors(t, []types.Tx{tx1}, reactors, false)
 
 	reactors[0].mempool.Flush()
 	reactors[1].mempool.Flush()
@@ -333,16 +409,40 @@ func mempoolLogger() log.Logger {
 }
 
 // connect N mempool reactors through N switches
+// can add additional logic to set which ones should be treated as sidecar
+// peers in p2p.Connect2Switches, including based on index
+func makeAndConnectReactorsEvensSidecar(config *cfg.Config, n int) []*Reactor {
+	reactors := make([]*Reactor, n)
+	logger := mempoolLogger()
+	for i := 0; i < n; i++ {
+		app := kvstore.NewApplication()
+		cc := proxy.NewLocalClientCreator(app)
+		mempool, sidecar, cleanup := newMempoolWithApp(cc)
+		defer cleanup()
+
+		reactors[i] = NewReactor(config.Mempool, mempool, sidecar) // so we dont start the consensus states
+		reactors[i].SetLogger(logger.With("validator", i))
+	}
+
+	p2p.MakeConnectedSwitches(config.P2P, n, func(i int, s *p2p.Switch) *p2p.Switch {
+		s.AddReactor("MEMPOOL", reactors[i])
+		return s
+
+	}, p2p.Connect2SwitchesEvensSidecar)
+	return reactors
+}
+
+// connect N mempool reactors through N switches
 func makeAndConnectReactors(config *cfg.Config, n int) []*Reactor {
 	reactors := make([]*Reactor, n)
 	logger := mempoolLogger()
 	for i := 0; i < n; i++ {
 		app := kvstore.NewApplication()
 		cc := proxy.NewLocalClientCreator(app)
-		mempool, cleanup := newMempoolWithApp(cc)
+		mempool, sidecar, cleanup := newMempoolWithApp(cc)
 		defer cleanup()
 
-		reactors[i] = NewReactor(config.Mempool, mempool) // so we dont start the consensus states
+		reactors[i] = NewReactor(config.Mempool, mempool, sidecar) // so we dont start the consensus states
 		reactors[i].SetLogger(logger.With("validator", i))
 	}
 
@@ -354,14 +454,18 @@ func makeAndConnectReactors(config *cfg.Config, n int) []*Reactor {
 	return reactors
 }
 
-func waitForTxsOnReactors(t *testing.T, txs types.Txs, reactors []*Reactor) {
+func waitForTxsOnReactors(t *testing.T, txs types.Txs, reactors []*Reactor, useSidecar bool) {
 	// wait for the txs in all mempools
 	wg := new(sync.WaitGroup)
 	for i, reactor := range reactors {
 		wg.Add(1)
 		go func(r *Reactor, reactorIndex int) {
 			defer wg.Done()
-			waitForTxsOnReactor(t, txs, r, reactorIndex)
+			if useSidecar {
+				waitForSidecarTxsOnReactor(t, txs, r, reactorIndex)
+			} else {
+				waitForTxsOnReactor(t, txs, r, reactorIndex)
+			}
 		}(reactor, i)
 	}
 
@@ -389,6 +493,22 @@ func waitForTxsOnReactor(t *testing.T, txs types.Txs, reactor *Reactor, reactorI
 	for i, tx := range txs {
 		assert.Equalf(t, tx, reapedTxs[i],
 			"txs at index %d on reactor %d don't match: %v vs %v", i, reactorIndex, tx, reapedTxs[i])
+	}
+}
+
+func waitForSidecarTxsOnReactor(t *testing.T, txs types.Txs, reactor *Reactor, reactorIndex int) {
+	sidecar := reactor.sidecar
+	for sidecar.Size() < len(txs) {
+		time.Sleep(time.Millisecond * 100)
+	}
+
+	reapedTxs := sidecar.ReapMaxTxs()
+	var i int
+	for _, scMemTx := range reapedTxs {
+		scTx := scMemTx.Tx
+		assert.Equalf(t, txs[i], scTx,
+			"txs at index %d on reactor %d don't match: %s vs %s", i, reactorIndex, txs[i], scTx)
+		i++
 	}
 }
 
