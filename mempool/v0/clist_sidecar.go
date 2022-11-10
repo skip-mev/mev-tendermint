@@ -531,11 +531,10 @@ func (sc *CListPriorityTxSidecar) removeTx(tx types.Tx, elem *clist.CElement, re
 }
 
 // Safe for concurrent use by multiple goroutines.
-
 // this reap function iterates over all the bundleIDs up to maxBundleID
 // ... then goes over each bundle via the bundleOrders (up to enforcedSize for bundle)
 // ... and reaps them in this order
-func (sc *CListPriorityTxSidecar) ReapMaxTxs() []*mempool.MempoolTx {
+func (sc *CListPriorityTxSidecar) ReapMaxTxs() types.ReapedTxs {
 	sc.updateMtx.RLock()
 	defer sc.updateMtx.RUnlock()
 
@@ -544,10 +543,10 @@ func (sc *CListPriorityTxSidecar) ReapMaxTxs() []*mempool.MempoolTx {
 		"sidecarSize", sc.Size(),
 	)
 
-	memTxs := make([]*mempool.MempoolTx, 0, sc.txs.Len())
+	memTxs := make([]*mempoolTx, 0, sc.txs.Len())
 
 	if (sc.txs.Len() == 0) || (sc.NumBundles() == 0) {
-		return memTxs
+		return types.ReapedTxs{}
 	}
 
 	completedBundles := 0
@@ -576,19 +575,19 @@ func (sc *CListPriorityTxSidecar) ReapMaxTxs() []*mempool.MempoolTx {
 			}
 
 			// if full, iterate over bundle in order and add txs to temporary store, then add all if we have enough (i.e. matches enforcedBundleSize)
-			innerTxs := make([]*mempool.MempoolTx, 0, bundle.EnforcedSize)
+			innerTxs := make([]*mempoolTx, 0, bundle.EnforcedSize)
 			for bundleOrderIter := 0; bundleOrderIter < int(bundle.EnforcedSize); bundleOrderIter++ {
 				bundleOrderIter := int64(bundleOrderIter)
 
 				if scTx, ok := bundleOrderedTxsMap.Load(bundleOrderIter); ok {
 					// loading as sidecar tx, but casting to MempoolTx to return
 					scTx := scTx.(*mempool.SidecarTx)
-					memTx := &mempool.MempoolTx{
+					memTx := &mempoolTx{
 						// CONTRACT: since the only height this could have been added into is desiredHeight = mem.height + 1,
 						// then this tx must have been validated against mem.height
-						Height:    scTx.DesiredHeight - 1,
-						GasWanted: scTx.GasWanted,
-						Tx:        scTx.Tx,
+						height:    scTx.DesiredHeight - 1,
+						gasWanted: scTx.GasWanted,
+						tx:        scTx.Tx,
 					}
 					innerTxs = append(innerTxs, memTx)
 				} else {
@@ -637,7 +636,17 @@ func (sc *CListPriorityTxSidecar) ReapMaxTxs() []*mempool.MempoolTx {
 	// update metrics for number of mev transactions reaped this block
 	sc.metrics.NumMevTxsLastBlock.Set(float64(numTxsInBundles))
 
-	return memTxs
+	// Gather info to return a ReapedTxs
+	txs := make([]types.Tx, 0, len(memTxs))
+	gasWanteds := make([]int64, 0, len(memTxs))
+	for _, memTx := range memTxs {
+		txs = append(txs, memTx.tx)
+		gasWanteds = append(gasWanteds, memTx.gasWanted)
+	}
+	return types.ReapedTxs{
+		Txs:        txs,
+		GasWanteds: gasWanteds,
+	}
 }
 
 // Safe for concurrent use by multiple goroutines.

@@ -376,6 +376,12 @@ func createMempoolAndSidecarAndMempoolReactor(
 	logger log.Logger,
 ) (mempl.Mempool, p2p.Reactor, mempl.PriorityTxSidecar) {
 
+	sidecar := mempoolv0.NewCListSidecar(
+		state.LastBlockHeight,
+		logger,
+		memplMetrics,
+	)
+
 	switch config.Mempool.Version {
 	case cfg.MempoolV1:
 		mp := mempoolv1.NewTxMempool(
@@ -391,12 +397,13 @@ func createMempoolAndSidecarAndMempoolReactor(
 		reactor := mempoolv1.NewReactor(
 			config.Mempool,
 			mp,
+			sidecar,
 		)
 		if config.Consensus.WaitForTxs() {
 			mp.EnableTxsAvailable()
 		}
 
-		return mp, reactor, nil
+		return mp, reactor, sidecar
 
 	case cfg.MempoolV0:
 		mp := mempoolv0.NewCListMempool(
@@ -409,12 +416,6 @@ func createMempoolAndSidecarAndMempoolReactor(
 		)
 
 		mp.SetLogger(logger)
-
-		sidecar := mempoolv0.NewCListSidecar(
-			state.LastBlockHeight,
-			logger,
-			memplMetrics,
-		)
 
 		reactor := mempoolv0.NewReactor(
 			config.Mempool,
