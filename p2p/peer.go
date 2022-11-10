@@ -125,7 +125,7 @@ type peer struct {
 
 	// When removal of a peer fails, we set this flag
 	removalAttemptFailed bool
-	isSidecarPeer bool
+	isSidecarPeer        bool
 }
 
 type PeerOption func(*peer)
