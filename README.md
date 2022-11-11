@@ -227,4 +227,4 @@ The design goals of MEV-Tendermint is to allow & preserve:
 | sidecar_num_bundles_last_block | Gauge | Number of mev bundles received during the last block |
 | sidecar_num_mev_txs_total | Counter | Number of mev transactions added in total |
 | sidecar_num_mev_txs_last_block | Gauge | Number of mev transactions received by sidecar in the last block |
-| sidecar_relay_connected | Gauge | Whether or not a node is connected to the relay, 1 if connected, 0 if not. |
+| p2p_relay_connected | Gauge | Whether or not a node is connected to the relay, 1 if connected, 0 if not. |
