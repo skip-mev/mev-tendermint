@@ -69,7 +69,7 @@ type peers interface {
 	Peers() p2p.IPeerSet
 }
 
-//----------------------------------------------
+// ----------------------------------------------
 // Environment contains objects and interfaces used by the RPC. It is expected
 // to be setup once during startup.
 type Environment struct {
@@ -93,10 +93,12 @@ type Environment struct {
 	ConsensusReactor *consensus.Reactor
 	EventBus         *types.EventBus // thread safe
 	Mempool          mempl.Mempool
+	Sidecar          mempl.PriorityTxSidecar
 
 	Logger log.Logger
 
-	Config cfg.RPCConfig
+	Config        cfg.RPCConfig
+	SidecarConfig cfg.SidecarConfig
 
 	// cache of chunked genesis data.
 	genChunks []string

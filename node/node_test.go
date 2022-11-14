@@ -243,6 +243,7 @@ func TestCreateProposalBlock(t *testing.T) {
 
 	// Make Mempool
 	memplMetrics := mempl.PrometheusMetrics("node_test_1")
+	sidecar := mempl.NewCListSidecar(state.LastBlockHeight, log.NewNopLogger(), memplMetrics)
 	mempool := mempl.NewCListMempool(
 		config.Mempool,
 		proxyApp.Mempool(),
@@ -289,6 +290,7 @@ func TestCreateProposalBlock(t *testing.T) {
 		proxyApp.Consensus(),
 		mempool,
 		evidencePool,
+		sidecar,
 	)
 
 	commit := types.NewCommit(height-1, 0, types.BlockID{}, nil)
@@ -335,6 +337,7 @@ func TestMaxProposalBlockSize(t *testing.T) {
 
 	// Make Mempool
 	memplMetrics := mempl.PrometheusMetrics("node_test_2")
+	sidecar := mempl.NewCListSidecar(state.LastBlockHeight, log.NewNopLogger(), memplMetrics)
 	mempool := mempl.NewCListMempool(
 		config.Mempool,
 		proxyApp.Mempool(),
@@ -357,6 +360,7 @@ func TestMaxProposalBlockSize(t *testing.T) {
 		proxyApp.Consensus(),
 		mempool,
 		sm.EmptyEvidencePool{},
+		sidecar,
 	)
 
 	commit := types.NewCommit(height-1, 0, types.BlockID{}, nil)

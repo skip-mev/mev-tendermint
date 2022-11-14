@@ -66,5 +66,7 @@ linters-settings:
     locale: US
     ignore-words:
       - behaviour
+  lll:
+      line-length: 140
 
 

@@ -36,6 +36,7 @@ type BlockExecutor struct {
 	// and update both with block results after commit.
 	mempool mempl.Mempool
 	evpool  EvidencePool
+	sidecar mempl.PriorityTxSidecar
 
 	logger log.Logger
 
@@ -58,6 +59,7 @@ func NewBlockExecutor(
 	proxyApp proxy.AppConnConsensus,
 	mempool mempl.Mempool,
 	evpool EvidencePool,
+	sidecar mempl.PriorityTxSidecar,
 	options ...BlockExecutorOption,
 ) *BlockExecutor {
 	res := &BlockExecutor{
@@ -66,6 +68,7 @@ func NewBlockExecutor(
 		eventBus: types.NopEventBus{},
 		mempool:  mempool,
 		evpool:   evpool,
+		sidecar:  sidecar,
 		logger:   logger,
 		metrics:  NopMetrics(),
 	}
@@ -105,7 +108,13 @@ func (blockExec *BlockExecutor) CreateProposalBlock(
 	// Fetch a limited amount of valid txs
 	maxDataBytes := types.MaxDataBytes(maxBytes, evSize, state.Validators.Size())
 
-	txs := blockExec.mempool.ReapMaxBytesMaxGas(maxDataBytes, maxGas)
+	sidecarTxs := make([]*mempl.MempoolTx, 0)
+	if blockExec.sidecar != nil {
+		sidecarTxs = blockExec.sidecar.ReapMaxTxs()
+	} else {
+		fmt.Println("Sidecar is nil, not reaping")
+	}
+	txs := blockExec.mempool.ReapMaxBytesMaxGas(maxDataBytes, maxGas, sidecarTxs)
 
 	return state.MakeBlock(height, txs, commit, evidence, proposerAddr)
 }
@@ -239,6 +248,19 @@ func (blockExec *BlockExecutor) Commit(
 		"app_hash", fmt.Sprintf("%X", res.Data),
 	)
 
+	if blockExec.sidecar != nil {
+		// update sidecar mempool
+		err = blockExec.sidecar.Update(
+			block.Height,
+			block.Txs,
+			deliverTxResponses,
+		)
+		if err != nil {
+			blockExec.logger.Error("error while updating sidecar", "err", err)
+			return nil, 0, err
+		}
+	}
+
 	// Update mempool.
 	err = blockExec.mempool.Update(
 		block.Height,
@@ -247,6 +269,11 @@ func (blockExec *BlockExecutor) Commit(
 		TxPreCheck(state),
 		TxPostCheck(state),
 	)
+
+	if err != nil {
+		blockExec.logger.Error("error while updating mempool", "err", err)
+		return nil, 0, err
+	}
 
 	return res.Data, res.RetainHeight, err
 }

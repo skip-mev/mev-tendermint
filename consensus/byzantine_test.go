@@ -70,6 +70,8 @@ func TestByzantinePrevoteEquivocation(t *testing.T) {
 			mempool.EnableTxsAvailable()
 		}
 
+		sidecar := mempl.NewCListSidecar(state.LastBlockHeight, log.NewNopLogger(), mempl.NopMetrics())
+
 		// Make a full instance of the evidence pool
 		evidenceDB := dbm.NewMemDB()
 		evpool, err := evidence.NewPool(evidenceDB, stateStore, blockStore)
@@ -77,7 +79,7 @@ func TestByzantinePrevoteEquivocation(t *testing.T) {
 		evpool.SetLogger(logger.With("module", "evidence"))
 
 		// Make State
-		blockExec := sm.NewBlockExecutor(stateStore, log.TestingLogger(), proxyAppConnCon, mempool, evpool)
+		blockExec := sm.NewBlockExecutor(stateStore, log.TestingLogger(), proxyAppConnCon, mempool, evpool, sidecar)
 		cs := NewState(thisConfig.Consensus, state, blockExec, blockStore, mempool, evpool)
 		cs.SetLogger(cs.Logger)
 		// set private validator

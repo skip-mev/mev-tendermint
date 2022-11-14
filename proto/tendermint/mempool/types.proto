@@ -12,3 +12,13 @@ message Message {
     Txs txs = 1;
   }
 }
+
+message MEVMessage {
+  oneof sum {
+    Txs txs = 1;
+  }
+  int64 desired_height = 2;
+  int64 bundle_iD = 3;
+  int64 bundle_order = 4;
+  int64 bundle_size = 5;
+}

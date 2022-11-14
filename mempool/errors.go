@@ -10,6 +10,38 @@ var (
 	ErrTxInCache = errors.New("tx already exists in cache")
 )
 
+// ErrWrongHeight means the tx is asking to be in a height that doesn't match the current auction
+type ErrWrongHeight struct {
+	DesiredHeight        int
+	CurrentAuctionHeight int
+}
+
+func (e ErrWrongHeight) Error() string {
+	return fmt.Sprintf("Tx submitted for wrong height, asked for %d, but current auction height is %d", e.DesiredHeight, e.CurrentAuctionHeight)
+}
+
+// ErrBundleFull means the tx is trying to enter a bundle that has already reached its limit
+type ErrBundleFull struct {
+	BundleID     int64
+	BundleHeight int64
+}
+
+func (e ErrBundleFull) Error() string {
+	return fmt.Sprintf("Tx submitted but bundle is full, for bundleId %d with bundle size %d", e.BundleID, e.BundleHeight)
+}
+
+// ErrTxMalformedForBundle is a general malformed error for specific cases
+type ErrTxMalformedForBundle struct {
+	BundleID     int64
+	BundleSize   int64
+	BundleHeight int64
+	BundleOrder  int64
+}
+
+func (e ErrTxMalformedForBundle) Error() string {
+	return fmt.Sprintf("Tx submitted but malformed with respect to bundling, for bundleId %d, at height %d, with bundleSize %d, and bundleOrder %d", e.BundleID, e.BundleHeight, e.BundleSize, e.BundleOrder)
+}
+
 // ErrTxTooLarge means the tx is too big to be sent in a message to other peers
 type ErrTxTooLarge struct {
 	max    int
