@@ -281,7 +281,8 @@ func (memR *Reactor) broadcastSidecarTxRoutine(peer p2p.Peer) {
 				}
 				bz, err := msg.Marshal()
 				if err != nil {
-					panic(err)
+					memR.Logger.Info("not sending a sidecarTx for peer", peerID, "failed to marshal", msg)
+					continue
 				}
 				success := peer.Send(mempool.SidecarChannel, bz)
 				if !success {
