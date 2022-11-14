@@ -16,7 +16,7 @@ func CombineSidecarAndMempoolTxs(memplTxs, sidecarTxs types.ReapedTxs, maxBytes,
 	sidecarTxsMap := make(map[types.TxKey]struct{})
 
 	for i, sidecarTx := range sidecarTxs.Txs {
-		fmt.Println("[mev-tendermint]: reaped sidecar mev transaction", sidecarTx.Hash())
+		fmt.Println("[mev-tendermint]: reaped sidecar mev transaction", getLastNumBytesFromTx(sidecarTx, 20))
 		dataSize := types.ComputeProtoSizeForTxs([]types.Tx{sidecarTx})
 
 		// Check total size requirement
@@ -37,7 +37,7 @@ func CombineSidecarAndMempoolTxs(memplTxs, sidecarTxs types.ReapedTxs, maxBytes,
 	for i, memplTx := range memplTxs.Txs {
 		if _, ok := sidecarTxsMap[memplTx.Key()]; ok {
 			// SKIP THIS TRANSACTION, ALREADY SEEN IN SIDECAR
-			fmt.Println("[mev-tendermint]: skipped mempool tx, already found in sidecar", memplTx.Hash())
+			fmt.Println("[mev-tendermint]: skipped mempool tx, already found in sidecar", getLastNumBytesFromTx(memplTx, 20))
 			continue
 		}
 
@@ -61,4 +61,14 @@ func CombineSidecarAndMempoolTxs(memplTxs, sidecarTxs types.ReapedTxs, maxBytes,
 		txs = append(txs, memplTx)
 	}
 	return txs
+}
+
+func getLastNumBytesFromTx(tx types.Tx, numBytes int) string {
+	if len(tx) == 0 {
+		return ""
+	} else if len(tx) < 20 {
+		return tx.String()
+	} else {
+		return tx.String()[len(tx.String())-20:]
+	}
 }
