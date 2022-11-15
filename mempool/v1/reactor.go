@@ -10,7 +10,6 @@ import (
 	"github.com/tendermint/tendermint/libs/log"
 	tmsync "github.com/tendermint/tendermint/libs/sync"
 	"github.com/tendermint/tendermint/mempool"
-	mempoolv0 "github.com/tendermint/tendermint/mempool/v0"
 	"github.com/tendermint/tendermint/p2p"
 	protomem "github.com/tendermint/tendermint/proto/tendermint/mempool"
 	"github.com/tendermint/tendermint/types"
@@ -23,7 +22,7 @@ type Reactor struct {
 	p2p.BaseReactor
 	config  *cfg.MempoolConfig
 	mempool *TxMempool
-	sidecar *mempoolv0.CListPriorityTxSidecar
+	sidecar *mempool.CListPriorityTxSidecar
 	ids     *mempoolIDs
 }
 
@@ -91,7 +90,7 @@ func newMempoolIDs() *mempoolIDs {
 }
 
 // NewReactor returns a new Reactor with the given config and mempool.
-func NewReactor(config *cfg.MempoolConfig, mempool *TxMempool, sidecar *mempoolv0.CListPriorityTxSidecar) *Reactor {
+func NewReactor(config *cfg.MempoolConfig, mempool *TxMempool, sidecar *mempool.CListPriorityTxSidecar) *Reactor {
 	memR := &Reactor{
 		config:  config,
 		mempool: mempool,

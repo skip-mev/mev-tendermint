@@ -22,7 +22,7 @@ type Reactor struct {
 	p2p.BaseReactor
 	config  *cfg.MempoolConfig
 	mempool *CListMempool
-	sidecar *CListPriorityTxSidecar
+	sidecar *mempool.CListPriorityTxSidecar
 	ids     *mempoolIDs
 }
 
@@ -90,7 +90,7 @@ func newMempoolIDs() *mempoolIDs {
 }
 
 // NewReactor returns a new Reactor with the given config and mempool.
-func NewReactor(config *cfg.MempoolConfig, mempool *CListMempool, sidecar *CListPriorityTxSidecar) *Reactor {
+func NewReactor(config *cfg.MempoolConfig, mempool *CListMempool, sidecar *mempool.CListPriorityTxSidecar) *Reactor {
 	memR := &Reactor{
 		config:  config,
 		mempool: mempool,
