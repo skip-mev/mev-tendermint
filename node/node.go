@@ -231,7 +231,7 @@ type Node struct {
 	indexerService    *txindex.IndexerService
 	prometheusSrv     *http.Server
 
-	sidecar *mempoolv0.CListPriorityTxSidecar
+	sidecar *mempl.CListPriorityTxSidecar
 }
 
 func initDBs(config *cfg.Config, dbProvider DBProvider) (blockStore *store.BlockStore, stateDB dbm.DB, err error) {
@@ -376,7 +376,7 @@ func createMempoolAndSidecarAndMempoolReactor(
 	logger log.Logger,
 ) (mempl.Mempool, p2p.Reactor, mempl.PriorityTxSidecar) {
 
-	sidecar := mempoolv0.NewCListSidecar(
+	sidecar := mempl.NewCListSidecar(
 		state.LastBlockHeight,
 		logger,
 		memplMetrics,
@@ -958,7 +958,7 @@ func NewNode(config *cfg.Config,
 		}()
 	}
 
-	typeAssertedSidecar, ok := sidecar.(*mempoolv0.CListPriorityTxSidecar)
+	typeAssertedSidecar, ok := sidecar.(*mempl.CListPriorityTxSidecar)
 	if !ok {
 		logger.Info("[node startup]: Creating node with nil sidecar")
 	}

@@ -71,7 +71,7 @@ func TestByzantinePrevoteEquivocation(t *testing.T) {
 
 		// Make Mempool
 		var mempool mempl.Mempool
-		var sidecar mempl.PriorityTxSidecar
+		sidecar := mempl.NewCListSidecar(state.LastBlockHeight, log.NewNopLogger(), mempl.NopMetrics())
 
 		switch thisConfig.Mempool.Version {
 		case cfg.MempoolV0:
@@ -80,7 +80,6 @@ func TestByzantinePrevoteEquivocation(t *testing.T) {
 				state.LastBlockHeight,
 				mempoolv0.WithPreCheck(sm.TxPreCheck(state)),
 				mempoolv0.WithPostCheck(sm.TxPostCheck(state)))
-			sidecar = mempoolv0.NewCListSidecar(state.LastBlockHeight, log.NewNopLogger(), mempl.NopMetrics())
 		case cfg.MempoolV1:
 			mempool = mempoolv1.NewTxMempool(logger,
 				config.Mempool,
@@ -89,7 +88,6 @@ func TestByzantinePrevoteEquivocation(t *testing.T) {
 				mempoolv1.WithPreCheck(sm.TxPreCheck(state)),
 				mempoolv1.WithPostCheck(sm.TxPostCheck(state)),
 			)
-			sidecar = nil
 		}
 
 		if thisConfig.Consensus.WaitForTxs() {

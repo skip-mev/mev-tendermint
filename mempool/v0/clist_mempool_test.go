@@ -160,9 +160,9 @@ func TestReapMaxBytesMaxGas(t *testing.T) {
 	}
 	for tcIndex, tt := range tests {
 		checkTxs(t, mp, tt.numTxsToCreate, mempool.UnknownPeerID)
-		got := mp.ReapMaxBytesMaxGas(tt.maxBytes, tt.maxGas)
-		assert.Equal(t, tt.expectedNumTxs, len(got.Txs), "Got %d txs, expected %d, tc #%d",
-			len(got.Txs), tt.expectedNumTxs, tcIndex)
+		got := mp.ReapMaxBytesMaxGas(tt.maxBytes, tt.maxGas).Txs
+		assert.Equal(t, tt.expectedNumTxs, len(got), "Got %d txs, expected %d, tc #%d",
+			len(got), tt.expectedNumTxs, tcIndex)
 		mp.Flush()
 	}
 }
@@ -426,8 +426,8 @@ func TestSerialReap(t *testing.T) {
 	}
 
 	reapCheck := func(exp int) {
-		txs := mp.ReapMaxBytesMaxGas(-1, -1)
-		require.Equal(t, len(txs.Txs), exp, fmt.Sprintf("Expected to reap %v txs but got %v", exp, len(txs.Txs)))
+		txs := mp.ReapMaxBytesMaxGas(-1, -1).Txs
+		require.Equal(t, len(txs), exp, fmt.Sprintf("Expected to reap %v txs but got %v", exp, len(txs)))
 	}
 
 	updateRange := func(start, end int) {
