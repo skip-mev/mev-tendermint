@@ -542,4 +542,3 @@ func ensureFire(t *testing.T, ch <-chan struct{}, timeoutMS int) {
 		t.Fatal("Expected to fire")
 	}
 }
-
