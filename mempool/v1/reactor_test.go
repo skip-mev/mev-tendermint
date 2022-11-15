@@ -308,7 +308,6 @@ func makeAndConnectReactorsEvensSidecar(config *cfg.Config, n int) []*Reactor {
 	return reactors
 }
 
-
 // Sidecar testing utils
 
 type testBundleInfo struct {
@@ -352,4 +351,3 @@ func addTxToSidecar(t *testing.T, sidecar mempool.PriorityTxSidecar, bInfo testB
 	}
 	return txBytes
 }
-

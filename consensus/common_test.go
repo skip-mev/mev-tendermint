@@ -410,7 +410,7 @@ func newStateWithConfigAndBlockStore(
 			mempoolv0.WithMetrics(memplMetrics),
 			mempoolv0.WithPreCheck(sm.TxPreCheck(state)),
 			mempoolv0.WithPostCheck(sm.TxPostCheck(state)))
-		
+
 	case cfg.MempoolV1:
 		logger := consensusLogger()
 		mempool = mempoolv1.NewTxMempool(logger,
