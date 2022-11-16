@@ -400,7 +400,7 @@ func newStateWithConfigAndBlockStore(
 
 	// Make Mempool
 	var mempool mempl.Mempool
-	var sidecar mempl.PriorityTxSidecar
+	sidecar := mempl.NewCListSidecar(state.LastBlockHeight, log.NewNopLogger(), memplMetrics)
 
 	switch config.Mempool.Version {
 	case cfg.MempoolV0:
@@ -410,7 +410,7 @@ func newStateWithConfigAndBlockStore(
 			mempoolv0.WithMetrics(memplMetrics),
 			mempoolv0.WithPreCheck(sm.TxPreCheck(state)),
 			mempoolv0.WithPostCheck(sm.TxPostCheck(state)))
-		sidecar = mempoolv0.NewCListSidecar(state.LastBlockHeight, log.NewNopLogger(), memplMetrics)
+
 	case cfg.MempoolV1:
 		logger := consensusLogger()
 		mempool = mempoolv1.NewTxMempool(logger,
@@ -421,7 +421,6 @@ func newStateWithConfigAndBlockStore(
 			mempoolv1.WithPreCheck(sm.TxPreCheck(state)),
 			mempoolv1.WithPostCheck(sm.TxPostCheck(state)),
 		)
-		sidecar = nil
 	}
 	if thisConfig.Consensus.WaitForTxs() {
 		mempool.EnableTxsAvailable()

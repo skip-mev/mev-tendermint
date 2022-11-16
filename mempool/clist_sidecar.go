@@ -1,4 +1,4 @@
-package v0
+package mempool
 
 import (
 	"fmt"
@@ -9,7 +9,6 @@ import (
 	"github.com/tendermint/tendermint/libs/clist"
 	"github.com/tendermint/tendermint/libs/log"
 	tmsync "github.com/tendermint/tendermint/libs/sync"
-	"github.com/tendermint/tendermint/mempool"
 	"github.com/tendermint/tendermint/types"
 )
 
@@ -49,14 +48,14 @@ type CListPriorityTxSidecar struct {
 
 	// Keep a cache of already-seen txs.
 	// This reduces the pressure on the proxyApp.
-	cache mempool.TxCache
+	cache TxCache
 
 	logger log.Logger
 
-	metrics *mempool.Metrics
+	metrics *Metrics
 }
 
-var _ mempool.PriorityTxSidecar = &CListPriorityTxSidecar{}
+var _ PriorityTxSidecar = &CListPriorityTxSidecar{}
 
 type Key struct {
 	height, bundleID int64
@@ -67,7 +66,7 @@ type Key struct {
 func NewCListSidecar(
 	height int64,
 	memLogger log.Logger,
-	memMetrics *mempool.Metrics,
+	memMetrics *Metrics,
 ) *CListPriorityTxSidecar {
 	sidecar := &CListPriorityTxSidecar{
 		txs:                    clist.New(),
@@ -76,7 +75,7 @@ func NewCListSidecar(
 		logger:                 memLogger,
 		metrics:                memMetrics,
 	}
-	sidecar.cache = mempool.NewLRUTxCache(10000)
+	sidecar.cache = NewLRUTxCache(10000)
 	return sidecar
 }
 
@@ -85,7 +84,7 @@ func (sc *CListPriorityTxSidecar) PrettyPrintBundles() {
 	for bundleIDIter := 0; bundleIDIter <= int(sc.maxBundleID); bundleIDIter++ {
 		bundleIDIter := int64(bundleIDIter)
 		if bundle, ok := sc.bundles.Load(Key{sc.heightForFiringAuction, bundleIDIter}); ok {
-			bundle := bundle.(*mempool.Bundle)
+			bundle := bundle.(*Bundle)
 			fmt.Printf("BUNDLE ID: %d\n", bundleIDIter)
 
 			innerOrderMap := bundle.OrderedTxsMap
@@ -94,7 +93,7 @@ func (sc *CListPriorityTxSidecar) PrettyPrintBundles() {
 				bundleOrderIter := int64(bundleOrderIter)
 
 				if scTx, ok := innerOrderMap.Load(bundleOrderIter); ok {
-					scTx := scTx.(*mempool.SidecarTx)
+					scTx := scTx.(*SidecarTx)
 					fmt.Printf("---> ORDER %d: %s\n", bundleOrderIter, scTx.Tx)
 				}
 			}
@@ -131,7 +130,7 @@ func (sc *CListPriorityTxSidecar) notifyTxsAvailable() {
 
 //--------------------------------------------------------------------------------
 
-func (sc *CListPriorityTxSidecar) AddTx(tx types.Tx, txInfo mempool.TxInfo) error {
+func (sc *CListPriorityTxSidecar) AddTx(tx types.Tx, txInfo TxInfo) error {
 
 	sc.updateMtx.RLock()
 	// use defer to unlock mutex because application (*local client*) might panic
@@ -153,14 +152,14 @@ func (sc *CListPriorityTxSidecar) AddTx(tx types.Tx, txInfo mempool.TxInfo) erro
 		// Record a new sender for a tx we've already seen.
 
 		if e, ok := sc.txsMap.Load(tx.Key()); ok {
-			scTx := e.(*clist.CElement).Value.(*mempool.SidecarTx)
+			scTx := e.(*clist.CElement).Value.(*SidecarTx)
 			scTx.Senders.LoadOrStore(txInfo.SenderID, true)
 		}
 
-		return mempool.ErrTxInCache
+		return ErrTxInCache
 	}
 
-	scTx := &mempool.SidecarTx{
+	scTx := &SidecarTx{
 		DesiredHeight: txInfo.DesiredHeight,
 		Tx:            tx,
 		BundleID:      txInfo.BundleID,
@@ -184,7 +183,7 @@ func (sc *CListPriorityTxSidecar) AddTx(tx types.Tx, txInfo mempool.TxInfo) erro
 			"bundleOrder", txInfo.BundleOrder,
 			"tx", tx.Hash(),
 		)
-		return mempool.ErrWrongHeight{
+		return ErrWrongHeight{
 			DesiredHeight:        int(txInfo.DesiredHeight),
 			CurrentAuctionHeight: int(sc.heightForFiringAuction),
 		}
@@ -200,7 +199,7 @@ func (sc *CListPriorityTxSidecar) AddTx(tx types.Tx, txInfo mempool.TxInfo) erro
 			"bundleSize", txInfo.BundleSize,
 			"tx", tx.Hash(),
 		)
-		return mempool.ErrTxMalformedForBundle{
+		return ErrTxMalformedForBundle{
 			BundleID:     txInfo.BundleID,
 			BundleSize:   txInfo.BundleSize,
 			BundleHeight: txInfo.DesiredHeight,
@@ -210,9 +209,9 @@ func (sc *CListPriorityTxSidecar) AddTx(tx types.Tx, txInfo mempool.TxInfo) erro
 
 	// -------- BUNDLE EXISTENCE CHECKS ---------
 
-	var bundle *mempool.Bundle
+	var bundle *Bundle
 	// load existing bundle, or MAKE NEW if not
-	existingBundle, _ := sc.bundles.LoadOrStore(Key{txInfo.DesiredHeight, txInfo.BundleID}, &mempool.Bundle{
+	existingBundle, _ := sc.bundles.LoadOrStore(Key{txInfo.DesiredHeight, txInfo.BundleID}, &Bundle{
 		DesiredHeight: txInfo.DesiredHeight,
 		BundleID:      txInfo.BundleID,
 		CurrSize:      int64(0),
@@ -221,7 +220,7 @@ func (sc *CListPriorityTxSidecar) AddTx(tx types.Tx, txInfo mempool.TxInfo) erro
 		GasWanted:     int64(0),
 		OrderedTxsMap: &sync.Map{},
 	})
-	bundle = existingBundle.(*mempool.Bundle)
+	bundle = existingBundle.(*Bundle)
 
 	// -------- BUNDLE SIZE CHECKS ---------
 
@@ -235,7 +234,7 @@ func (sc *CListPriorityTxSidecar) AddTx(tx types.Tx, txInfo mempool.TxInfo) erro
 			"enforced size", bundle.EnforcedSize,
 			"tx", tx.Hash(),
 		)
-		return mempool.ErrTxMalformedForBundle{
+		return ErrTxMalformedForBundle{
 			BundleID:     txInfo.BundleID,
 			BundleSize:   txInfo.BundleSize,
 			BundleHeight: txInfo.DesiredHeight,
@@ -258,7 +257,7 @@ func (sc *CListPriorityTxSidecar) AddTx(tx types.Tx, txInfo mempool.TxInfo) erro
 				"enforced size", bundle.EnforcedSize,
 				"tx", tx.Hash(),
 			)
-			return false, mempool.ErrBundleFull{
+			return false, ErrBundleFull{
 				BundleID:     txInfo.BundleID,
 				BundleHeight: txInfo.BundleSize,
 			}
@@ -398,7 +397,7 @@ func (sc *CListPriorityTxSidecar) Update(
 
 	// remove from txs list and txmap
 	for e := sc.txs.Front(); e != nil; e = e.Next() {
-		scTx := e.Value.(*mempool.SidecarTx)
+		scTx := e.Value.(*SidecarTx)
 		if scTx.DesiredHeight <= height {
 			sc.logger.Debug(
 				"removed uncommited tx from sidecar",
@@ -415,7 +414,7 @@ func (sc *CListPriorityTxSidecar) Update(
 	// remove the bundles
 	sc.bundles.Range(func(key, _ interface{}) bool {
 		if bundle, ok := sc.bundles.Load(key); ok {
-			bundle := bundle.(*mempool.Bundle)
+			bundle := bundle.(*Bundle)
 			if bundle.DesiredHeight <= height {
 				sc.logger.Debug(
 					"removed bundle from sidecar",
@@ -489,7 +488,7 @@ func (sc *CListPriorityTxSidecar) HeightForFiringAuction() int64 {
 // Safe for concurrent use by multiple goroutines.
 func (sc *CListPriorityTxSidecar) GetEnforcedBundleSize(bundleID int64) int {
 	if bundle, ok := sc.bundles.Load(Key{sc.heightForFiringAuction, bundleID}); ok {
-		bundle := bundle.(*mempool.Bundle)
+		bundle := bundle.(*Bundle)
 		return int(bundle.EnforcedSize)
 	}
 	sc.logger.Info(
@@ -502,7 +501,7 @@ func (sc *CListPriorityTxSidecar) GetEnforcedBundleSize(bundleID int64) int {
 // Safe for concurrent use by multiple goroutines.
 func (sc *CListPriorityTxSidecar) GetCurrBundleSize(bundleID int64) int {
 	if bundle, ok := sc.bundles.Load(Key{sc.heightForFiringAuction, bundleID}); ok {
-		bundle := bundle.(*mempool.Bundle)
+		bundle := bundle.(*Bundle)
 		return int(bundle.CurrSize)
 	}
 	sc.logger.Info(
@@ -531,11 +530,10 @@ func (sc *CListPriorityTxSidecar) removeTx(tx types.Tx, elem *clist.CElement, re
 }
 
 // Safe for concurrent use by multiple goroutines.
-
 // this reap function iterates over all the bundleIDs up to maxBundleID
 // ... then goes over each bundle via the bundleOrders (up to enforcedSize for bundle)
 // ... and reaps them in this order
-func (sc *CListPriorityTxSidecar) ReapMaxTxs() []*mempool.MempoolTx {
+func (sc *CListPriorityTxSidecar) ReapMaxTxs() types.ReapedTxs {
 	sc.updateMtx.RLock()
 	defer sc.updateMtx.RUnlock()
 
@@ -544,10 +542,10 @@ func (sc *CListPriorityTxSidecar) ReapMaxTxs() []*mempool.MempoolTx {
 		"sidecarSize", sc.Size(),
 	)
 
-	memTxs := make([]*mempool.MempoolTx, 0, sc.txs.Len())
+	scTxs := make([]*SidecarTx, 0, sc.txs.Len())
 
 	if (sc.txs.Len() == 0) || (sc.NumBundles() == 0) {
-		return memTxs
+		return types.ReapedTxs{}
 	}
 
 	completedBundles := 0
@@ -560,7 +558,7 @@ func (sc *CListPriorityTxSidecar) ReapMaxTxs() []*mempool.MempoolTx {
 		bundleIDIter := int64(bundleIDIter)
 
 		if bundle, ok := sc.bundles.Load(Key{sc.heightForFiringAuction, bundleIDIter}); ok {
-			bundle := bundle.(*mempool.Bundle)
+			bundle := bundle.(*Bundle)
 			bundleOrderedTxsMap := bundle.OrderedTxsMap
 
 			// check to see if bundle is full, if not, just skip now
@@ -576,21 +574,14 @@ func (sc *CListPriorityTxSidecar) ReapMaxTxs() []*mempool.MempoolTx {
 			}
 
 			// if full, iterate over bundle in order and add txs to temporary store, then add all if we have enough (i.e. matches enforcedBundleSize)
-			innerTxs := make([]*mempool.MempoolTx, 0, bundle.EnforcedSize)
+			innerTxs := make([]*SidecarTx, 0, bundle.EnforcedSize)
 			for bundleOrderIter := 0; bundleOrderIter < int(bundle.EnforcedSize); bundleOrderIter++ {
 				bundleOrderIter := int64(bundleOrderIter)
 
 				if scTx, ok := bundleOrderedTxsMap.Load(bundleOrderIter); ok {
 					// loading as sidecar tx, but casting to MempoolTx to return
-					scTx := scTx.(*mempool.SidecarTx)
-					memTx := &mempool.MempoolTx{
-						// CONTRACT: since the only height this could have been added into is desiredHeight = mem.height + 1,
-						// then this tx must have been validated against mem.height
-						Height:    scTx.DesiredHeight - 1,
-						GasWanted: scTx.GasWanted,
-						Tx:        scTx.Tx,
-					}
-					innerTxs = append(innerTxs, memTx)
+					scTx := scTx.(*SidecarTx)
+					innerTxs = append(innerTxs, scTx)
 				} else {
 					// can't find tx at this bundleOrder for this bundleID
 					sc.logger.Info(
@@ -605,7 +596,7 @@ func (sc *CListPriorityTxSidecar) ReapMaxTxs() []*mempool.MempoolTx {
 			// check to see if we have the right number of transactions for the bundle, comparing to the enforced size
 			if bundle.EnforcedSize == int64(len(innerTxs)) {
 				// check to see if we've reaped the right number of txs expected for the bundle
-				memTxs = append(memTxs, innerTxs...)
+				scTxs = append(scTxs, innerTxs...)
 				completedBundles++
 				numTxsInBundles += len(innerTxs)
 
@@ -637,7 +628,17 @@ func (sc *CListPriorityTxSidecar) ReapMaxTxs() []*mempool.MempoolTx {
 	// update metrics for number of mev transactions reaped this block
 	sc.metrics.NumMevTxsLastBlock.Set(float64(numTxsInBundles))
 
-	return memTxs
+	// Gather info to return a ReapedTxs
+	txs := make([]types.Tx, 0, len(scTxs))
+	gasWanteds := make([]int64, 0, len(scTxs))
+	for _, scTx := range scTxs {
+		txs = append(txs, scTx.Tx)
+		gasWanteds = append(gasWanteds, scTx.GasWanted)
+	}
+	return types.ReapedTxs{
+		Txs:        txs,
+		GasWanteds: gasWanteds,
+	}
 }
 
 // Safe for concurrent use by multiple goroutines.

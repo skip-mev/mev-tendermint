@@ -22,6 +22,7 @@ type Reactor struct {
 	p2p.BaseReactor
 	config  *cfg.MempoolConfig
 	mempool *TxMempool
+	sidecar *mempool.CListPriorityTxSidecar
 	ids     *mempoolIDs
 }
 
@@ -89,10 +90,11 @@ func newMempoolIDs() *mempoolIDs {
 }
 
 // NewReactor returns a new Reactor with the given config and mempool.
-func NewReactor(config *cfg.MempoolConfig, mempool *TxMempool) *Reactor {
+func NewReactor(config *cfg.MempoolConfig, mempool *TxMempool, sidecar *mempool.CListPriorityTxSidecar) *Reactor {
 	memR := &Reactor{
 		config:  config,
 		mempool: mempool,
+		sidecar: sidecar,
 		ids:     newMempoolIDs(),
 	}
 	memR.BaseReactor = *p2p.NewBaseReactor("Mempool", memR)
@@ -134,6 +136,11 @@ func (memR *Reactor) GetChannels() []*p2p.ChannelDescriptor {
 			Priority:            5,
 			RecvMessageCapacity: batchMsg.Size(),
 		},
+		{
+			ID:                  mempool.SidecarChannel,
+			Priority:            5,
+			RecvMessageCapacity: batchMsg.Size(),
+		},
 	}
 }
 
@@ -142,6 +149,9 @@ func (memR *Reactor) GetChannels() []*p2p.ChannelDescriptor {
 func (memR *Reactor) AddPeer(peer p2p.Peer) {
 	if memR.config.Broadcast {
 		go memR.broadcastTxRoutine(peer)
+		if peer.IsSidecarPeer() {
+			go memR.broadcastSidecarTxRoutine(peer)
+		}
 	}
 }
 
@@ -155,31 +165,150 @@ func (memR *Reactor) RemovePeer(peer p2p.Peer, reason interface{}) {
 // It adds any received transactions to the mempool.
 func (memR *Reactor) Receive(chID byte, src p2p.Peer, msgBytes []byte) {
 	msg, err := memR.decodeMsg(msgBytes)
-	if err != nil {
-		memR.Logger.Error("Error decoding message", "src", src, "chId", chID, "err", err)
-		memR.Switch.StopPeerForError(src, err)
-		return
-	}
-	memR.Logger.Debug("Receive", "src", src, "chId", chID, "msg", msg)
+	isSidecarPeer := src.IsSidecarPeer()
+	if chID == mempool.MempoolChannel {
+		if err != nil {
+			memR.Logger.Error("Error decoding message", "src", src, "chId", chID, "err", err)
+			memR.Switch.StopPeerForError(src, err)
+			return
+		}
+		memR.Logger.Debug("Receive", "src", src, "chId", chID, "msg", msg)
 
-	txInfo := mempool.TxInfo{SenderID: memR.ids.GetForPeer(src)}
-	if src != nil {
-		txInfo.SenderP2PID = src.ID()
-	}
-	for _, tx := range msg.Txs {
-		err = memR.mempool.CheckTx(tx, nil, txInfo)
-		if err == mempool.ErrTxInCache {
-			memR.Logger.Debug("Tx already exists in cache", "tx", tx.String())
-		} else if err != nil {
-			memR.Logger.Info("Could not check tx", "tx", tx.String(), "err", err)
+		txInfo := mempool.TxInfo{SenderID: memR.ids.GetForPeer(src)}
+		if src != nil {
+			txInfo.SenderP2PID = src.ID()
+		}
+		for _, tx := range msg.Txs {
+			err = memR.mempool.CheckTx(tx, nil, txInfo)
+			if err == mempool.ErrTxInCache {
+				memR.Logger.Debug("Tx already exists in cache", "tx", tx.String())
+			} else if err != nil {
+				memR.Logger.Info("Could not check tx", "tx", tx.String(), "err", err)
+			}
+		}
+	} else if chID == mempool.SidecarChannel && isSidecarPeer {
+		msg, err := memR.decodeBundleMsg(msgBytes)
+		if err != nil {
+			memR.Logger.Error(
+				"Error decoding sidecar message",
+				"src", src,
+				"chId", chID,
+				"err", err,
+			)
+			memR.Switch.StopPeerForError(src, err)
+			return
+		}
+		txInfo := mempool.TxInfo{
+			SenderID:      memR.ids.GetForPeer(src),
+			DesiredHeight: msg.DesiredHeight,
+			BundleID:      msg.BundleID,
+			BundleOrder:   msg.BundleOrder,
+			BundleSize:    msg.BundleSize,
+		}
+		if src != nil {
+			txInfo.SenderP2PID = src.ID()
+		}
+		for _, tx := range msg.Txs {
+			memR.Logger.Debug(
+				"received sidecar tx",
+				"tx", tx.Hash(),
+				"desired height", msg.DesiredHeight,
+				"bundle ID", msg.BundleID,
+				"bundle order", msg.BundleOrder,
+				"bundle size", msg.BundleSize,
+			)
+
+			err = memR.sidecar.AddTx(tx, txInfo)
+			if err == mempool.ErrTxInCache {
+				memR.Logger.Debug("sidecartx already exists in cache!", "tx", tx.Hash())
+			} else if err != nil {
+				memR.Logger.Info("could not add SidecarTx", "tx", tx.String(), "err", err)
+			}
 		}
 	}
+
 	// broadcasting happens from go routines per peer
 }
 
 // PeerState describes the state of a peer.
 type PeerState interface {
 	GetHeight() int64
+}
+
+func (memR *Reactor) broadcastSidecarTxRoutine(peer p2p.Peer) {
+	peerID := memR.ids.GetForPeer(peer)
+	isSidecarPeer := peer.IsSidecarPeer()
+	var next *clist.CElement
+
+	for {
+		// In case of both next.NextWaitChan() and peer.Quit() are variable at the same time
+		if !memR.IsRunning() || !peer.IsRunning() {
+			return
+		}
+		// This happens because the CElement we were looking at got garbage
+		// collected (removed). That is, .NextWait() returned nil. Go ahead and
+		// start from the beginning.
+		if next == nil {
+			select {
+			case <-memR.sidecar.TxsWaitChan(): // Wait until a tx is available in sidecar
+				// if a tx is available on sidecar, if fire is set too, then fire
+				if next = memR.sidecar.TxsFront(); next == nil {
+					continue
+				}
+			case <-peer.Quit():
+				return
+			case <-memR.Quit():
+				return
+			}
+		}
+
+		if scTx, okConv := next.Value.(*mempool.SidecarTx); okConv && isSidecarPeer {
+			memR.Logger.Debug(
+				"broadcasting a sidecarTx to peer",
+				"peer", peerID,
+				"tx", scTx.Tx.Hash(),
+			)
+			if _, ok := scTx.Senders.Load(peerID); !ok {
+				msg := protomem.MEVMessage{
+					Sum: &protomem.MEVMessage_Txs{
+						Txs: &protomem.Txs{Txs: [][]byte{scTx.Tx}},
+					},
+					DesiredHeight: scTx.DesiredHeight,
+					BundleId:      scTx.BundleID,
+					BundleOrder:   scTx.BundleOrder,
+					BundleSize:    scTx.BundleSize,
+				}
+				bz, err := msg.Marshal()
+				if err != nil {
+					memR.Logger.Info("not sending a sidecarTx for peer", peerID, "failed to marshal", msg)
+					continue
+				}
+				success := peer.Send(mempool.SidecarChannel, bz)
+				if !success {
+					time.Sleep(mempool.PeerCatchupSleepIntervalMS * time.Millisecond)
+					continue
+				}
+			} else {
+				memR.Logger.Info(
+					"broadcasting sidecarTx to peer failed",
+					"peer", peerID,
+					"was considered sidecarPeer", isSidecarPeer,
+					"was converted to sidecarTx", okConv,
+					"tx", scTx.Tx.Hash(),
+				)
+			}
+		}
+
+		select {
+		case <-next.NextWaitChan():
+			// see the start of the for loop for nil check
+			next = next.Next()
+		case <-peer.Quit():
+			return
+		case <-memR.Quit():
+			return
+		}
+	}
 }
 
 // Send new mempool txs to peer.
@@ -268,6 +397,39 @@ func (memR *Reactor) broadcastTxRoutine(peer p2p.Peer) {
 //-----------------------------------------------------------------------------
 // Messages
 
+func (memR *Reactor) decodeBundleMsg(bz []byte) (MEVTxsMessage, error) {
+	msg := protomem.MEVMessage{}
+	err := msg.Unmarshal(bz)
+	if err != nil {
+		return MEVTxsMessage{}, err
+	}
+
+	var message MEVTxsMessage
+
+	if i, ok := msg.Sum.(*protomem.MEVMessage_Txs); ok {
+		txs := i.Txs.GetTxs()
+
+		if len(txs) == 0 {
+			return message, errors.New("empty TxsMessage")
+		}
+
+		decoded := make([]types.Tx, len(txs))
+		for j, tx := range txs {
+			decoded[j] = types.Tx(tx)
+		}
+
+		message = MEVTxsMessage{
+			Txs:           decoded,
+			DesiredHeight: msg.GetDesiredHeight(),
+			BundleID:      msg.GetBundleId(),
+			BundleOrder:   msg.GetBundleOrder(),
+			BundleSize:    msg.GetBundleSize(),
+		}
+		return message, nil
+	}
+	return message, fmt.Errorf("msg type: %T is not supported", msg)
+}
+
 func (memR *Reactor) decodeMsg(bz []byte) (TxsMessage, error) {
 	msg := protomem.Message{}
 	err := msg.Unmarshal(bz)
@@ -298,6 +460,14 @@ func (memR *Reactor) decodeMsg(bz []byte) (TxsMessage, error) {
 }
 
 //-------------------------------------
+
+type MEVTxsMessage struct {
+	Txs           []types.Tx
+	DesiredHeight int64
+	BundleID      int64
+	BundleOrder   int64
+	BundleSize    int64
+}
 
 // TxsMessage is a Message containing transactions.
 type TxsMessage struct {
