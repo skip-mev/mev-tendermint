@@ -23,8 +23,8 @@ func (emptyMempool) CheckTx(_ types.Tx, _ func(*abci.Response), _ mempl.TxInfo) 
 	return nil
 }
 func (emptyMempool) RemoveTxByKey(txKey types.TxKey) error { return nil }
-func (emptyMempool) ReapMaxBytesMaxGas(_, _ int64, _ []*mempl.MempoolTx) types.Txs {
-	return types.Txs{}
+func (emptyMempool) ReapMaxBytesMaxGas(_, _ int64) types.ReapedTxs {
+	return types.ReapedTxs{}
 }
 func (emptyMempool) ReapMaxTxs(n int) types.Txs { return types.Txs{} }
 func (emptyMempool) Update(
@@ -55,7 +55,7 @@ type emptySidecar struct{}
 var _ mempl.PriorityTxSidecar = emptySidecar{}
 
 func (emptySidecar) AddTx(_ types.Tx, _ mempl.TxInfo) error { return nil }
-func (emptySidecar) ReapMaxTxs() []*mempl.MempoolTx         { return []*mempl.MempoolTx{} }
+func (emptySidecar) ReapMaxTxs() types.ReapedTxs            { return types.ReapedTxs{} }
 
 func (emptySidecar) Lock()   {}
 func (emptySidecar) Unlock() {}

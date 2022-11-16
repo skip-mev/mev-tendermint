@@ -383,6 +383,11 @@ func onlyValidatorIsUs(state sm.State, pubKey crypto.PubKey) bool {
 
 func createMempoolAndSidecarAndMempoolReactor(config *cfg.Config, proxyApp proxy.AppConns,
 	state sm.State, memplMetrics *mempl.Metrics, logger log.Logger) (p2p.Reactor, mempl.Mempool, mempl.PriorityTxSidecar) {
+	sidecar := mempl.NewCListSidecar(
+		state.LastBlockHeight,
+		logger,
+		memplMetrics,
+	)
 
 	switch config.Mempool.Version {
 	case cfg.MempoolV1:
@@ -399,12 +404,13 @@ func createMempoolAndSidecarAndMempoolReactor(config *cfg.Config, proxyApp proxy
 		reactor := mempoolv1.NewReactor(
 			config.Mempool,
 			mp,
+			sidecar,
 		)
 		if config.Consensus.WaitForTxs() {
 			mp.EnableTxsAvailable()
 		}
 
-		return reactor, mp, nil
+		return reactor, mp, sidecar
 
 	case cfg.MempoolV0:
 		mp := mempoolv0.NewCListMempool(
@@ -417,12 +423,6 @@ func createMempoolAndSidecarAndMempoolReactor(config *cfg.Config, proxyApp proxy
 		)
 
 		mp.SetLogger(logger)
-
-		sidecar := mempoolv0.NewCListSidecar(
-			state.LastBlockHeight,
-			logger,
-			memplMetrics,
-		)
 
 		reactor := mempoolv0.NewReactor(
 			config.Mempool,
