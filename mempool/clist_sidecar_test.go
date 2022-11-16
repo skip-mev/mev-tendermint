@@ -1,36 +1,42 @@
-package v0
+package mempool
 
 import (
 	"crypto/rand"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/tendermint/tendermint/abci/example/kvstore"
 	abci "github.com/tendermint/tendermint/abci/types"
-	"github.com/tendermint/tendermint/mempool"
-	"github.com/tendermint/tendermint/proxy"
+	"github.com/tendermint/tendermint/libs/log"
 	"github.com/tendermint/tendermint/types"
 )
 
-func addNumBundlesToSidecar(t *testing.T, sidecar mempool.PriorityTxSidecar, numBundles int, bundleSize int64, peerID uint16) types.Txs {
+type testBundleInfo struct {
+	BundleSize    int64
+	DesiredHeight int64
+	BundleID      int64
+	PeerID        uint16
+}
+
+func addNumBundlesToSidecar(t *testing.T, sidecar PriorityTxSidecar, numBundles int, bundleSize int64, peerID uint16) types.Txs {
 	totalTxsCount := 0
 	txs := make(types.Txs, 0)
 	for i := 0; i < numBundles; i++ {
 		totalTxsCount += int(bundleSize)
 		newTxs := createSidecarBundleAndTxs(t, sidecar, testBundleInfo{BundleSize: bundleSize,
-			PeerID: mempool.UnknownPeerID, DesiredHeight: sidecar.HeightForFiringAuction(), BundleID: int64(i)})
+			PeerID: UnknownPeerID, DesiredHeight: sidecar.HeightForFiringAuction(), BundleID: int64(i)})
 		txs = append(txs, newTxs...)
 	}
 	return txs
 }
 
-func addSpecificTxsToSidecarOneBundle(t *testing.T, sidecar mempool.PriorityTxSidecar, txs types.Txs, peerID uint16) types.Txs {
+func addSpecificTxsToSidecarOneBundle(t *testing.T, sidecar PriorityTxSidecar, txs types.Txs, peerID uint16) types.Txs {
 	bInfo := testBundleInfo{BundleSize: int64(len(txs)), PeerID: peerID, DesiredHeight: sidecar.HeightForFiringAuction(), BundleID: 0}
 	for i := 0; i < len(txs); i++ {
-		err := sidecar.AddTx(txs[i], mempool.TxInfo{SenderID: bInfo.PeerID, BundleSize: bInfo.BundleSize,
+		err := sidecar.AddTx(txs[i], TxInfo{SenderID: bInfo.PeerID, BundleSize: bInfo.BundleSize,
 			BundleID: bInfo.BundleID, DesiredHeight: bInfo.DesiredHeight, BundleOrder: int64(i)})
 		if err != nil {
 			t.Error(err)
@@ -39,7 +45,7 @@ func addSpecificTxsToSidecarOneBundle(t *testing.T, sidecar mempool.PriorityTxSi
 	return txs
 }
 
-func addNumTxsToSidecarOneBundle(t *testing.T, sidecar mempool.PriorityTxSidecar, numTxs int, peerID uint16) types.Txs {
+func addNumTxsToSidecarOneBundle(t *testing.T, sidecar PriorityTxSidecar, numTxs int, peerID uint16) types.Txs {
 	txs := make(types.Txs, numTxs)
 	bInfo := testBundleInfo{BundleSize: int64(numTxs), PeerID: peerID, DesiredHeight: sidecar.HeightForFiringAuction(), BundleID: 0}
 	for i := 0; i < numTxs; i++ {
@@ -49,8 +55,8 @@ func addNumTxsToSidecarOneBundle(t *testing.T, sidecar mempool.PriorityTxSidecar
 	return txs
 }
 
-func addTxToSidecar(t *testing.T, sidecar mempool.PriorityTxSidecar, bInfo testBundleInfo, bundleOrder int64) types.Tx {
-	txInfo := mempool.TxInfo{SenderID: bInfo.PeerID, BundleSize: bInfo.BundleSize,
+func addTxToSidecar(t *testing.T, sidecar PriorityTxSidecar, bInfo testBundleInfo, bundleOrder int64) types.Tx {
+	txInfo := TxInfo{SenderID: bInfo.PeerID, BundleSize: bInfo.BundleSize,
 		BundleID: bInfo.BundleID, DesiredHeight: bInfo.DesiredHeight, BundleOrder: bundleOrder}
 	txBytes := make([]byte, 20)
 	_, err := rand.Read(txBytes)
@@ -63,7 +69,7 @@ func addTxToSidecar(t *testing.T, sidecar mempool.PriorityTxSidecar, bInfo testB
 	return txBytes
 }
 
-func createSidecarBundleAndTxs(t *testing.T, sidecar mempool.PriorityTxSidecar, bInfo testBundleInfo) types.Txs {
+func createSidecarBundleAndTxs(t *testing.T, sidecar PriorityTxSidecar, bInfo testBundleInfo) types.Txs {
 	txs := make(types.Txs, bInfo.BundleSize)
 	for i := 0; i < int(bInfo.BundleSize); i++ {
 		txBytes := addTxToSidecar(t, sidecar, bInfo, int64(i))
@@ -72,7 +78,7 @@ func createSidecarBundleAndTxs(t *testing.T, sidecar mempool.PriorityTxSidecar, 
 	return txs
 }
 
-func addBundlesToSidecar(t *testing.T, sidecar mempool.PriorityTxSidecar, bundles []testBundleInfo, peerID uint16) {
+func addBundlesToSidecar(t *testing.T, sidecar PriorityTxSidecar, bundles []testBundleInfo, peerID uint16) {
 	for _, bundle := range bundles {
 		// createSidecarBundleWithTxs(t, sidecar, bundle.BundleSize, peerID, bundle.BundleID, bundle.DesiredHeight)
 		createSidecarBundleAndTxs(t, sidecar, bundle)
@@ -80,16 +86,13 @@ func addBundlesToSidecar(t *testing.T, sidecar mempool.PriorityTxSidecar, bundle
 }
 
 func TestSidecarUpdate(t *testing.T) {
-	app := kvstore.NewApplication()
-	cc := proxy.NewLocalClientCreator(app)
-	_, sidecar, cleanup := newMempoolWithApp(cc)
-	defer cleanup()
+	sidecar := NewCListSidecar(0, log.NewNopLogger(), NopMetrics())
 
 	// 1. Flushes the sidecar
 	{
 		bInfo := testBundleInfo{
 			BundleSize:    2,
-			PeerID:        mempool.UnknownPeerID,
+			PeerID:        UnknownPeerID,
 			DesiredHeight: 1,
 			BundleID:      0,
 		}
@@ -98,7 +101,7 @@ func TestSidecarUpdate(t *testing.T) {
 
 		bInfo = testBundleInfo{
 			BundleSize:    2,
-			PeerID:        mempool.UnknownPeerID,
+			PeerID:        UnknownPeerID,
 			DesiredHeight: 1,
 			BundleID:      0,
 		}
@@ -115,10 +118,7 @@ func TestSidecarUpdate(t *testing.T) {
 }
 
 func TestSidecarTxsAvailable(t *testing.T) {
-	app := kvstore.NewApplication()
-	cc := proxy.NewLocalClientCreator(app)
-	_, sidecar, cleanup := newMempoolWithApp(cc)
-	defer cleanup()
+	sidecar := NewCListSidecar(0, log.NewNopLogger(), NopMetrics())
 	sidecar.EnableTxsAvailable()
 
 	timeoutMS := 500
@@ -127,7 +127,7 @@ func TestSidecarTxsAvailable(t *testing.T) {
 	ensureNoFire(t, sidecar.TxsAvailable(), timeoutMS)
 
 	// send a bunch of txs, it should only fire once
-	txs := addNumBundlesToSidecar(t, sidecar, 100, 10, mempool.UnknownPeerID)
+	txs := addNumBundlesToSidecar(t, sidecar, 100, 10, UnknownPeerID)
 	ensureFire(t, sidecar.TxsAvailable(), timeoutMS)
 	ensureNoFire(t, sidecar.TxsAvailable(), timeoutMS)
 
@@ -137,7 +137,7 @@ func TestSidecarTxsAvailable(t *testing.T) {
 	txs = txs[50:]
 
 	// send a bunch more txs. we already fired for this height so it shouldnt fire again
-	moreTxs := addNumBundlesToSidecar(t, sidecar, 50, 10, mempool.UnknownPeerID)
+	moreTxs := addNumBundlesToSidecar(t, sidecar, 50, 10, UnknownPeerID)
 	ensureNoFire(t, sidecar.TxsAvailable(), timeoutMS)
 
 	// now call update with all the txs. it should not fire as there are no txs left
@@ -148,23 +148,20 @@ func TestSidecarTxsAvailable(t *testing.T) {
 	ensureNoFire(t, sidecar.TxsAvailable(), timeoutMS)
 
 	// send a bunch more txs, it should only fire once
-	addNumBundlesToSidecar(t, sidecar, 100, 10, mempool.UnknownPeerID)
+	addNumBundlesToSidecar(t, sidecar, 100, 10, UnknownPeerID)
 	ensureFire(t, sidecar.TxsAvailable(), timeoutMS)
 	ensureNoFire(t, sidecar.TxsAvailable(), timeoutMS)
 }
 
 // TODO: shorten
 func TestReapSidecarWithTxsOutOfOrder(t *testing.T) {
-	app := kvstore.NewApplication()
-	cc := proxy.NewLocalClientCreator(app)
-	_, sidecar, cleanup := newMempoolWithApp(cc)
-	defer cleanup()
+	sidecar := NewCListSidecar(0, log.NewNopLogger(), NopMetrics())
 
 	// 1. Inserted out of order, but sequential, but bundleSize 1, so should get one tx
 	{
 		bInfo := testBundleInfo{
 			BundleSize:    1,
-			PeerID:        mempool.UnknownPeerID,
+			PeerID:        UnknownPeerID,
 			DesiredHeight: 1,
 			BundleID:      0,
 		}
@@ -173,7 +170,7 @@ func TestReapSidecarWithTxsOutOfOrder(t *testing.T) {
 
 		bInfo = testBundleInfo{
 			BundleSize:    1,
-			PeerID:        mempool.UnknownPeerID,
+			PeerID:        UnknownPeerID,
 			DesiredHeight: 1,
 			BundleID:      0,
 		}
@@ -182,7 +179,7 @@ func TestReapSidecarWithTxsOutOfOrder(t *testing.T) {
 
 		sidecar.PrettyPrintBundles()
 
-		txs := sidecar.ReapMaxTxs()
+		txs := sidecar.ReapMaxTxs().Txs
 		assert.Equal(t, 1, len(txs), "Got %d txs, expected %d",
 			len(txs), 1)
 
@@ -193,7 +190,7 @@ func TestReapSidecarWithTxsOutOfOrder(t *testing.T) {
 	{
 		bInfo := testBundleInfo{
 			BundleSize:    2,
-			PeerID:        mempool.UnknownPeerID,
+			PeerID:        UnknownPeerID,
 			DesiredHeight: 1,
 			BundleID:      0,
 		}
@@ -202,14 +199,14 @@ func TestReapSidecarWithTxsOutOfOrder(t *testing.T) {
 
 		bInfo = testBundleInfo{
 			BundleSize:    2,
-			PeerID:        mempool.UnknownPeerID,
+			PeerID:        UnknownPeerID,
 			DesiredHeight: 1,
 			BundleID:      0,
 		}
 		bundleOrder = 0
 		addTxToSidecar(t, sidecar, bInfo, bundleOrder)
 
-		txs := sidecar.ReapMaxTxs()
+		txs := sidecar.ReapMaxTxs().Txs
 		assert.Equal(t, 2, len(txs), "Got %d txs, expected %d",
 			len(txs), 2)
 
@@ -220,7 +217,7 @@ func TestReapSidecarWithTxsOutOfOrder(t *testing.T) {
 	{
 		bInfo := testBundleInfo{
 			BundleSize:    5,
-			PeerID:        mempool.UnknownPeerID,
+			PeerID:        UnknownPeerID,
 			DesiredHeight: 1,
 			BundleID:      0,
 		}
@@ -229,14 +226,14 @@ func TestReapSidecarWithTxsOutOfOrder(t *testing.T) {
 
 		bInfo = testBundleInfo{
 			BundleSize:    5,
-			PeerID:        mempool.UnknownPeerID,
+			PeerID:        UnknownPeerID,
 			DesiredHeight: 1,
 			BundleID:      0,
 		}
 		bundleOrder = 1
 		addTxToSidecar(t, sidecar, bInfo, bundleOrder)
 
-		txs := sidecar.ReapMaxTxs()
+		txs := sidecar.ReapMaxTxs().Txs
 		assert.Equal(t, 0, len(txs), "Got %d txs, expected %d",
 			len(txs), 0)
 
@@ -248,7 +245,7 @@ func TestReapSidecarWithTxsOutOfOrder(t *testing.T) {
 	{
 		bInfo := testBundleInfo{
 			BundleSize:    3,
-			PeerID:        mempool.UnknownPeerID,
+			PeerID:        UnknownPeerID,
 			DesiredHeight: 1,
 			BundleID:      2,
 		}
@@ -257,7 +254,7 @@ func TestReapSidecarWithTxsOutOfOrder(t *testing.T) {
 
 		bInfo = testBundleInfo{
 			BundleSize:    3,
-			PeerID:        mempool.UnknownPeerID,
+			PeerID:        UnknownPeerID,
 			DesiredHeight: 1,
 			BundleID:      2,
 		}
@@ -266,7 +263,7 @@ func TestReapSidecarWithTxsOutOfOrder(t *testing.T) {
 
 		bInfo = testBundleInfo{
 			BundleSize:    3,
-			PeerID:        mempool.UnknownPeerID,
+			PeerID:        UnknownPeerID,
 			DesiredHeight: 1,
 			BundleID:      2,
 		}
@@ -277,7 +274,7 @@ func TestReapSidecarWithTxsOutOfOrder(t *testing.T) {
 
 		bInfo = testBundleInfo{
 			BundleSize:    2,
-			PeerID:        mempool.UnknownPeerID,
+			PeerID:        UnknownPeerID,
 			DesiredHeight: 1,
 			BundleID:      0,
 		}
@@ -286,7 +283,7 @@ func TestReapSidecarWithTxsOutOfOrder(t *testing.T) {
 
 		bInfo = testBundleInfo{
 			BundleSize:    2,
-			PeerID:        mempool.UnknownPeerID,
+			PeerID:        UnknownPeerID,
 			DesiredHeight: 1,
 			BundleID:      0,
 		}
@@ -297,7 +294,7 @@ func TestReapSidecarWithTxsOutOfOrder(t *testing.T) {
 
 		bInfo = testBundleInfo{
 			BundleSize:    2,
-			PeerID:        mempool.UnknownPeerID,
+			PeerID:        UnknownPeerID,
 			DesiredHeight: 1,
 			BundleID:      1,
 		}
@@ -306,21 +303,21 @@ func TestReapSidecarWithTxsOutOfOrder(t *testing.T) {
 
 		bInfo = testBundleInfo{
 			BundleSize:    2,
-			PeerID:        mempool.UnknownPeerID,
+			PeerID:        UnknownPeerID,
 			DesiredHeight: 1,
 			BundleID:      1,
 		}
 		bundleOrder = 0
 		addTxToSidecar(t, sidecar, bInfo, bundleOrder)
 
-		txs := sidecar.ReapMaxTxs()
+		txs := sidecar.ReapMaxTxs().Txs
 		assert.Equal(t, 7, len(txs), "Got %d txs, expected %d",
 			len(txs), 7)
 		sidecar.PrettyPrintBundles()
 
 		fmt.Println("TXS FROM REAP ----------")
 		for _, memTx := range txs {
-			fmt.Println(memTx.Tx.String())
+			fmt.Println(memTx.String())
 		}
 		fmt.Println("----------")
 
@@ -333,7 +330,7 @@ func TestReapSidecarWithTxsOutOfOrder(t *testing.T) {
 		// size not filled
 		bInfo := testBundleInfo{
 			BundleSize:    3,
-			PeerID:        mempool.UnknownPeerID,
+			PeerID:        UnknownPeerID,
 			DesiredHeight: 1,
 			BundleID:      2,
 		}
@@ -342,7 +339,7 @@ func TestReapSidecarWithTxsOutOfOrder(t *testing.T) {
 
 		bInfo = testBundleInfo{
 			BundleSize:    3,
-			PeerID:        mempool.UnknownPeerID,
+			PeerID:        UnknownPeerID,
 			DesiredHeight: 1,
 			BundleID:      2,
 		}
@@ -354,7 +351,7 @@ func TestReapSidecarWithTxsOutOfOrder(t *testing.T) {
 		// wrong orders
 		bInfo = testBundleInfo{
 			BundleSize:    3,
-			PeerID:        mempool.UnknownPeerID,
+			PeerID:        UnknownPeerID,
 			DesiredHeight: 1,
 			BundleID:      0,
 		}
@@ -363,7 +360,7 @@ func TestReapSidecarWithTxsOutOfOrder(t *testing.T) {
 
 		bInfo = testBundleInfo{
 			BundleSize:    3,
-			PeerID:        mempool.UnknownPeerID,
+			PeerID:        UnknownPeerID,
 			DesiredHeight: 1,
 			BundleID:      0,
 		}
@@ -372,7 +369,7 @@ func TestReapSidecarWithTxsOutOfOrder(t *testing.T) {
 
 		bInfo = testBundleInfo{
 			BundleSize:    3,
-			PeerID:        mempool.UnknownPeerID,
+			PeerID:        UnknownPeerID,
 			DesiredHeight: 1,
 			BundleID:      0,
 		}
@@ -384,7 +381,7 @@ func TestReapSidecarWithTxsOutOfOrder(t *testing.T) {
 		// wrong heights
 		bInfo = testBundleInfo{
 			BundleSize:    2,
-			PeerID:        mempool.UnknownPeerID,
+			PeerID:        UnknownPeerID,
 			DesiredHeight: 2,
 			BundleID:      1,
 		}
@@ -393,21 +390,21 @@ func TestReapSidecarWithTxsOutOfOrder(t *testing.T) {
 
 		bInfo = testBundleInfo{
 			BundleSize:    2,
-			PeerID:        mempool.UnknownPeerID,
+			PeerID:        UnknownPeerID,
 			DesiredHeight: 0,
 			BundleID:      1,
 		}
 		bundleOrder = 0
 		addTxToSidecar(t, sidecar, bInfo, bundleOrder)
 
-		txs := sidecar.ReapMaxTxs()
+		txs := sidecar.ReapMaxTxs().Txs
 		assert.Equal(t, 0, len(txs), "Got %d txs, expected %d",
 			len(txs), 0)
 		sidecar.PrettyPrintBundles()
 
 		fmt.Println("TXS FROM REAP ----------")
 		for _, memTx := range txs {
-			fmt.Println(memTx.Tx.String())
+			fmt.Println(memTx.String())
 		}
 		fmt.Println("----------")
 
@@ -416,10 +413,7 @@ func TestReapSidecarWithTxsOutOfOrder(t *testing.T) {
 }
 
 func TestBasicAddMultipleBundles(t *testing.T) {
-	app := kvstore.NewApplication()
-	cc := proxy.NewLocalClientCreator(app)
-	_, sidecar, cleanup := newMempoolWithApp(cc)
-	defer cleanup()
+	sidecar := NewCListSidecar(0, log.NewNopLogger(), NopMetrics())
 
 	tests := []struct {
 		numBundlesTxsToCreate int
@@ -432,7 +426,7 @@ func TestBasicAddMultipleBundles(t *testing.T) {
 	}
 	for tcIndex, tt := range tests {
 		fmt.Println("Num bundles to create: ", tt.numBundlesTxsToCreate)
-		addNumBundlesToSidecar(t, sidecar, tt.numBundlesTxsToCreate, 10, mempool.UnknownPeerID)
+		addNumBundlesToSidecar(t, sidecar, tt.numBundlesTxsToCreate, 10, UnknownPeerID)
 		sidecar.ReapMaxTxs()
 		assert.Equal(t, tt.numBundlesTxsToCreate, sidecar.NumBundles(), "Got %d bundles, expected %d, tc #%d",
 			sidecar.NumBundles(), tt.numBundlesTxsToCreate, tcIndex)
@@ -441,10 +435,7 @@ func TestBasicAddMultipleBundles(t *testing.T) {
 }
 
 func TestSpecificAddTxsToMultipleBundles(t *testing.T) {
-	app := kvstore.NewApplication()
-	cc := proxy.NewLocalClientCreator(app)
-	_, sidecar, cleanup := newMempoolWithApp(cc)
-	defer cleanup()
+	sidecar := NewCListSidecar(0, log.NewNopLogger(), NopMetrics())
 
 	// only one since no txs in first
 	{
@@ -453,7 +444,7 @@ func TestSpecificAddTxsToMultipleBundles(t *testing.T) {
 			{0, 1, 0, 0},
 			{5, 1, 1, 0},
 		}
-		addBundlesToSidecar(t, sidecar, bundles, mempool.UnknownPeerID)
+		addBundlesToSidecar(t, sidecar, bundles, UnknownPeerID)
 		assert.Equal(t, 1, sidecar.NumBundles(), "Got %d bundles, expected %d",
 			sidecar.NumBundles(), 1)
 		sidecar.Flush()
@@ -467,7 +458,7 @@ func TestSpecificAddTxsToMultipleBundles(t *testing.T) {
 			{5, 5, 1, 0},
 			{5, 10, 1, 0},
 		}
-		addBundlesToSidecar(t, sidecar, bundles, mempool.UnknownPeerID)
+		addBundlesToSidecar(t, sidecar, bundles, UnknownPeerID)
 		assert.Equal(t, 3, sidecar.NumBundles(), "Got %d bundles, expected %d",
 			sidecar.NumBundles(), 3)
 		sidecar.Flush()
@@ -481,7 +472,7 @@ func TestSpecificAddTxsToMultipleBundles(t *testing.T) {
 			{5, 1, 0, 0},
 			{5, 1, 0, 0},
 		}
-		addBundlesToSidecar(t, sidecar, bundles, mempool.UnknownPeerID)
+		addBundlesToSidecar(t, sidecar, bundles, UnknownPeerID)
 		assert.Equal(t, 1, sidecar.NumBundles(), "Got %d bundles, expected %d",
 			sidecar.NumBundles(), 1)
 		sidecar.Flush()
@@ -495,7 +486,7 @@ func TestSpecificAddTxsToMultipleBundles(t *testing.T) {
 			{5, 1, 3, 0},
 			{5, 1, 5, 0},
 		}
-		addBundlesToSidecar(t, sidecar, bundles, mempool.UnknownPeerID)
+		addBundlesToSidecar(t, sidecar, bundles, UnknownPeerID)
 		assert.Equal(t, 3, sidecar.NumBundles(), "Got %d bundles, expected %d",
 			sidecar.NumBundles(), 3)
 		sidecar.Flush()
@@ -503,31 +494,51 @@ func TestSpecificAddTxsToMultipleBundles(t *testing.T) {
 }
 
 func TestGetEnforcedBundleSize(t *testing.T) {
-	app := kvstore.NewApplication()
-	cc := proxy.NewLocalClientCreator(app)
-	_, sidecar, cleanup := newMempoolWithApp(cc)
-	defer cleanup()
+	sidecar := NewCListSidecar(0, log.NewNopLogger(), NopMetrics())
 
 	assert.Equal(t, 0, sidecar.GetEnforcedBundleSize(0), "Expected enforced bundle size %d, got %d", 0, sidecar.GetEnforcedBundleSize(0))
 
 	bundles := []testBundleInfo{
 		{5, 1, 0, 0},
 	}
-	addBundlesToSidecar(t, sidecar, bundles, mempool.UnknownPeerID)
+	addBundlesToSidecar(t, sidecar, bundles, UnknownPeerID)
 	assert.Equal(t, 5, sidecar.GetEnforcedBundleSize(0), "Expected enforced bundle size %d, got %d", 5, sidecar.GetEnforcedBundleSize(0))
 }
 
 func TestGetCurrBundleSize(t *testing.T) {
-	app := kvstore.NewApplication()
-	cc := proxy.NewLocalClientCreator(app)
-	_, sidecar, cleanup := newMempoolWithApp(cc)
-	defer cleanup()
+	sidecar := NewCListSidecar(0, log.NewNopLogger(), NopMetrics())
 
 	assert.Equal(t, 0, sidecar.GetCurrBundleSize(0), "Expected curr bundle size %d, got %d", 0, sidecar.GetCurrBundleSize(0))
 
 	bundles := []testBundleInfo{
 		{5, 1, 0, 0},
 	}
-	addBundlesToSidecar(t, sidecar, bundles, mempool.UnknownPeerID)
+	addBundlesToSidecar(t, sidecar, bundles, UnknownPeerID)
 	assert.Equal(t, 5, sidecar.GetCurrBundleSize(0), "Expected curr bundle size %d, got %d", 5, sidecar.GetCurrBundleSize(0))
+}
+
+func abciResponses(n int, code uint32) []*abci.ResponseDeliverTx {
+	responses := make([]*abci.ResponseDeliverTx, 0, n)
+	for i := 0; i < n; i++ {
+		responses = append(responses, &abci.ResponseDeliverTx{Code: code})
+	}
+	return responses
+}
+
+func ensureNoFire(t *testing.T, ch <-chan struct{}, timeoutMS int) {
+	timer := time.NewTimer(time.Duration(timeoutMS) * time.Millisecond)
+	select {
+	case <-ch:
+		t.Fatal("Expected not to fire")
+	case <-timer.C:
+	}
+}
+
+func ensureFire(t *testing.T, ch <-chan struct{}, timeoutMS int) {
+	timer := time.NewTimer(time.Duration(timeoutMS) * time.Millisecond)
+	select {
+	case <-ch:
+	case <-timer.C:
+		t.Fatal("Expected to fire")
+	}
 }

@@ -24,7 +24,7 @@ type Reactor struct {
 	p2p.BaseReactor
 	config  *cfg.MempoolConfig
 	mempool *CListMempool
-	sidecar *CListPriorityTxSidecar
+	sidecar *mempool.CListPriorityTxSidecar
 	ids     *mempoolIDs
 }
 
@@ -92,7 +92,7 @@ func newMempoolIDs() *mempoolIDs {
 }
 
 // NewReactor returns a new Reactor with the given config and mempool.
-func NewReactor(config *cfg.MempoolConfig, mempool *CListMempool, sidecar *CListPriorityTxSidecar) *Reactor {
+func NewReactor(config *cfg.MempoolConfig, mempool *CListMempool, sidecar *mempool.CListPriorityTxSidecar) *Reactor {
 	memR := &Reactor{
 		config:  config,
 		mempool: mempool,
@@ -153,7 +153,6 @@ func (memR *Reactor) GetChannels() []*p2p.ChannelDescriptor {
 func (memR *Reactor) AddPeer(peer p2p.Peer) {
 	if memR.config.Broadcast {
 		go memR.broadcastMempoolTxRoutine(peer)
-		// go memR.broadcastSidecarTxRoutine(peer)
 		if peer.IsSidecarPeer() {
 			go memR.broadcastSidecarTxRoutine(peer)
 		}
@@ -258,7 +257,7 @@ type PeerState interface {
 	GetHeight() int64
 }
 
-// Send new mempool txs to peer.
+// Send new sidecar txs to peer.
 func (memR *Reactor) broadcastSidecarTxRoutine(peer p2p.Peer) {
 	peerID := memR.ids.GetForPeer(peer)
 	isSidecarPeer := peer.IsSidecarPeer()
@@ -385,8 +384,8 @@ func (memR *Reactor) broadcastMempoolTxRoutine(peer p2p.Peer) {
 		}
 
 		// Allow for a lag of 1 block.
-		memTx := next.Value.(*mempool.MempoolTx)
-		if peerState.GetHeight() < memTx.Height-1 {
+		memTx := next.Value.(*mempoolTx)
+		if peerState.GetHeight() < memTx.height-1 {
 			time.Sleep(mempool.PeerCatchupSleepIntervalMS * time.Millisecond)
 			continue
 		}
@@ -394,10 +393,10 @@ func (memR *Reactor) broadcastMempoolTxRoutine(peer p2p.Peer) {
 		// NOTE: Transaction batching was disabled due to
 		// https://github.com/tendermint/tendermint/issues/5796
 
-		if _, ok := memTx.Senders.Load(peerID); !ok {
+		if _, ok := memTx.senders.Load(peerID); !ok {
 			success := p2p.SendEnvelopeShim(peer, p2p.Envelope{ //nolint: staticcheck
 				ChannelID: mempool.MempoolChannel,
-				Message:   &protomem.Txs{Txs: [][]byte{memTx.Tx}},
+				Message:   &protomem.Txs{Txs: [][]byte{memTx.tx}},
 			}, memR.Logger)
 			if !success {
 				time.Sleep(mempool.PeerCatchupSleepIntervalMS * time.Millisecond)
@@ -415,4 +414,17 @@ func (memR *Reactor) broadcastMempoolTxRoutine(peer p2p.Peer) {
 			return
 		}
 	}
+}
+
+//-----------------------------------------------------------------------------
+// Messages
+
+// TxsMessage is a Message containing transactions.
+type TxsMessage struct {
+	Txs []types.Tx
+}
+
+// String returns a string representation of the TxsMessage.
+func (m *TxsMessage) String() string {
+	return fmt.Sprintf("[TxsMessage %v]", m.Txs)
 }

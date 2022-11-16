@@ -1,8 +1,10 @@
 package v0
 
 import (
+	"crypto/rand"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"net"
 	"sync"
 	"testing"
@@ -63,7 +65,7 @@ func TestReactorBroadcastTxsMessage(t *testing.T) {
 		}
 	}
 
-	txs := checkTxs(t, reactors[0].mempool, numTxs, mempool.UnknownPeerID, reactors[0].sidecar, false)
+	txs := checkTxs(t, reactors[0].mempool, numTxs, mempool.UnknownPeerID)
 	waitForTxsOnReactors(t, txs, reactors, false)
 }
 
@@ -169,7 +171,7 @@ func TestReactorConcurrency(t *testing.T) {
 
 		// 1. submit a bunch of txs
 		// 2. update the whole mempool
-		txs := checkTxs(t, reactors[0].mempool, numTxs, mempool.UnknownPeerID, nil, false)
+		txs := checkTxs(t, reactors[0].mempool, numTxs, mempool.UnknownPeerID)
 		go func() {
 			defer wg.Done()
 
@@ -186,7 +188,7 @@ func TestReactorConcurrency(t *testing.T) {
 
 		// 1. submit a bunch of txs
 		// 2. update none
-		_ = checkTxs(t, reactors[1].mempool, numTxs, mempool.UnknownPeerID, nil, false)
+		_ = checkTxs(t, reactors[1].mempool, numTxs, mempool.UnknownPeerID)
 		go func() {
 			defer wg.Done()
 
@@ -223,7 +225,7 @@ func TestReactorNoBroadcastToSender(t *testing.T) {
 	}
 
 	const peerID = 1
-	checkTxs(t, reactors[0].mempool, numTxs, peerID, nil, false)
+	checkTxs(t, reactors[0].mempool, numTxs, peerID)
 	ensureNoTxs(t, reactors[peerID], 100*time.Millisecond)
 }
 
@@ -417,7 +419,8 @@ func makeAndConnectReactorsEvensSidecar(config *cfg.Config, n int) []*Reactor {
 	for i := 0; i < n; i++ {
 		app := kvstore.NewApplication()
 		cc := proxy.NewLocalClientCreator(app)
-		mempool, sidecar, cleanup := newMempoolWithApp(cc)
+		sidecar := mempool.NewCListSidecar(0, log.NewNopLogger(), mempool.NopMetrics())
+		mempool, cleanup := newMempoolWithApp(cc)
 		defer cleanup()
 
 		reactors[i] = NewReactor(config.Mempool, mempool, sidecar) // so we dont start the consensus states
@@ -439,7 +442,8 @@ func makeAndConnectReactors(config *cfg.Config, n int) []*Reactor {
 	for i := 0; i < n; i++ {
 		app := kvstore.NewApplication()
 		cc := proxy.NewLocalClientCreator(app)
-		mempool, sidecar, cleanup := newMempoolWithApp(cc)
+		sidecar := mempool.NewCListSidecar(0, log.NewNopLogger(), mempool.NopMetrics())
+		mempool, cleanup := newMempoolWithApp(cc)
 		defer cleanup()
 
 		reactors[i] = NewReactor(config.Mempool, mempool, sidecar) // so we dont start the consensus states
@@ -504,8 +508,7 @@ func waitForSidecarTxsOnReactor(t *testing.T, txs types.Txs, reactor *Reactor, r
 
 	reapedTxs := sidecar.ReapMaxTxs()
 	var i int
-	for _, scMemTx := range reapedTxs {
-		scTx := scMemTx.Tx
+	for _, scTx := range reapedTxs.Txs {
 		assert.Equalf(t, txs[i], scTx,
 			"txs at index %d on reactor %d don't match: %s vs %s", i, reactorIndex, txs[i], scTx)
 		i++
@@ -541,4 +544,48 @@ func TestMempoolVectors(t *testing.T) {
 
 		require.Equal(t, tc.expBytes, hex.EncodeToString(bz), tc.testName)
 	}
+}
+
+// Sidecar testing utils
+
+type testBundleInfo struct {
+	BundleSize    int64
+	DesiredHeight int64
+	BundleID      int64
+	PeerID        uint16
+}
+
+func addNumBundlesToSidecar(t *testing.T, sidecar mempool.PriorityTxSidecar, numBundles int, bundleSize int64, peerID uint16) types.Txs {
+	totalTxsCount := 0
+	txs := make(types.Txs, 0)
+	for i := 0; i < numBundles; i++ {
+		totalTxsCount += int(bundleSize)
+		newTxs := createSidecarBundleAndTxs(t, sidecar, testBundleInfo{BundleSize: bundleSize,
+			PeerID: mempool.UnknownPeerID, DesiredHeight: sidecar.HeightForFiringAuction(), BundleID: int64(i)})
+		txs = append(txs, newTxs...)
+	}
+	return txs
+}
+
+func createSidecarBundleAndTxs(t *testing.T, sidecar mempool.PriorityTxSidecar, bInfo testBundleInfo) types.Txs {
+	txs := make(types.Txs, bInfo.BundleSize)
+	for i := 0; i < int(bInfo.BundleSize); i++ {
+		txBytes := addTxToSidecar(t, sidecar, bInfo, int64(i))
+		txs[i] = txBytes
+	}
+	return txs
+}
+
+func addTxToSidecar(t *testing.T, sidecar mempool.PriorityTxSidecar, bInfo testBundleInfo, bundleOrder int64) types.Tx {
+	txInfo := mempool.TxInfo{SenderID: bInfo.PeerID, BundleSize: bInfo.BundleSize,
+		BundleID: bInfo.BundleID, DesiredHeight: bInfo.DesiredHeight, BundleOrder: bundleOrder}
+	txBytes := make([]byte, 20)
+	_, err := rand.Read(txBytes)
+	if err != nil {
+		t.Error(err)
+	}
+	if err := sidecar.AddTx(txBytes, txInfo); err != nil {
+		fmt.Println("Ignoring error in AddTx:", err)
+	}
+	return txBytes
 }

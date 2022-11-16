@@ -108,13 +108,14 @@ func (blockExec *BlockExecutor) CreateProposalBlock(
 	// Fetch a limited amount of valid txs
 	maxDataBytes := types.MaxDataBytes(maxBytes, evSize, state.Validators.Size())
 
-	sidecarTxs := make([]*mempl.MempoolTx, 0)
+	var sidecarTxs types.ReapedTxs
 	if blockExec.sidecar != nil {
 		sidecarTxs = blockExec.sidecar.ReapMaxTxs()
 	} else {
 		fmt.Println("Sidecar is nil, not reaping")
 	}
-	txs := blockExec.mempool.ReapMaxBytesMaxGas(maxDataBytes, maxGas, sidecarTxs)
+	memplTxs := blockExec.mempool.ReapMaxBytesMaxGas(maxDataBytes, maxGas)
+	txs := mempl.CombineSidecarAndMempoolTxs(memplTxs, sidecarTxs, maxDataBytes, maxGas)
 
 	return state.MakeBlock(height, txs, commit, evidence, proposerAddr)
 }
