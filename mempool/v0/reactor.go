@@ -141,9 +141,16 @@ func (memR *Reactor) GetChannels() []*p2p.ChannelDescriptor {
 			MessageType:         &protomem.Message{},
 		},
 		{
+			ID:                  mempool.SidecarLegacyChannel,
+			Priority:            5,
+			RecvMessageCapacity: batchMsg.Size(),
+			MessageType:         &protomem.MEVMessage{},
+		},
+		{
 			ID:                  mempool.SidecarChannel,
 			Priority:            5,
 			RecvMessageCapacity: batchMsg.Size(),
+			MessageType:         &protomem.Message{},
 		},
 	}
 }
@@ -170,6 +177,7 @@ func (memR *Reactor) RemovePeer(peer p2p.Peer, reason interface{}) {
 func (memR *Reactor) ReceiveEnvelope(e p2p.Envelope) {
 	memR.Logger.Debug("Receive", "src", e.Src, "chId", e.ChannelID, "msg", e.Message)
 	isSidecarPeer := e.Src.IsSidecarPeer()
+	isLegacySidecarChannel := e.ChannelID == mempool.SidecarLegacyChannel
 	isSidecarChannel := e.ChannelID == mempool.SidecarChannel
 	switch msg := e.Message.(type) {
 	case *protomem.Txs:
@@ -207,26 +215,29 @@ func (memR *Reactor) ReceiveEnvelope(e p2p.Envelope) {
 			memR.Logger.Error("received mev txs from non-sidecar peer", "src", e.Src)
 			return
 		}
-		txInfo := mempool.TxInfo{
-			SenderID:      memR.ids.GetForPeer(e.Src),
+		summary := MEVTxSummary{
+			Txs:           protoTxs,
 			DesiredHeight: msg.DesiredHeight,
 			BundleID:      msg.BundleId,
 			BundleOrder:   msg.BundleOrder,
 			BundleSize:    msg.BundleSize,
 		}
-		if e.Src != nil {
-			txInfo.SenderP2PID = e.Src.ID()
+		memR.InsertMEVTxInSidecar(summary, e.Src)
+	case *protomem.MEVMessage:
+		summary, err := memR.decodeLegacyMEVMessage(msg)
+		if err != nil {
+			memR.Logger.Error("failed to decode legacy mev message", "err", err)
+			return
 		}
-		// add tx
-		for _, tx := range protoTxs {
-			ntx := types.Tx(tx)
-			err := memR.sidecar.AddTx(ntx, txInfo)
-			if err == mempool.ErrTxInCache {
-				memR.Logger.Debug("sidecartx already exists in cache!", "tx", ntx.Hash())
-			} else if err != nil {
-				memR.Logger.Info("could not add SidecarTx", "tx", ntx.String(), "err", err)
-			}
+		if !isLegacySidecarChannel {
+			memR.Logger.Error("received legacy mev message over incorrect channel", "src", e.Src, "chId", e.ChannelID)
+			return
 		}
+		if !isSidecarPeer {
+			memR.Logger.Error("received legacy mev message from non-sidecar peer", "src", e.Src)
+			return
+		}
+		memR.InsertMEVTxInSidecar(summary, e.Src)
 	default:
 		memR.Logger.Error("unknown message type", "src", e.Src, "chId", e.ChannelID, "msg", e.Message)
 		memR.Switch.StopPeerForError(e.Src, fmt.Errorf("mempool cannot handle message of type: %T", e.Message))
@@ -235,21 +246,57 @@ func (memR *Reactor) ReceiveEnvelope(e p2p.Envelope) {
 }
 
 func (memR *Reactor) Receive(chID byte, peer p2p.Peer, msgBytes []byte) {
-	msg := &protomem.Message{}
+	if chID == mempool.MempoolChannel || chID == mempool.SidecarChannel {
+		msg := &protomem.Message{}
 
-	err := proto.Unmarshal(msgBytes, msg)
-	if err != nil {
-		panic(err)
+		err := proto.Unmarshal(msgBytes, msg)
+		if err != nil {
+			panic(err)
+		}
+		uw, err := msg.Unwrap()
+		if err != nil {
+			panic(err)
+		}
+		memR.ReceiveEnvelope(p2p.Envelope{
+			ChannelID: chID,
+			Src:       peer,
+			Message:   uw,
+		})
+	} else if chID == mempool.SidecarLegacyChannel {
+		msg := &protomem.MEVMessage{}
+		err := proto.Unmarshal(msgBytes, msg)
+		if err != nil {
+			panic(err)
+		}
+		memR.ReceiveEnvelope(p2p.Envelope{
+			ChannelID: chID,
+			Src:       peer,
+			Message:   msg,
+		})
 	}
-	uw, err := msg.Unwrap()
-	if err != nil {
-		panic(err)
+}
+
+// Ingress a transaction to the sidecar along with txinfo object
+func (memR *Reactor) InsertMEVTxInSidecar(summary MEVTxSummary, peer p2p.Peer) {
+	txInfo := mempool.TxInfo{
+		SenderID:      memR.ids.GetForPeer(peer),
+		DesiredHeight: summary.DesiredHeight,
+		BundleID:      summary.BundleID,
+		BundleOrder:   summary.BundleOrder,
+		BundleSize:    summary.BundleSize,
 	}
-	memR.ReceiveEnvelope(p2p.Envelope{
-		ChannelID: chID,
-		Src:       peer,
-		Message:   uw,
-	})
+	if peer != nil {
+		txInfo.SenderP2PID = peer.ID()
+	}
+	for _, tx := range summary.Txs {
+		ntx := types.Tx(tx)
+		err := memR.sidecar.AddTx(ntx, txInfo)
+		if err == mempool.ErrTxInCache {
+			memR.Logger.Debug("sidecartx already exists in cache!", "tx", ntx.Hash())
+		} else if err != nil {
+			memR.Logger.Info("could not add SidecarTx", "tx", ntx.String(), "err", err)
+		}
+	}
 }
 
 // PeerState describes the state of a peer.
@@ -307,6 +354,7 @@ func (memR *Reactor) broadcastSidecarTxRoutine(peer p2p.Peer) {
 				continue
 			}
 			if _, ok := scTx.Senders.Load(peerID); !ok {
+				// try sending over using envelop protocol over new channel first
 				msg := &protomem.MEVTxs{
 					Txs:           [][]byte{scTx.Tx},
 					DesiredHeight: scTx.DesiredHeight,
@@ -315,12 +363,29 @@ func (memR *Reactor) broadcastSidecarTxRoutine(peer p2p.Peer) {
 					BundleSize:    scTx.BundleSize,
 				}
 				success := p2p.SendEnvelopeShim(peer, p2p.Envelope{ //nolint: staticcheck
-					ChannelID: mempool.MempoolChannel,
+					ChannelID: mempool.SidecarChannel,
 					Message:   msg,
 				}, memR.Logger)
 				if !success {
-					time.Sleep(mempool.PeerCatchupSleepIntervalMS * time.Millisecond)
-					continue
+					// if sending over envelop protocol fails, try sending over legacy protocol
+					msg := &protomem.MEVMessage{
+						Sum: &protomem.MEVMessage_Txs{
+							Txs: &protomem.Txs{Txs: [][]byte{scTx.Tx}},
+						},
+						DesiredHeight: scTx.DesiredHeight,
+						BundleId:      scTx.BundleID,
+						BundleOrder:   scTx.BundleOrder,
+						BundleSize:    scTx.BundleSize,
+					}
+
+					success := p2p.SendEnvelopeShim(peer, p2p.Envelope{
+						ChannelID: mempool.SidecarLegacyChannel,
+						Message:   msg,
+					}, memR.Logger)
+					if !success {
+						time.Sleep(mempool.PeerCatchupSleepIntervalMS * time.Millisecond)
+						continue
+					}
 				}
 			} else {
 				memR.Logger.Info(
@@ -414,6 +479,43 @@ func (memR *Reactor) broadcastMempoolTxRoutine(peer p2p.Peer) {
 			return
 		}
 	}
+}
+
+func (memR *Reactor) decodeLegacyMEVMessage(lm *protomem.MEVMessage) (MEVTxSummary, error) {
+	var summary MEVTxSummary
+
+	if i, ok := lm.Sum.(*protomem.MEVMessage_Txs); ok {
+		txs := i.Txs.GetTxs()
+
+		if len(txs) == 0 {
+			return summary, errors.New("empty TxsMessage")
+		}
+
+		decoded := make([]types.Tx, len(txs))
+		for j, tx := range txs {
+			decoded[j] = types.Tx(tx)
+		}
+
+		summary = MEVTxSummary{
+			Txs:           txs,
+			DesiredHeight: lm.GetDesiredHeight(),
+			BundleID:      lm.GetBundleId(),
+			BundleOrder:   lm.GetBundleOrder(),
+			BundleSize:    lm.GetBundleSize(),
+		}
+		return summary, nil
+	}
+	return summary, fmt.Errorf("msg type: %T is not supported", lm)
+}
+
+// MEVTxsSummary is a data structure used to abstract MEV Txs
+// mempool insertion logic from the protobuf message they are received in
+type MEVTxSummary struct {
+	Txs           [][]byte
+	DesiredHeight int64
+	BundleID      int64
+	BundleOrder   int64
+	BundleSize    int64
 }
 
 //-----------------------------------------------------------------------------

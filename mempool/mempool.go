@@ -12,9 +12,9 @@ import (
 )
 
 const (
-	MempoolChannel = byte(0x30)
-
-	SidecarChannel = byte(0x80)
+	MempoolChannel       = byte(0x30)
+	SidecarChannel       = byte(0x50)
+	SidecarLegacyChannel = byte(0x80) // uses the legacy MEVMessage type
 
 	// PeerCatchupSleepIntervalMS defines how much time to sleep if a peer is behind
 	PeerCatchupSleepIntervalMS = 100

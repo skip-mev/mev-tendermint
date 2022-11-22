@@ -152,6 +152,111 @@ func (*Message) XXX_OneofWrappers() []interface{} {
 	}
 }
 
+type MEVMessage struct {
+	// Types that are valid to be assigned to Sum:
+	//
+	//	*MEVMessage_Txs
+	Sum           isMEVMessage_Sum `protobuf_oneof:"sum"`
+	DesiredHeight int64            `protobuf:"varint,2,opt,name=desired_height,json=desiredHeight,proto3" json:"desired_height,omitempty"`
+	BundleId      int64            `protobuf:"varint,3,opt,name=bundle_id,json=bundleId,proto3" json:"bundle_id,omitempty"`
+	BundleOrder   int64            `protobuf:"varint,4,opt,name=bundle_order,json=bundleOrder,proto3" json:"bundle_order,omitempty"`
+	BundleSize    int64            `protobuf:"varint,5,opt,name=bundle_size,json=bundleSize,proto3" json:"bundle_size,omitempty"`
+}
+
+func (m *MEVMessage) Reset()         { *m = MEVMessage{} }
+func (m *MEVMessage) String() string { return proto.CompactTextString(m) }
+func (*MEVMessage) ProtoMessage()    {}
+func (*MEVMessage) Descriptor() ([]byte, []int) {
+	return fileDescriptor_2af51926fdbcbc05, []int{2}
+}
+func (m *MEVMessage) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *MEVMessage) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_MEVMessage.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *MEVMessage) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_MEVMessage.Merge(m, src)
+}
+func (m *MEVMessage) XXX_Size() int {
+	return m.Size()
+}
+func (m *MEVMessage) XXX_DiscardUnknown() {
+	xxx_messageInfo_MEVMessage.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_MEVMessage proto.InternalMessageInfo
+
+type isMEVMessage_Sum interface {
+	isMEVMessage_Sum()
+	MarshalTo([]byte) (int, error)
+	Size() int
+}
+
+type MEVMessage_Txs struct {
+	Txs *Txs `protobuf:"bytes,1,opt,name=txs,proto3,oneof" json:"txs,omitempty"`
+}
+
+func (*MEVMessage_Txs) isMEVMessage_Sum() {}
+
+func (m *MEVMessage) GetSum() isMEVMessage_Sum {
+	if m != nil {
+		return m.Sum
+	}
+	return nil
+}
+
+func (m *MEVMessage) GetTxs() *Txs {
+	if x, ok := m.GetSum().(*MEVMessage_Txs); ok {
+		return x.Txs
+	}
+	return nil
+}
+
+func (m *MEVMessage) GetDesiredHeight() int64 {
+	if m != nil {
+		return m.DesiredHeight
+	}
+	return 0
+}
+
+func (m *MEVMessage) GetBundleId() int64 {
+	if m != nil {
+		return m.BundleId
+	}
+	return 0
+}
+
+func (m *MEVMessage) GetBundleOrder() int64 {
+	if m != nil {
+		return m.BundleOrder
+	}
+	return 0
+}
+
+func (m *MEVMessage) GetBundleSize() int64 {
+	if m != nil {
+		return m.BundleSize
+	}
+	return 0
+}
+
+// XXX_OneofWrappers is for the internal use of the proto package.
+func (*MEVMessage) XXX_OneofWrappers() []interface{} {
+	return []interface{}{
+		(*MEVMessage_Txs)(nil),
+	}
+}
+
 type MEVTxs struct {
 	Txs           [][]byte `protobuf:"bytes,1,rep,name=txs,proto3" json:"txs,omitempty"`
 	DesiredHeight int64    `protobuf:"varint,2,opt,name=desired_height,json=desiredHeight,proto3" json:"desired_height,omitempty"`
@@ -164,7 +269,7 @@ func (m *MEVTxs) Reset()         { *m = MEVTxs{} }
 func (m *MEVTxs) String() string { return proto.CompactTextString(m) }
 func (*MEVTxs) ProtoMessage()    {}
 func (*MEVTxs) Descriptor() ([]byte, []int) {
-	return fileDescriptor_2af51926fdbcbc05, []int{2}
+	return fileDescriptor_2af51926fdbcbc05, []int{3}
 }
 func (m *MEVTxs) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -231,33 +336,35 @@ func (m *MEVTxs) GetBundleSize() int64 {
 func init() {
 	proto.RegisterType((*Txs)(nil), "tendermint.mempool.Txs")
 	proto.RegisterType((*Message)(nil), "tendermint.mempool.Message")
+	proto.RegisterType((*MEVMessage)(nil), "tendermint.mempool.MEVMessage")
 	proto.RegisterType((*MEVTxs)(nil), "tendermint.mempool.MEVTxs")
 }
 
 func init() { proto.RegisterFile("tendermint/mempool/types.proto", fileDescriptor_2af51926fdbcbc05) }
 
 var fileDescriptor_2af51926fdbcbc05 = []byte{
-	// 307 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x6c, 0x91, 0xc1, 0x4a, 0x2b, 0x31,
-	0x14, 0x86, 0x27, 0x37, 0xb7, 0xad, 0x9e, 0x56, 0x91, 0x6c, 0x3a, 0x28, 0x44, 0x2d, 0x08, 0x05,
-	0x61, 0x06, 0x14, 0x17, 0x6e, 0x0b, 0x42, 0x5d, 0x14, 0xa1, 0x2d, 0x2e, 0xdc, 0x0c, 0xd6, 0x1c,
-	0xda, 0x40, 0xd3, 0x94, 0x49, 0x5a, 0xc6, 0x3e, 0x85, 0xcf, 0xe0, 0xd3, 0xb8, 0xec, 0xd2, 0xa5,
-	0xcc, 0xbc, 0x88, 0x4c, 0x66, 0xc4, 0xc2, 0xb8, 0x3b, 0xf9, 0xbe, 0xf3, 0x27, 0x81, 0x1f, 0xb8,
-	0xc5, 0x85, 0xc0, 0x58, 0xc9, 0x85, 0x0d, 0x15, 0xaa, 0xa5, 0xd6, 0xf3, 0xd0, 0xbe, 0x2e, 0xd1,
-	0x04, 0xcb, 0x58, 0x5b, 0xcd, 0xd8, 0xaf, 0x0f, 0x4a, 0xdf, 0x69, 0x03, 0x1d, 0x27, 0x86, 0x1d,
-	0x01, 0xb5, 0x89, 0xf1, 0xc9, 0x19, 0xed, 0xb6, 0x86, 0xf9, 0xd8, 0xb1, 0xd0, 0x18, 0xa0, 0x31,
-	0xcf, 0x53, 0x64, 0x97, 0x3f, 0x92, 0x74, 0x9b, 0x57, 0xed, 0xa0, 0x7a, 0x4b, 0x30, 0x4e, 0x4c,
-	0xdf, 0x73, 0x39, 0x76, 0x03, 0x0d, 0x85, 0xeb, 0x28, 0x0f, 0xfc, 0x73, 0x81, 0xe3, 0xbf, 0x02,
-	0x83, 0xbb, 0xc7, 0x22, 0x53, 0x57, 0xb8, 0x1e, 0x27, 0xa6, 0x57, 0x03, 0x6a, 0x56, 0xaa, 0xf3,
-	0x4e, 0xa0, 0x5e, 0xb8, 0xea, 0x97, 0xd8, 0x05, 0x1c, 0x0a, 0x34, 0x32, 0x46, 0x11, 0xcd, 0x50,
-	0x4e, 0x67, 0xd6, 0xbd, 0x40, 0x87, 0x07, 0x25, 0xed, 0x3b, 0xc8, 0x4e, 0x60, 0x7f, 0xb2, 0x5a,
-	0x88, 0x39, 0x46, 0x52, 0xf8, 0xd4, 0x6d, 0xec, 0x15, 0xe0, 0x5e, 0xb0, 0x73, 0x68, 0x95, 0x52,
-	0xc7, 0x02, 0x63, 0xff, 0xbf, 0xf3, 0xcd, 0x82, 0x3d, 0xe4, 0x88, 0x9d, 0x42, 0x79, 0x8c, 0x8c,
-	0xdc, 0xa0, 0x5f, 0x73, 0x1b, 0x50, 0xa0, 0x91, 0xdc, 0x60, 0x6f, 0xf4, 0x91, 0x72, 0xb2, 0x4d,
-	0x39, 0xf9, 0x4a, 0x39, 0x79, 0xcb, 0xb8, 0xb7, 0xcd, 0xb8, 0xf7, 0x99, 0x71, 0xef, 0xe9, 0x76,
-	0x2a, 0xed, 0x6c, 0x35, 0x09, 0x5e, 0xb4, 0x0a, 0x77, 0xca, 0xd8, 0x19, 0x5d, 0x13, 0x61, 0xb5,
-	0xa8, 0x49, 0xdd, 0x99, 0xeb, 0xef, 0x00, 0x00, 0x00, 0xff, 0xff, 0x27, 0x5a, 0xb5, 0x8a, 0xc5,
-	0x01, 0x00, 0x00,
+	// 322 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xe2, 0x92, 0x2b, 0x49, 0xcd, 0x4b,
+	0x49, 0x2d, 0xca, 0xcd, 0xcc, 0x2b, 0xd1, 0xcf, 0x4d, 0xcd, 0x2d, 0xc8, 0xcf, 0xcf, 0xd1, 0x2f,
+	0xa9, 0x2c, 0x48, 0x2d, 0xd6, 0x2b, 0x28, 0xca, 0x2f, 0xc9, 0x17, 0x12, 0x42, 0xc8, 0xeb, 0x41,
+	0xe5, 0x95, 0xc4, 0xb9, 0x98, 0x43, 0x2a, 0x8a, 0x85, 0x04, 0xb8, 0x98, 0x4b, 0x2a, 0x8a, 0x25,
+	0x18, 0x15, 0x98, 0x35, 0x78, 0x82, 0x40, 0x4c, 0xa5, 0x12, 0x2e, 0x76, 0xdf, 0xd4, 0xe2, 0xe2,
+	0xc4, 0xf4, 0x54, 0x21, 0x6d, 0x98, 0x24, 0xa3, 0x06, 0xb7, 0x91, 0xb8, 0x1e, 0xa6, 0x29, 0x7a,
+	0x21, 0x15, 0xc5, 0x1e, 0x0c, 0x60, 0x7d, 0x42, 0xa6, 0x5c, 0xec, 0xb9, 0xa9, 0x65, 0xf1, 0x20,
+	0x0d, 0x4c, 0x60, 0x0d, 0x52, 0xd8, 0x34, 0xf8, 0xba, 0x86, 0x41, 0xf4, 0xb0, 0xe5, 0xa6, 0x96,
+	0x85, 0x54, 0x14, 0x3b, 0xb1, 0x72, 0x31, 0x17, 0x97, 0xe6, 0x2a, 0x9d, 0x60, 0xe4, 0xe2, 0xf2,
+	0x75, 0x0d, 0x23, 0xcb, 0x66, 0x55, 0x2e, 0xbe, 0x94, 0xd4, 0xe2, 0xcc, 0xa2, 0xd4, 0x94, 0xf8,
+	0x8c, 0xd4, 0xcc, 0xf4, 0x8c, 0x12, 0xb0, 0x03, 0x98, 0x83, 0x78, 0xa1, 0xa2, 0x1e, 0x60, 0x41,
+	0x21, 0x69, 0x2e, 0xce, 0xa4, 0xd2, 0xbc, 0x94, 0x9c, 0xd4, 0xf8, 0xcc, 0x14, 0x09, 0x66, 0xb0,
+	0x0a, 0x0e, 0x88, 0x80, 0x67, 0x8a, 0x90, 0x22, 0x17, 0x0f, 0x54, 0x32, 0xbf, 0x28, 0x25, 0xb5,
+	0x48, 0x82, 0x05, 0x2c, 0xcf, 0x0d, 0x11, 0xf3, 0x07, 0x09, 0x09, 0xc9, 0x73, 0x41, 0xb9, 0xf1,
+	0xc5, 0x99, 0x55, 0xa9, 0x12, 0xac, 0x60, 0x15, 0x5c, 0x10, 0xa1, 0xe0, 0xcc, 0xaa, 0x54, 0x98,
+	0x57, 0x16, 0x31, 0x72, 0xb1, 0x41, 0xbc, 0x89, 0x19, 0xba, 0x83, 0xc6, 0xad, 0xc1, 0x27, 0x1e,
+	0xc9, 0x31, 0x5e, 0x78, 0x24, 0xc7, 0xf8, 0xe0, 0x91, 0x1c, 0xe3, 0x84, 0xc7, 0x72, 0x0c, 0x17,
+	0x1e, 0xcb, 0x31, 0xdc, 0x78, 0x2c, 0xc7, 0x10, 0x65, 0x99, 0x9e, 0x59, 0x92, 0x51, 0x9a, 0xa4,
+	0x97, 0x9c, 0x9f, 0xab, 0x8f, 0x94, 0xae, 0x90, 0x98, 0xe0, 0x44, 0xa5, 0x8f, 0x99, 0xe6, 0x92,
+	0xd8, 0xc0, 0x32, 0xc6, 0x80, 0x00, 0x00, 0x00, 0xff, 0xff, 0xee, 0xea, 0x3f, 0x1a, 0x90, 0x02,
+	0x00, 0x00,
 }
 
 func (m *Txs) Marshal() (dAtA []byte, err error) {
@@ -363,6 +470,79 @@ func (m *Message_MevTxs) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 		}
 		i--
 		dAtA[i] = 0x12
+	}
+	return len(dAtA) - i, nil
+}
+func (m *MEVMessage) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *MEVMessage) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *MEVMessage) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.BundleSize != 0 {
+		i = encodeVarintTypes(dAtA, i, uint64(m.BundleSize))
+		i--
+		dAtA[i] = 0x28
+	}
+	if m.BundleOrder != 0 {
+		i = encodeVarintTypes(dAtA, i, uint64(m.BundleOrder))
+		i--
+		dAtA[i] = 0x20
+	}
+	if m.BundleId != 0 {
+		i = encodeVarintTypes(dAtA, i, uint64(m.BundleId))
+		i--
+		dAtA[i] = 0x18
+	}
+	if m.DesiredHeight != 0 {
+		i = encodeVarintTypes(dAtA, i, uint64(m.DesiredHeight))
+		i--
+		dAtA[i] = 0x10
+	}
+	if m.Sum != nil {
+		{
+			size := m.Sum.Size()
+			i -= size
+			if _, err := m.Sum.MarshalTo(dAtA[i:]); err != nil {
+				return 0, err
+			}
+		}
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *MEVMessage_Txs) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *MEVMessage_Txs) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	if m.Txs != nil {
+		{
+			size, err := m.Txs.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintTypes(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0xa
 	}
 	return len(dAtA) - i, nil
 }
@@ -476,6 +656,42 @@ func (m *Message_MevTxs) Size() (n int) {
 	_ = l
 	if m.MevTxs != nil {
 		l = m.MevTxs.Size()
+		n += 1 + l + sovTypes(uint64(l))
+	}
+	return n
+}
+func (m *MEVMessage) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.Sum != nil {
+		n += m.Sum.Size()
+	}
+	if m.DesiredHeight != 0 {
+		n += 1 + sovTypes(uint64(m.DesiredHeight))
+	}
+	if m.BundleId != 0 {
+		n += 1 + sovTypes(uint64(m.BundleId))
+	}
+	if m.BundleOrder != 0 {
+		n += 1 + sovTypes(uint64(m.BundleOrder))
+	}
+	if m.BundleSize != 0 {
+		n += 1 + sovTypes(uint64(m.BundleSize))
+	}
+	return n
+}
+
+func (m *MEVMessage_Txs) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.Txs != nil {
+		l = m.Txs.Size()
 		n += 1 + l + sovTypes(uint64(l))
 	}
 	return n
@@ -694,6 +910,167 @@ func (m *Message) Unmarshal(dAtA []byte) error {
 			}
 			m.Sum = &Message_MevTxs{v}
 			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipTypes(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthTypes
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *MEVMessage) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowTypes
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: MEVMessage: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: MEVMessage: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Txs", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTypes
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthTypes
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthTypes
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			v := &Txs{}
+			if err := v.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			m.Sum = &MEVMessage_Txs{v}
+			iNdEx = postIndex
+		case 2:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field DesiredHeight", wireType)
+			}
+			m.DesiredHeight = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTypes
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.DesiredHeight |= int64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 3:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field BundleId", wireType)
+			}
+			m.BundleId = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTypes
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.BundleId |= int64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 4:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field BundleOrder", wireType)
+			}
+			m.BundleOrder = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTypes
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.BundleOrder |= int64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 5:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field BundleSize", wireType)
+			}
+			m.BundleSize = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTypes
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.BundleSize |= int64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
 		default:
 			iNdEx = preIndex
 			skippy, err := skipTypes(dAtA[iNdEx:])
