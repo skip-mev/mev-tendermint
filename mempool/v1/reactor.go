@@ -206,11 +206,11 @@ func (memR *Reactor) ReceiveEnvelope(e p2p.Envelope) {
 			memR.Logger.Error("received empty txs from peer", "src", e.Src)
 			return
 		}
-		if isSidecarChannel {
+		if !isSidecarChannel {
 			memR.Logger.Error("received mev txs over incorrect channel", "src", e.Src, "chId", e.ChannelID)
 			return
 		}
-		if isSidecarPeer {
+		if !isSidecarPeer {
 			memR.Logger.Error("received mev txs from non-sidecar peer", "src", e.Src)
 			return
 		}
@@ -253,11 +253,13 @@ func (memR *Reactor) Receive(chID byte, peer p2p.Peer, msgBytes []byte) {
 
 		err := proto.Unmarshal(msgBytes, msg)
 		if err != nil {
-			panic(err)
+			memR.Logger.Error("failed to unmarshal message", "err", err)
+			return
 		}
 		uw, err := msg.Unwrap()
 		if err != nil {
-			panic(err)
+			memR.Logger.Error("failed to unwrap message", "err", err)
+			return
 		}
 		memR.ReceiveEnvelope(p2p.Envelope{
 			ChannelID: chID,
@@ -268,7 +270,8 @@ func (memR *Reactor) Receive(chID byte, peer p2p.Peer, msgBytes []byte) {
 		msg := &protomem.MEVMessage{}
 		err := proto.Unmarshal(msgBytes, msg)
 		if err != nil {
-			panic(err)
+			memR.Logger.Error("failed to unmarshal message", "err", err)
+			return
 		}
 		memR.ReceiveEnvelope(p2p.Envelope{
 			ChannelID: chID,

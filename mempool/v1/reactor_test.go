@@ -126,6 +126,154 @@ func TestLegacyReactorReceiveBasic(t *testing.T) {
 	})
 }
 
+func TestLegacyReactorReceiveSidecarMEVTxs(t *testing.T) {
+	config := cfg.TestConfig()
+	const N = 1
+	reactors := makeAndConnectReactors(config, N)
+	var (
+		reactor = reactors[0]
+		peer    = mock.NewPeer(nil)
+	)
+	defer func() {
+		err := reactor.Stop()
+		assert.NoError(t, err)
+	}()
+
+	reactor.InitPeer(peer)
+	reactor.AddPeer(peer)
+	txBytes := make([]byte, 20)
+	m := &memproto.MEVTxs{
+		Txs:           [][]byte{txBytes},
+		DesiredHeight: 1,
+		BundleId:      0,
+		BundleOrder:   0,
+		BundleSize:    1,
+	}
+	wm := m.Wrap()
+	msg, err := proto.Marshal(wm)
+	assert.NoError(t, err)
+	assert.NotPanics(t, func() {
+		reactor.Receive(mempool.SidecarLegacyChannel, peer, msg)
+		reactor.Receive(mempool.SidecarChannel, peer, msg)
+		waitForSidecarTxsOnReactor(t, []types.Tx{txBytes}, reactor, 0)
+	})
+}
+
+func TestReactorReceiveSidecarMEVTxs(t *testing.T) {
+	config := cfg.TestConfig()
+	const N = 1
+	reactors := makeAndConnectReactors(config, N)
+	var (
+		reactor = reactors[0]
+		peer    = mock.NewPeer(nil)
+	)
+	defer func() {
+		err := reactor.Stop()
+		assert.NoError(t, err)
+	}()
+
+	reactor.InitPeer(peer)
+	reactor.AddPeer(peer)
+	txBytes := make([]byte, 20)
+	m := &memproto.MEVTxs{
+		Txs:           [][]byte{txBytes},
+		DesiredHeight: 1,
+		BundleId:      0,
+		BundleOrder:   0,
+		BundleSize:    1,
+	}
+	assert.NotPanics(t, func() {
+		reactor.ReceiveEnvelope(p2p.Envelope{
+			ChannelID: mempool.SidecarChannel,
+			Src:       peer,
+			Message:   m,
+		})
+		reactor.ReceiveEnvelope(p2p.Envelope{
+			ChannelID: mempool.SidecarLegacyChannel,
+			Src:       peer,
+			Message:   m,
+		})
+		waitForSidecarTxsOnReactor(t, []types.Tx{txBytes}, reactor, 0)
+	})
+}
+
+func TestReactorReceiveSidecarMEVMessage(t *testing.T) {
+	config := cfg.TestConfig()
+	const N = 1
+	reactors := makeAndConnectReactors(config, N)
+	var (
+		reactor = reactors[0]
+		peer    = mock.NewPeer(nil)
+	)
+	defer func() {
+		err := reactor.Stop()
+		assert.NoError(t, err)
+	}()
+
+	reactor.InitPeer(peer)
+	reactor.AddPeer(peer)
+	txBytes := make([]byte, 20)
+	msg := &memproto.MEVMessage{
+		Sum: &memproto.MEVMessage_Txs{
+			Txs: &memproto.Txs{Txs: [][]byte{txBytes}},
+		},
+		DesiredHeight: 1,
+		BundleId:      0,
+		BundleOrder:   0,
+		BundleSize:    1,
+	}
+
+	assert.NotPanics(t, func() {
+		reactor.ReceiveEnvelope(p2p.Envelope{
+			ChannelID: mempool.SidecarChannel,
+			Src:       peer,
+			Message:   msg,
+		})
+		reactor.ReceiveEnvelope(p2p.Envelope{
+			ChannelID: mempool.SidecarLegacyChannel,
+			Src:       peer,
+			Message:   msg,
+		})
+		waitForSidecarTxsOnReactor(t, []types.Tx{txBytes}, reactor, 0)
+	})
+}
+
+func TestLegacyReactorReceiveSidecarMEVMessage(t *testing.T) {
+	config := cfg.TestConfig()
+	const N = 1
+	reactors := makeAndConnectReactors(config, N)
+	var (
+		reactor = reactors[0]
+		peer    = mock.NewPeer(nil)
+	)
+	defer func() {
+		err := reactor.Stop()
+		assert.NoError(t, err)
+	}()
+
+	reactor.InitPeer(peer)
+	reactor.AddPeer(peer)
+	txBytes := make([]byte, 20)
+	msg := &memproto.MEVMessage{
+		Sum: &memproto.MEVMessage_Txs{
+			Txs: &memproto.Txs{Txs: [][]byte{txBytes}},
+		},
+		DesiredHeight: 1,
+		BundleId:      0,
+		BundleOrder:   0,
+		BundleSize:    1,
+	}
+
+	mm, err := proto.Marshal(msg)
+	assert.NoError(t, err)
+	assert.NotPanics(t, func() {
+		reactor.Receive(mempool.SidecarLegacyChannel, peer, mm)
+		reactor.Receive(mempool.SidecarChannel, peer, mm)
+		fmt.Println(reactor.sidecar.Size())
+		waitForSidecarTxsOnReactor(t, []types.Tx{txBytes}, reactor, 0)
+	})
+}
+
 func makeAndConnectReactors(config *cfg.Config, n int) []*Reactor {
 	reactors := make([]*Reactor, n)
 	logger := mempoolLogger()
