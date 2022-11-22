@@ -1451,7 +1451,7 @@ func makeNodeInfo(
 		Channels: []byte{
 			bcChannel,
 			cs.StateChannel, cs.DataChannel, cs.VoteChannel, cs.VoteSetBitsChannel,
-			mempl.MempoolChannel, mempl.SidecarChannel,
+			mempl.MempoolChannel, mempl.SidecarChannel, mempl.SidecarLegacyChannel,
 			evidence.EvidenceChannel,
 			statesync.SnapshotChannel, statesync.ChunkChannel,
 		},
