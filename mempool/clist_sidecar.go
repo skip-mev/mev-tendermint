@@ -375,14 +375,14 @@ func (sc *CListPriorityTxSidecar) Update(
 		if e, ok := sc.txsMap.Load(tx.Key()); ok {
 			if deliverTxResponses[i].Code == abci.CodeTypeOK {
 				sc.logger.Debug(
-					"removed valid commited tx from sidecar",
+					"removed valid committed tx from sidecar",
 					"tx", tx,
 					"mempool updated height", height,
 					"sidecar total size", sc.Size(),
 				)
 			} else {
 				sc.logger.Debug(
-					"removed invalid commited tx from sidecar",
+					"removed invalid committed tx from sidecar",
 					"tx", tx,
 					"mempool updated height", height,
 					"sidecar total size", sc.Size(),
@@ -400,7 +400,7 @@ func (sc *CListPriorityTxSidecar) Update(
 		scTx := e.Value.(*SidecarTx)
 		if scTx.DesiredHeight <= height {
 			sc.logger.Debug(
-				"removed uncommited tx from sidecar",
+				"removed uncommitted tx from sidecar",
 				"tx", scTx.Tx,
 				"tx desired height", scTx.DesiredHeight,
 				"mempool updated height", height,

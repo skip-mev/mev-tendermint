@@ -33,28 +33,6 @@ func addNumBundlesToSidecar(t *testing.T, sidecar PriorityTxSidecar, numBundles 
 	return txs
 }
 
-func addSpecificTxsToSidecarOneBundle(t *testing.T, sidecar PriorityTxSidecar, txs types.Txs, peerID uint16) types.Txs {
-	bInfo := testBundleInfo{BundleSize: int64(len(txs)), PeerID: peerID, DesiredHeight: sidecar.HeightForFiringAuction(), BundleID: 0}
-	for i := 0; i < len(txs); i++ {
-		err := sidecar.AddTx(txs[i], TxInfo{SenderID: bInfo.PeerID, BundleSize: bInfo.BundleSize,
-			BundleID: bInfo.BundleID, DesiredHeight: bInfo.DesiredHeight, BundleOrder: int64(i)})
-		if err != nil {
-			t.Error(err)
-		}
-	}
-	return txs
-}
-
-func addNumTxsToSidecarOneBundle(t *testing.T, sidecar PriorityTxSidecar, numTxs int, peerID uint16) types.Txs {
-	txs := make(types.Txs, numTxs)
-	bInfo := testBundleInfo{BundleSize: int64(numTxs), PeerID: peerID, DesiredHeight: sidecar.HeightForFiringAuction(), BundleID: 0}
-	for i := 0; i < numTxs; i++ {
-		txBytes := addTxToSidecar(t, sidecar, bInfo, int64(i))
-		txs = append(txs, txBytes)
-	}
-	return txs
-}
-
 func addTxToSidecar(t *testing.T, sidecar PriorityTxSidecar, bInfo testBundleInfo, bundleOrder int64) types.Tx {
 	txInfo := TxInfo{SenderID: bInfo.PeerID, BundleSize: bInfo.BundleSize,
 		BundleID: bInfo.BundleID, DesiredHeight: bInfo.DesiredHeight, BundleOrder: bundleOrder}
@@ -241,7 +219,6 @@ func TestReapSidecarWithTxsOutOfOrder(t *testing.T) {
 	}
 
 	// 4. Insert three successful bundles out of order
-	//nolint:dupl
 	{
 		bInfo := testBundleInfo{
 			BundleSize:    3,
@@ -325,7 +302,6 @@ func TestReapSidecarWithTxsOutOfOrder(t *testing.T) {
 	}
 
 	// 5. Multiple unsuccessful bundles, nothing reaped
-	//nolint:dupl
 	{
 		// size not filled
 		bInfo := testBundleInfo{

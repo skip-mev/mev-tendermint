@@ -22,7 +22,7 @@ func RegisterWithSentinel(logger log.Logger, APIKey, peerID, sentinel string) {
 
 	jsonData, err := makePostRequestData(peerID, APIKey)
 	if err != nil {
-		logger.Info("[p2p.sentinel]: Err marshalling json data:", err)
+		logger.Info("[p2p.sentinel]: Err marshaling json data:", err)
 		return
 	}
 
@@ -33,7 +33,7 @@ func attemptRegisterOnce(logger log.Logger, sentinel string, jsonData []byte) er
 	client := http.Client{
 		Timeout: 5 * time.Second,
 	}
-	resp, err := client.Post(sentinel, "application/json", bytes.NewBuffer(jsonData)) //nolint:gosec
+	resp, err := client.Post(sentinel, "application/json", bytes.NewBuffer(jsonData)) //nolint: gosec
 	if err != nil {
 		logger.Info("[p2p.sentinel]: Err registering with sentinel", "err", err.Error())
 		return err
