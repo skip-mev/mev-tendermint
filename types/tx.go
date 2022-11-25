@@ -158,3 +158,9 @@ func ComputeProtoSizeForTxs(txs []Tx) int64 {
 	pdData := data.ToProto()
 	return int64(pdData.Size())
 }
+
+// Used for combining sidecar and mempl txes
+type ReapedTxs struct {
+	Txs        Txs
+	GasWanteds []int64
+}

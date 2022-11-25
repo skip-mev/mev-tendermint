@@ -65,5 +65,6 @@ test/fuzz/**/*.zip
 *.pdf
 *.gz
 *.dvi
-# Python virtual environments
 .venv
+
+coverage.out
