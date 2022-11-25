@@ -28,6 +28,8 @@ type Peer interface {
 	RemoteIP() net.IP     // remote IP of the connection
 	RemoteAddr() net.Addr // remote address of the connection
 
+	IsSidecarPeer() bool // gossip Sidecar transactions to this peer
+
 	IsOutbound() bool   // did we dial the peer
 	IsPersistent() bool // do we redial this peer when we disconnect
 
@@ -181,6 +183,7 @@ type peer struct {
 
 	// When removal of a peer fails, we set this flag
 	removalAttemptFailed bool
+	isSidecarPeer        bool
 }
 
 type PeerOption func(*peer)
@@ -192,6 +195,7 @@ func newPeer(
 	reactorsByCh map[byte]Reactor,
 	msgTypeByChID map[byte]proto.Message,
 	chDescs []*tmconn.ChannelDescriptor,
+	isSidecarPeer bool,
 	onPeerError func(Peer, interface{}),
 	mlc *metricsLabelCache,
 	options ...PeerOption,
@@ -204,6 +208,7 @@ func newPeer(
 		metricsTicker: time.NewTicker(metricsTickerDuration),
 		metrics:       NopMetrics(),
 		mlc:           mlc,
+		isSidecarPeer: isSidecarPeer,
 	}
 
 	p.mconn = createMConnection(
@@ -404,6 +409,12 @@ func (p *peer) TrySend(chID byte, msgBytes []byte) bool {
 		p.metrics.PeerSendBytesTotal.With(labels...).Add(float64(len(msgBytes)))
 	}
 	return res
+}
+
+// Indicator for whether private Sidecar transactions should be
+// gossiped to this peer
+func (p *peer) IsSidecarPeer() bool {
+	return p.isSidecarPeer
 }
 
 // Get the data for a given key.

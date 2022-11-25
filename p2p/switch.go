@@ -3,6 +3,7 @@ package p2p
 import (
 	"fmt"
 	"math"
+	"strings"
 	"sync"
 	"time"
 
@@ -91,8 +92,11 @@ type Switch struct {
 
 	rng *rand.Rand // seed for randomizing dial times and orders
 
-	metrics *Metrics
-	mlc     *metricsLabelCache
+	metrics           *Metrics
+	mlc               *metricsLabelCache
+	sidecarPeers      SidecarPeers
+	RelayerPeerString string
+	RelayerNetAddr    *NetAddress
 }
 
 // NetAddress returns the address the switch is listening on.
@@ -104,15 +108,37 @@ func (sw *Switch) NetAddress() *NetAddress {
 // SwitchOption sets an optional parameter on the Switch.
 type SwitchOption func(*Switch)
 
+type SidecarPeers map[ID]struct{}
+
+// create map of sidecar peers that will privately gossip
+// auction-winning txs among themselves
+func NewSidecarPeers(pl []string) (SidecarPeers, error) {
+	sp := make(SidecarPeers)
+	for _, pid := range pl {
+		if pid == "" {
+			continue
+		}
+		vid := ID(pid)
+		if err := validateID(vid); err != nil {
+			return nil, err
+		}
+		sp[vid] = struct{}{}
+	}
+	return sp, nil
+}
+
 // NewSwitch creates a new Switch with the given config.
 func NewSwitch(
 	cfg *config.P2PConfig,
+	sidecarPeers SidecarPeers,
 	transport Transport,
+	relayerPeerString string,
 	options ...SwitchOption,
 ) *Switch {
 
 	sw := &Switch{
 		config:               cfg,
+		sidecarPeers:         sidecarPeers,
 		reactors:             make(map[string]Reactor),
 		chDescs:              make([]*conn.ChannelDescriptor, 0),
 		reactorsByCh:         make(map[byte]Reactor),
@@ -126,6 +152,7 @@ func NewSwitch(
 		persistentPeersAddrs: make([]*NetAddress, 0),
 		unconditionalPeerIDs: make(map[ID]struct{}),
 		mlc:                  newMetricsLabelCache(),
+		RelayerPeerString:    relayerPeerString,
 	}
 
 	// Ensure we have a completely undeterministic PRNG.
@@ -372,7 +399,11 @@ func (sw *Switch) StopPeerForError(peer Peer, reason interface{}) {
 	sw.Logger.Error("Stopping peer for error", "peer", peer, "err", reason)
 	sw.stopAndRemovePeer(peer, reason)
 
-	if peer.IsPersistent() {
+	sw.Logger.Info("Looking to reconnect after StopPeerForError, peer is ", peer, "relayer is ", sw.RelayerNetAddr)
+	if sw.RelayerNetAddr != nil && peer.ID() == sw.RelayerNetAddr.ID {
+		fmt.Println("Relayer peer disconnected, attempting to reconnect")
+		go sw.reconnectToRelayerPeer(sw.RelayerNetAddr)
+	} else if peer.IsPersistent() {
 		var addr *NetAddress
 		if peer.IsOutbound() { // socket address for outbound peers
 			addr = peer.SocketAddr()
@@ -387,6 +418,7 @@ func (sw *Switch) StopPeerForError(peer Peer, reason interface{}) {
 		}
 		go sw.reconnectToPeer(addr)
 	}
+
 }
 
 // StopPeerGracefully disconnects from a peer gracefully.
@@ -416,6 +448,51 @@ func (sw *Switch) stopAndRemovePeer(peer Peer, reason interface{}) {
 		// Removal of the peer has failed. The function above sets a flag within the peer to mark this.
 		// We keep this message here as information to the developer.
 		sw.Logger.Debug("error on peer removal", ",", "peer", peer.ID())
+
+		// check if we removed sentinel, if so, alert metrics
+		splitStr := strings.Split(sw.RelayerPeerString, "@")
+		if len(splitStr) > 1 {
+			relayerIDConv := ID(splitStr[0])
+			if err := validateID(relayerIDConv); err == nil {
+				if peer.ID() == relayerIDConv {
+					sw.metrics.RelayConnected.Set(0)
+				}
+			} else {
+				sw.Logger.Error("Error validating relayer ID", "err", err, "is it correctly configured?", sw.RelayerPeerString)
+			}
+		} else {
+			sw.Logger.Error("Error splitting relayer ID", "is it correctly configured?", sw.RelayerPeerString)
+		}
+
+	}
+}
+
+func (sw *Switch) reconnectToRelayerPeer(addr *NetAddress) {
+	sw.Logger.Info("[relayer-reconnection]: starting relayer reconnect routine, addr is ", addr)
+	if sw.reconnecting.Has(string(addr.ID)) {
+		sw.Logger.Info("[relayer-reconnection]: already have a reconnection routine for ", addr)
+		return
+	}
+	sw.reconnecting.Set(string(addr.ID), addr)
+	defer sw.reconnecting.Delete(string(addr.ID))
+
+	i := 0
+	for {
+		if !sw.IsRunning() {
+			return
+		}
+
+		err := sw.DialPeerWithAddress(addr)
+		if err == nil {
+			return // success
+		} else if _, ok := err.(ErrCurrentlyDialingOrExistingAddress); ok {
+			return
+		}
+
+		sw.Logger.Info("[relayer-reconnection]: Error reconnecting to relayer. Trying again", "tries", i, "err", err, "addr", addr)
+		// sleep a set amount
+		sw.randomSleep(30 * time.Second)
+		i++
 	}
 }
 
@@ -605,6 +682,17 @@ func (sw *Switch) IsDialingOrExistingAddress(addr *NetAddress) bool {
 		(!sw.config.AllowDuplicateIP && sw.peers.HasIP(addr.IP))
 }
 
+func (sw *Switch) AddRelayerPeer(addr string) error {
+	sw.Logger.Info("Adding relayer as peer", "addr", addr)
+	netAddr, err := NewNetAddressString(addr)
+	if err != nil {
+		sw.Logger.Error("Error in relayer's address", "err", err)
+		return err
+	}
+	sw.RelayerNetAddr = netAddr
+	return nil
+}
+
 // AddPersistentPeers allows you to set persistent peers. It ignores
 // ErrNetAddressLookup. However, if there are other errors, first encounter is
 // returned.
@@ -653,6 +741,13 @@ func (sw *Switch) AddPrivatePeerIDs(ids []string) error {
 	return nil
 }
 
+// Check whether a particular PID is a skip peer
+// and should receive private auction-winning txs
+func (sw *Switch) IsSidecarPeer(pid ID) bool {
+	_, isPeer := sw.sidecarPeers[pid]
+	return isPeer
+}
+
 func (sw *Switch) IsPeerPersistent(na *NetAddress) bool {
 	for _, pa := range sw.persistentPeersAddrs {
 		if pa.Equals(na) {
@@ -672,6 +767,7 @@ func (sw *Switch) acceptRoutine() {
 			metrics:       sw.metrics,
 			mlc:           sw.mlc,
 			isPersistent:  sw.IsPeerPersistent,
+			isSidecarPeer: sw.IsSidecarPeer,
 		})
 		if err != nil {
 			switch err := err.(type) {
@@ -761,10 +857,19 @@ func (sw *Switch) addOutboundPeerWithConfig(
 	addr *NetAddress,
 	cfg *config.P2PConfig,
 ) error {
-	sw.Logger.Info("Dialing peer", "address", addr)
+
+	if sw.RelayerNetAddr != nil && addr.ID == sw.RelayerNetAddr.ID {
+		sw.Logger.Info("[relayer-reconnection]: DIALING RELAYER", "address", addr, "time", time.Now())
+	} else {
+		sw.Logger.Info("Dialing peer", "address", addr)
+	}
 
 	// XXX(xla): Remove the leakage of test concerns in implementation.
 	if cfg.TestDialFail {
+		if sw.RelayerNetAddr != nil && addr.ID == sw.RelayerNetAddr.ID {
+			go sw.reconnectToRelayerPeer(addr)
+			return fmt.Errorf("dial err relayer (peerConfig.DialFail == true)")
+		}
 		go sw.reconnectToPeer(addr)
 		return fmt.Errorf("dial err (peerConfig.DialFail == true)")
 	}
@@ -775,8 +880,9 @@ func (sw *Switch) addOutboundPeerWithConfig(
 		isPersistent:  sw.IsPeerPersistent,
 		reactorsByCh:  sw.reactorsByCh,
 		msgTypeByChID: sw.msgTypeByChID,
-		metrics:       sw.metrics,
 		mlc:           sw.mlc,
+		isSidecarPeer: sw.IsSidecarPeer,
+		metrics:       sw.metrics,
 	})
 	if err != nil {
 		if e, ok := err.(ErrRejected); ok {
@@ -792,7 +898,9 @@ func (sw *Switch) addOutboundPeerWithConfig(
 
 		// retry persistent peers after
 		// any dial error besides IsSelf()
-		if sw.IsPeerPersistent(addr) {
+		if sw.RelayerNetAddr != nil && addr.ID == sw.RelayerNetAddr.ID {
+			go sw.reconnectToRelayerPeer(addr)
+		} else if sw.IsPeerPersistent(addr) {
 			go sw.reconnectToPeer(addr)
 		}
 
@@ -805,6 +913,8 @@ func (sw *Switch) addOutboundPeerWithConfig(
 			_ = p.Stop()
 		}
 		return err
+	} else if sw.RelayerNetAddr != nil && addr.ID == sw.RelayerNetAddr.ID {
+		sw.Logger.Info("[relayer-reconnection]: RELAYER RECONNECTED!", "address", addr)
 	}
 
 	return nil
@@ -883,6 +993,21 @@ func (sw *Switch) addPeer(p Peer) error {
 		return err
 	}
 	sw.metrics.Peers.Add(float64(1))
+
+	// check if we removed sentinel, if so, alert metrics
+	splitStr := strings.Split(sw.RelayerPeerString, "@")
+	if len(splitStr) > 1 {
+		relayerIDConv := ID(splitStr[0])
+		if err := validateID(relayerIDConv); err == nil {
+			if p.ID() == relayerIDConv {
+				sw.metrics.RelayConnected.Set(1)
+			}
+		} else {
+			sw.Logger.Error("Error validating relayer ID", "err", err, "is it correctly configured?", sw.RelayerPeerString)
+		}
+	} else {
+		sw.Logger.Error("Error splitting relayer ID", "is it correctly configured?", sw.RelayerPeerString)
+	}
 
 	// Start all the reactor protocols on the peer.
 	for _, reactor := range sw.reactors {

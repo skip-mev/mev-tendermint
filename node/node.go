@@ -230,6 +230,8 @@ type Node struct {
 	blockIndexer      indexer.BlockIndexer
 	indexerService    *txindex.IndexerService
 	prometheusSrv     *http.Server
+
+	sidecar *mempl.CListPriorityTxSidecar
 }
 
 func initDBs(config *cfg.Config, dbProvider DBProvider) (blockStore *store.BlockStore, stateDB dbm.DB, err error) {
@@ -365,13 +367,20 @@ func onlyValidatorIsUs(state sm.State, pubKey crypto.PubKey) bool {
 	return bytes.Equal(pubKey.Address(), addr)
 }
 
-func createMempoolAndMempoolReactor(
+func createMempoolAndSidecarAndMempoolReactor(
 	config *cfg.Config,
 	proxyApp proxy.AppConns,
 	state sm.State,
 	memplMetrics *mempl.Metrics,
 	logger log.Logger,
-) (mempl.Mempool, p2p.Reactor) {
+) (mempl.Mempool, p2p.Reactor, mempl.PriorityTxSidecar) {
+
+	sidecar := mempl.NewCListSidecar(
+		state.LastBlockHeight,
+		logger,
+		memplMetrics,
+	)
+
 	switch config.Mempool.Version {
 	case cfg.MempoolV1:
 		mp := mempoolv1.NewTxMempool(
@@ -387,12 +396,13 @@ func createMempoolAndMempoolReactor(
 		reactor := mempoolv1.NewReactor(
 			config.Mempool,
 			mp,
+			sidecar,
 		)
 		if config.Consensus.WaitForTxs() {
 			mp.EnableTxsAvailable()
 		}
 
-		return mp, reactor
+		return mp, reactor, sidecar
 
 	case cfg.MempoolV0:
 		mp := mempoolv0.NewCListMempool(
@@ -409,15 +419,16 @@ func createMempoolAndMempoolReactor(
 		reactor := mempoolv0.NewReactor(
 			config.Mempool,
 			mp,
+			sidecar,
 		)
 		if config.Consensus.WaitForTxs() {
 			mp.EnableTxsAvailable()
 		}
 
-		return mp, reactor
+		return mp, reactor, sidecar
 
 	default:
-		return nil, nil
+		return nil, nil, nil
 	}
 }
 
@@ -564,6 +575,16 @@ func createTransport(
 	return transport, peerFilters
 }
 
+func contains(s []string, str string) bool {
+	for _, v := range s {
+		if v == str {
+			return true
+		}
+	}
+
+	return false
+}
+
 func createSwitch(config *cfg.Config,
 	transport p2p.Transport,
 	p2pMetrics *p2p.Metrics,
@@ -575,11 +596,26 @@ func createSwitch(config *cfg.Config,
 	evidenceReactor *evidence.Reactor,
 	nodeInfo p2p.NodeInfo,
 	nodeKey *p2p.NodeKey,
-	p2pLogger log.Logger,
-) *p2p.Switch {
+	p2pLogger log.Logger) *p2p.Switch {
+	peerList := splitAndTrimEmpty(config.Sidecar.PersonalPeerIDs, ",", " ")
+
+	if config.Sidecar.RelayerPeerString != "" {
+		relayerID := strings.Split(config.Sidecar.RelayerPeerString, "@")[0]
+		if !contains(peerList, relayerID) {
+			peerList = append(peerList, relayerID)
+		}
+	}
+
+	sidecarPeers, err := p2p.NewSidecarPeers(peerList)
+	if err != nil {
+		panic(fmt.Sprintln("Problem with peer initialization", err))
+	}
+
 	sw := p2p.NewSwitch(
 		config.P2P,
+		sidecarPeers,
 		transport,
+		config.Sidecar.RelayerPeerString,
 		p2p.WithMetrics(p2pMetrics),
 		p2p.SwitchPeerFilters(peerFilters...),
 	)
@@ -796,7 +832,7 @@ func NewNode(config *cfg.Config,
 	csMetrics, p2pMetrics, memplMetrics, smMetrics := metricsProvider(genDoc.ChainID)
 
 	// Make MempoolReactor
-	mempool, mempoolReactor := createMempoolAndMempoolReactor(config, proxyApp, state, memplMetrics, logger)
+	mempool, mempoolReactor, sidecar := createMempoolAndSidecarAndMempoolReactor(config, proxyApp, state, memplMetrics, logger)
 
 	// Make Evidence Reactor
 	evidenceReactor, evidencePool, err := createEvidenceReactor(config, dbProvider, stateDB, blockStore, logger)
@@ -811,6 +847,7 @@ func NewNode(config *cfg.Config,
 		proxyApp.Consensus(),
 		mempool,
 		evidencePool,
+		sidecar,
 		sm.BlockExecutorWithMetrics(smMetrics),
 	)
 
@@ -859,12 +896,35 @@ func NewNode(config *cfg.Config,
 		stateSyncReactor, consensusReactor, evidenceReactor, nodeInfo, nodeKey, p2pLogger,
 	)
 
-	err = sw.AddPersistentPeers(splitAndTrimEmpty(config.P2P.PersistentPeers, ",", " "))
+	persistentPeers := splitAndTrimEmpty(config.P2P.PersistentPeers, ",", " ")
+	err = sw.AddPersistentPeers(persistentPeers)
 	if err != nil {
 		return nil, fmt.Errorf("could not add peers from persistent_peers field: %w", err)
 	}
 
-	err = sw.AddUnconditionalPeerIDs(splitAndTrimEmpty(config.P2P.UnconditionalPeerIDs, ",", " "))
+	if config.Sidecar.RelayerPeerString != "" {
+		err = sw.AddRelayerPeer(config.Sidecar.RelayerPeerString)
+		if err != nil {
+			return nil, fmt.Errorf("could not add relayer from relayer_conn_string field: %w", err)
+		}
+	} else {
+		logger.Info("[node startup]: No relayer_conn_string specified, not adding relayer as peer")
+	}
+
+	unconditionalPeerIDs := splitAndTrimEmpty(config.P2P.UnconditionalPeerIDs, ",", " ")
+	if config.Sidecar.RelayerPeerString != "" {
+		splitStr := strings.Split(config.Sidecar.RelayerPeerString, "@")
+		if len(splitStr) > 0 {
+			relayerID := splitStr[0]
+			logger.Info("[node startup]: Adding relayer as an unconditional peer", relayerID)
+			unconditionalPeerIDs = append(unconditionalPeerIDs, relayerID)
+		} else {
+			fmt.Println("[node startup]: ERR: Could not parse relayer peer string",
+				" to add as unconditional peer, is it correctly configured?",
+				config.Sidecar.RelayerPeerString)
+		}
+	}
+	err = sw.AddUnconditionalPeerIDs(unconditionalPeerIDs)
 	if err != nil {
 		return nil, fmt.Errorf("could not add peer ids from unconditional_peer_ids field: %w", err)
 	}
@@ -899,6 +959,11 @@ func NewNode(config *cfg.Config,
 		}()
 	}
 
+	typeAssertedSidecar, ok := sidecar.(*mempl.CListPriorityTxSidecar)
+	if !ok {
+		logger.Info("[node startup]: Creating node with nil sidecar")
+	}
+
 	node := &Node{
 		config:        config,
 		genesisDoc:    genDoc,
@@ -927,6 +992,7 @@ func NewNode(config *cfg.Config,
 		indexerService:   indexerService,
 		blockIndexer:     blockIndexer,
 		eventBus:         eventBus,
+		sidecar:          typeAssertedSidecar,
 	}
 	node.BaseService = *service.NewBaseService(logger, "Node", node)
 
@@ -946,8 +1012,30 @@ func (n *Node) OnStart() error {
 		time.Sleep(genTime.Sub(now))
 	}
 
+	// If all required info is set in config, register with sentinel
+	if n.config.Sidecar.APIKey != "" && n.config.Sidecar.RelayerRPCString != "" {
+		p2p.RegisterWithSentinel(n.Logger, n.config.Sidecar.APIKey,
+			string(n.nodeInfo.ID()), n.config.Sidecar.RelayerRPCString)
+	} else {
+		n.Logger.Info("[node startup]: Not registering with relayer, config has API Key:", n.config.Sidecar.APIKey,
+			"relayer rpc string:", n.config.Sidecar.RelayerRPCString)
+	}
+
 	// Add private IDs to addrbook to block those peers being added
-	n.addrBook.AddPrivateIDs(splitAndTrimEmpty(n.config.P2P.PrivatePeerIDs, ",", " "))
+	privateIDs := splitAndTrimEmpty(n.config.P2P.PrivatePeerIDs, ",", " ")
+	if n.config.Sidecar.RelayerPeerString != "" {
+		splitStr := strings.Split(n.config.Sidecar.RelayerPeerString, "@")
+		if len(splitStr) > 1 {
+			relayerID := splitStr[0]
+			n.Logger.Info("[node startup]: Adding relayer as a private peer", relayerID)
+			privateIDs = append(privateIDs, relayerID)
+		} else {
+			n.Logger.Info("[node startup]: ERR Could not parse relayer peer string ",
+				"to add as private peer, is it correctly configured?",
+				n.config.Sidecar.RelayerPeerString)
+		}
+	}
+	n.addrBook.AddPrivateIDs(privateIDs)
 
 	// Start the RPC server before the P2P server
 	// so we can eg. receive txs for the first block
@@ -982,7 +1070,13 @@ func (n *Node) OnStart() error {
 	}
 
 	// Always connect to persistent peers
-	err = n.sw.DialPeersAsync(splitAndTrimEmpty(n.config.P2P.PersistentPeers, ",", " "))
+	peersToDialOnStartup := splitAndTrimEmpty(n.config.P2P.PersistentPeers, ",", " ")
+	if n.config.Sidecar.RelayerPeerString != "" {
+		peersToDialOnStartup = append(peersToDialOnStartup, n.config.Sidecar.RelayerPeerString)
+	} else {
+		n.Logger.Info("[node startup]: No relayer_conn_string specified, not dialing relayer on startup")
+	}
+	err = n.sw.DialPeersAsync(peersToDialOnStartup)
 	if err != nil {
 		return fmt.Errorf("could not dial peers from persistent_peers field: %w", err)
 	}
@@ -1084,10 +1178,12 @@ func (n *Node) ConfigureRPC() error {
 		ConsensusReactor: n.consensusReactor,
 		EventBus:         n.eventBus,
 		Mempool:          n.mempool,
+		Sidecar:          n.sidecar,
 
 		Logger: n.Logger.With("module", "rpc"),
 
-		Config: *n.config.RPC,
+		Config:        *n.config.RPC,
+		SidecarConfig: *n.config.Sidecar,
 	})
 	if err := rpccore.InitGenesisChunks(); err != nil {
 		return err
@@ -1355,7 +1451,7 @@ func makeNodeInfo(
 		Channels: []byte{
 			bcChannel,
 			cs.StateChannel, cs.DataChannel, cs.VoteChannel, cs.VoteSetBitsChannel,
-			mempl.MempoolChannel,
+			mempl.MempoolChannel, mempl.SidecarChannel, mempl.SidecarLegacyChannel,
 			evidence.EvidenceChannel,
 			statesync.SnapshotChannel, statesync.ChunkChannel,
 		},
