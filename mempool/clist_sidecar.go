@@ -165,6 +165,7 @@ func (sc *CListPriorityTxSidecar) AddTx(tx types.Tx, txInfo TxInfo) error {
 		BundleID:      txInfo.BundleID,
 		BundleOrder:   txInfo.BundleOrder,
 		BundleSize:    txInfo.BundleSize,
+		GasWanted:     txInfo.GasWanted,
 	}
 
 	// add to metrics that we've received a new tx
@@ -179,7 +180,7 @@ func (sc *CListPriorityTxSidecar) AddTx(tx types.Tx, txInfo TxInfo) error {
 			"reason", "trying to add a tx for wrong height",
 			"desiredHeight", txInfo.DesiredHeight,
 			"currAuctionHeight", sc.heightForFiringAuction,
-			"bundleOd", txInfo.BundleID,
+			"bundleId", txInfo.BundleID,
 			"bundleOrder", txInfo.BundleOrder,
 			"tx", tx.Hash(),
 		)
@@ -327,6 +328,7 @@ func (sc *CListPriorityTxSidecar) AddTx(tx types.Tx, txInfo TxInfo) error {
 		"bundleOrder", txInfo.BundleOrder,
 		"desiredHeight", txInfo.DesiredHeight,
 		"bundleSize", txInfo.BundleSize,
+		"gasWanted", txInfo.GasWanted,
 		"sidecar total size", sc.Size(),
 	)
 

@@ -21,4 +21,5 @@ message MEVMessage {
   int64 bundle_id = 3;
   int64 bundle_order = 4;
   int64 bundle_size = 5;
+  int64 gas_wanted = 6;
 }
