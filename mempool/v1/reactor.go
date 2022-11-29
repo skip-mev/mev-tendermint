@@ -220,6 +220,7 @@ func (memR *Reactor) ReceiveEnvelope(e p2p.Envelope) {
 			BundleID:      msg.BundleId,
 			BundleOrder:   msg.BundleOrder,
 			BundleSize:    msg.BundleSize,
+			GasWanted:     msg.GasWanted,
 		}
 		memR.InsertMEVTxInSidecar(summary, e.Src)
 	case *protomem.MEVMessage:
@@ -289,6 +290,7 @@ func (memR *Reactor) InsertMEVTxInSidecar(summary MEVTxSummary, peer p2p.Peer) {
 		BundleID:      summary.BundleID,
 		BundleOrder:   summary.BundleOrder,
 		BundleSize:    summary.BundleSize,
+		GasWanted:     summary.GasWanted,
 	}
 	if peer != nil {
 		txInfo.SenderP2PID = peer.ID()
@@ -365,6 +367,7 @@ func (memR *Reactor) broadcastSidecarTxRoutine(peer p2p.Peer) {
 					BundleId:      scTx.BundleID,
 					BundleOrder:   scTx.BundleOrder,
 					BundleSize:    scTx.BundleSize,
+					GasWanted:     scTx.GasWanted,
 				}
 				success := p2p.SendEnvelopeShim(peer, p2p.Envelope{ //nolint: staticcheck
 					ChannelID: mempool.SidecarChannel,
@@ -380,6 +383,7 @@ func (memR *Reactor) broadcastSidecarTxRoutine(peer p2p.Peer) {
 						BundleId:      scTx.BundleID,
 						BundleOrder:   scTx.BundleOrder,
 						BundleSize:    scTx.BundleSize,
+						GasWanted:     scTx.GasWanted,
 					}
 
 					success := p2p.SendEnvelopeShim(peer, p2p.Envelope{
@@ -506,6 +510,7 @@ func (memR *Reactor) decodeLegacyMEVMessage(lm *protomem.MEVMessage) (MEVTxSumma
 			BundleID:      lm.GetBundleId(),
 			BundleOrder:   lm.GetBundleOrder(),
 			BundleSize:    lm.GetBundleSize(),
+			GasWanted:     lm.GetGasWanted(),
 		}
 		return summary, nil
 	}
@@ -520,6 +525,7 @@ type MEVTxSummary struct {
 	BundleID      int64
 	BundleOrder   int64
 	BundleSize    int64
+	GasWanted     int64
 }
 
 //-----------------------------------------------------------------------------

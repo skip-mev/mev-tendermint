@@ -1217,7 +1217,6 @@ func (m *RequestApplySnapshotChunk) GetSender() string {
 
 type Response struct {
 	// Types that are valid to be assigned to Value:
-	//
 	//	*Response_Exception
 	//	*Response_Echo
 	//	*Response_Flush
