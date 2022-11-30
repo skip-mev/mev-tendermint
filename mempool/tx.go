@@ -26,4 +26,6 @@ type TxInfo struct {
 
 	// total size of bundle
 	BundleSize int64
+
+	GasWanted int64
 }
