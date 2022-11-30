@@ -204,6 +204,7 @@ func (memR *Reactor) Receive(chID byte, src p2p.Peer, msgBytes []byte) {
 			BundleID:      msg.BundleID,
 			BundleOrder:   msg.BundleOrder,
 			BundleSize:    msg.BundleSize,
+			GasWanted:     msg.GasWanted,
 		}
 		if src != nil {
 			txInfo.SenderP2PID = src.ID()
@@ -216,6 +217,7 @@ func (memR *Reactor) Receive(chID byte, src p2p.Peer, msgBytes []byte) {
 				"bundle ID", msg.BundleID,
 				"bundle order", msg.BundleOrder,
 				"bundle size", msg.BundleSize,
+				"gas wanted", msg.GasWanted,
 			)
 
 			err = memR.sidecar.AddTx(tx, txInfo)
@@ -277,6 +279,7 @@ func (memR *Reactor) broadcastSidecarTxRoutine(peer p2p.Peer) {
 					BundleId:      scTx.BundleID,
 					BundleOrder:   scTx.BundleOrder,
 					BundleSize:    scTx.BundleSize,
+					GasWanted:     scTx.GasWanted,
 				}
 				bz, err := msg.Marshal()
 				if err != nil {
@@ -424,6 +427,7 @@ func (memR *Reactor) decodeBundleMsg(bz []byte) (MEVTxsMessage, error) {
 			BundleID:      msg.GetBundleId(),
 			BundleOrder:   msg.GetBundleOrder(),
 			BundleSize:    msg.GetBundleSize(),
+			GasWanted:     msg.GetGasWanted(),
 		}
 		return message, nil
 	}
@@ -467,6 +471,7 @@ type MEVTxsMessage struct {
 	BundleID      int64
 	BundleOrder   int64
 	BundleSize    int64
+	GasWanted     int64
 }
 
 // TxsMessage is a Message containing transactions.
