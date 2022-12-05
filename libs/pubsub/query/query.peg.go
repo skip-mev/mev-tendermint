@@ -1,4 +1,3 @@
-//nolint:dupl
 package query
 
 import (
@@ -102,12 +101,16 @@ type token32 struct {
 	begin, end, next uint32
 }
 
+func (t *token32) isZero() bool {
+	return t.pegRule == ruleUnknown && t.begin == 0 && t.end == 0 && t.next == 0
+}
+
 func (t *token32) isParentOf(u token32) bool {
 	return t.begin <= u.begin && t.end >= u.end && t.next > u.next
 }
 
 func (t *token32) getToken32() token32 {
-	return token32{pegRule: t.pegRule, begin: t.begin, end: t.end, next: t.next}
+	return token32{pegRule: t.pegRule, begin: uint32(t.begin), end: uint32(t.end), next: uint32(t.next)}
 }
 
 func (t *token32) String() string {
@@ -313,7 +316,7 @@ func (t *tokens32) PrintSyntaxTree(buffer string) {
 }
 
 func (t *tokens32) Add(rule pegRule, begin, end, depth uint32, index int) {
-	t.tree[index] = token32{pegRule: rule, begin: begin, end: end, next: depth}
+	t.tree[index] = token32{pegRule: rule, begin: uint32(begin), end: uint32(end), next: uint32(depth)}
 }
 
 func (t *tokens32) Tokens() <-chan token32 {
@@ -349,7 +352,7 @@ func (t *tokens32) Expand(index int) {
 	}
 }
 
-type Parser struct {
+type QueryParser struct {
 	Buffer string
 	buffer []rune
 	rules  [21]func() bool
@@ -391,7 +394,7 @@ search:
 }
 
 type parseError struct {
-	p   *Parser
+	p   *QueryParser
 	max token32
 }
 
@@ -419,15 +422,15 @@ func (e *parseError) Error() string {
 	return error
 }
 
-func (p *Parser) PrintSyntaxTree() {
+func (p *QueryParser) PrintSyntaxTree() {
 	p.tokens32.PrintSyntaxTree(p.Buffer)
 }
 
-func (p *Parser) Highlighter() {
+func (p *QueryParser) Highlighter() {
 	p.PrintSyntax()
 }
 
-func (p *Parser) Init() {
+func (p *QueryParser) Init() {
 	p.buffer = []rune(p.Buffer)
 	if len(p.buffer) == 0 || p.buffer[len(p.buffer)-1] != endSymbol {
 		p.buffer = append(p.buffer, endSymbol)
@@ -636,61 +639,73 @@ func (p *Parser) Init() {
 										goto l22
 									}
 									position++
+									break
 								case '>':
 									if buffer[position] != rune('>') {
 										goto l22
 									}
 									position++
+									break
 								case '=':
 									if buffer[position] != rune('=') {
 										goto l22
 									}
 									position++
+									break
 								case '\'':
 									if buffer[position] != rune('\'') {
 										goto l22
 									}
 									position++
+									break
 								case '"':
 									if buffer[position] != rune('"') {
 										goto l22
 									}
 									position++
+									break
 								case ')':
 									if buffer[position] != rune(')') {
 										goto l22
 									}
 									position++
+									break
 								case '(':
 									if buffer[position] != rune('(') {
 										goto l22
 									}
 									position++
+									break
 								case '\\':
 									if buffer[position] != rune('\\') {
 										goto l22
 									}
 									position++
+									break
 								case '\r':
 									if buffer[position] != rune('\r') {
 										goto l22
 									}
 									position++
+									break
 								case '\n':
 									if buffer[position] != rune('\n') {
 										goto l22
 									}
 									position++
+									break
 								case '\t':
 									if buffer[position] != rune('\t') {
 										goto l22
 									}
 									position++
+									break
 								default:
 									if buffer[position] != rune(' ') {
 										goto l22
 									}
 									position++
+									break
 								}
 							}
 
@@ -713,61 +728,73 @@ func (p *Parser) Init() {
 											goto l24
 										}
 										position++
+										break
 									case '>':
 										if buffer[position] != rune('>') {
 											goto l24
 										}
 										position++
+										break
 									case '=':
 										if buffer[position] != rune('=') {
 											goto l24
 										}
 										position++
+										break
 									case '\'':
 										if buffer[position] != rune('\'') {
 											goto l24
 										}
 										position++
+										break
 									case '"':
 										if buffer[position] != rune('"') {
 											goto l24
 										}
 										position++
+										break
 									case ')':
 										if buffer[position] != rune(')') {
 											goto l24
 										}
 										position++
+										break
 									case '(':
 										if buffer[position] != rune('(') {
 											goto l24
 										}
 										position++
+										break
 									case '\\':
 										if buffer[position] != rune('\\') {
 											goto l24
 										}
 										position++
+										break
 									case '\r':
 										if buffer[position] != rune('\r') {
 											goto l24
 										}
 										position++
+										break
 									case '\n':
 										if buffer[position] != rune('\n') {
 											goto l24
 										}
 										position++
+										break
 									case '\t':
 										if buffer[position] != rune('\t') {
 											goto l24
 										}
 										position++
+										break
 									default:
 										if buffer[position] != rune(' ') {
 											goto l24
 										}
 										position++
+										break
 									}
 								}
 
@@ -832,14 +859,17 @@ func (p *Parser) Init() {
 							if !_rules[ruledate]() {
 								goto l29
 							}
+							break
 						case 'T', 't':
 							if !_rules[ruletime]() {
 								goto l29
 							}
+							break
 						default:
 							if !_rules[rulenumber]() {
 								goto l29
 							}
+							break
 						}
 					}
 
@@ -877,14 +907,17 @@ func (p *Parser) Init() {
 							if !_rules[ruledate]() {
 								goto l34
 							}
+							break
 						case 'T', 't':
 							if !_rules[ruletime]() {
 								goto l34
 							}
+							break
 						default:
 							if !_rules[rulenumber]() {
 								goto l34
 							}
+							break
 						}
 					}
 
@@ -990,6 +1023,7 @@ func (p *Parser) Init() {
 								depth--
 								add(ruleexists, position40)
 							}
+							break
 						case '=':
 							{
 								position53 := position
@@ -1018,21 +1052,26 @@ func (p *Parser) Init() {
 									if !_rules[rulevalue]() {
 										goto l16
 									}
+									break
 								case 'D', 'd':
 									if !_rules[ruledate]() {
 										goto l16
 									}
+									break
 								case 'T', 't':
 									if !_rules[ruletime]() {
 										goto l16
 									}
+									break
 								default:
 									if !_rules[rulenumber]() {
 										goto l16
 									}
+									break
 								}
 							}
 
+							break
 						case '>':
 							{
 								position57 := position
@@ -1061,17 +1100,21 @@ func (p *Parser) Init() {
 									if !_rules[ruledate]() {
 										goto l16
 									}
+									break
 								case 'T', 't':
 									if !_rules[ruletime]() {
 										goto l16
 									}
+									break
 								default:
 									if !_rules[rulenumber]() {
 										goto l16
 									}
+									break
 								}
 							}
 
+							break
 						case '<':
 							{
 								position61 := position
@@ -1100,17 +1143,21 @@ func (p *Parser) Init() {
 									if !_rules[ruledate]() {
 										goto l16
 									}
+									break
 								case 'T', 't':
 									if !_rules[ruletime]() {
 										goto l16
 									}
+									break
 								default:
 									if !_rules[rulenumber]() {
 										goto l16
 									}
+									break
 								}
 							}
 
+							break
 						default:
 							{
 								position65 := position
@@ -1252,6 +1299,7 @@ func (p *Parser) Init() {
 							if !_rules[rulevalue]() {
 								goto l16
 							}
+							break
 						}
 					}
 
@@ -1767,21 +1815,25 @@ func (p *Parser) Init() {
 							goto l140
 						}
 						position++
+						break
 					case '2':
 						if buffer[position] != rune('2') {
 							goto l140
 						}
 						position++
+						break
 					case '1':
 						if buffer[position] != rune('1') {
 							goto l140
 						}
 						position++
+						break
 					default:
 						if buffer[position] != rune('0') {
 							goto l140
 						}
 						position++
+						break
 					}
 				}
 

@@ -59,7 +59,7 @@ func TestSubscribe(t *testing.T) {
 	select {
 	case <-published:
 		assertReceive(t, "Quicksilver", subscription.Out())
-		assertCanceled(t, subscription, pubsub.ErrOutOfCapacity)
+		assertCancelled(t, subscription, pubsub.ErrOutOfCapacity)
 	case <-time.After(3 * time.Second):
 		t.Fatal("Expected Publish(Asylum) not to block")
 	}
@@ -146,7 +146,7 @@ func TestSlowClientIsRemovedWithErrOutOfCapacity(t *testing.T) {
 	err = s.Publish(ctx, "Viper")
 	require.NoError(t, err)
 
-	assertCanceled(t, subscription, pubsub.ErrOutOfCapacity)
+	assertCancelled(t, subscription, pubsub.ErrOutOfCapacity)
 }
 
 func TestDifferentClients(t *testing.T) {
@@ -482,10 +482,8 @@ func benchmarkNClientsOneQuery(n int, b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		err = s.PublishWithEvents(ctx, "Gamora", map[string][]string{
-			"abci.Account.Owner":   {"Ivan"},
-			"abci.Invoices.Number": {"1"},
-		})
+		err = s.PublishWithEvents(ctx, "Gamora", map[string][]string{"abci.Account.Owner": {"Ivan"},
+			"abci.Invoices.Number": {"1"}})
 		require.NoError(b, err)
 	}
 }
