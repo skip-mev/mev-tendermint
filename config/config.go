@@ -1081,11 +1081,11 @@ func (cfg *ConsensusConfig) ValidateBasic() error {
 // SidecarConfig
 
 // Sidecar defines configuration for gossiping the private sidecar
-// mempool among the relayer and the nodes that belong to a particular proposer
+// mempool among the sentinel and the nodes that belong to a particular proposer
 type SidecarConfig struct {
-	RootDir           string `mapstructure:"home"`
-	RelayerRPCString  string `mapstructure:"relayer_rpc_string"`
-	RelayerPeerString string `mapstructure:"relayer_peer_string"`
+	RootDir            string `mapstructure:"home"`
+	SentinelRPCString  string `mapstructure:"sentinel_rpc_string"`
+	SentinelPeerString string `mapstructure:"sentinel_peer_string"`
 
 	PersonalPeerIDs string `mapstructure:"personal_peer_ids"`
 	APIKey          string `mapstructure:"api_key"`
@@ -1097,9 +1097,9 @@ func DefaultSidecarConfig() *SidecarConfig {
 
 func TestSidecarConfig() *SidecarConfig {
 	return &SidecarConfig{
-		RelayerRPCString:  "test-api.skip.money",
-		RelayerPeerString: "79044d1d81d24a8ff3c7fd7e010f455f7ae9e1ad@1.2.3.4:26656",
-		APIKey:            "api-key",
+		SentinelRPCString:  "test-api.skip.money",
+		SentinelPeerString: "79044d1d81d24a8ff3c7fd7e010f455f7ae9e1ad@1.2.3.4:26656",
+		APIKey:             "api-key",
 	}
 }
 

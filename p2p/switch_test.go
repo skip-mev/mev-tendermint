@@ -902,19 +902,19 @@ func TestSwitchRemovalErr(t *testing.T) {
 	assert.Equal(t, sw2.peers.Add(p).Error(), ErrPeerRemoval{}.Error())
 }
 
-func TestAddRelayerPeer(t *testing.T) {
+func TestAddSentinelPeer(t *testing.T) {
 	sw := MakeSwitch(cfg, 1, "testing", "123.123.123", initSwitchFunc)
-	relayerString := "79044d1d81d24a8ff3c7fd7e010f455f7ae9e1ad@1.2.3.4:26656"
-	relayerNetAddr, _ := NewNetAddressString(relayerString)
+	sentinelString := "79044d1d81d24a8ff3c7fd7e010f455f7ae9e1ad@1.2.3.4:26656"
+	sentinelNetAddr, _ := NewNetAddressString(sentinelString)
 
-	err := sw.AddRelayerPeer(relayerString)
+	err := sw.AddSentinelPeer(sentinelString)
 	if err != nil {
-		t.Errorf("Err in AddRelayerPeer: %s", err)
+		t.Errorf("Err in AddSentinelPeer: %s", err)
 	}
 
-	assert.Equal(t, relayerNetAddr, sw.RelayerNetAddr, "Expected RelayerNetAddr %s, got %s", relayerNetAddr, sw.RelayerNetAddr)
+	assert.Equal(t, sentinelNetAddr, sw.SentinelNetAddr, "Expected SentinelNetAddr %s, got %s", sentinelNetAddr, sw.SentinelNetAddr)
 
-	errRelayerString := "abcd@1.2.3.4:26656"
-	err = sw.AddRelayerPeer(errRelayerString)
-	assert.True(t, err != nil, "Expected err with invalid relayer string")
+	errSentinelString := "abcd@1.2.3.4:26656"
+	err = sw.AddSentinelPeer(errSentinelString)
+	assert.True(t, err != nil, "Expected err with invalid sentinel string")
 }
