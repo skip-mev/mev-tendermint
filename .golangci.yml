@@ -1,3 +1,7 @@
+run:
+  tests: true
+  skip-file: libs/pubsub/query/query.peg.go
+
 linters:
   enable:
     - asciicheck
@@ -8,8 +12,7 @@ linters:
     - errcheck
     - exportloopref
     - goconst
-    - gofmt
-    - goimports
+    - gofumpt
     - revive
     - gosec
     - gosimple
@@ -20,7 +23,6 @@ linters:
     - nolintlint
     - prealloc
     - staticcheck
-    # - structcheck // to be fixed by golangci-lint
     - stylecheck
     - typecheck
     - unconvert
@@ -40,8 +42,6 @@ linters-settings:
     min-confidence: 0
   maligned:
     suggest-new: true
-  # govet:
-  #   check-shadowing: true
   revive:
     min-confidence: 0
   misspell:
@@ -50,7 +50,3 @@ linters-settings:
       - behaviour
   lll:
     line-length: 140
-
-run:
-  skip-files:
-    - libs/pubsub/query/query.peg.go

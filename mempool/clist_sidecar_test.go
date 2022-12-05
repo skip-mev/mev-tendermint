@@ -26,16 +26,20 @@ func addNumBundlesToSidecar(t *testing.T, sidecar PriorityTxSidecar, numBundles 
 	txs := make(types.Txs, 0)
 	for i := 0; i < numBundles; i++ {
 		totalTxsCount += int(bundleSize)
-		newTxs := createSidecarBundleAndTxs(t, sidecar, testBundleInfo{BundleSize: bundleSize,
-			PeerID: UnknownPeerID, DesiredHeight: sidecar.HeightForFiringAuction(), BundleID: int64(i)})
+		newTxs := createSidecarBundleAndTxs(t, sidecar, testBundleInfo{
+			BundleSize: bundleSize,
+			PeerID:     UnknownPeerID, DesiredHeight: sidecar.HeightForFiringAuction(), BundleID: int64(i),
+		})
 		txs = append(txs, newTxs...)
 	}
 	return txs
 }
 
 func addTxToSidecar(t *testing.T, sidecar PriorityTxSidecar, bInfo testBundleInfo, bundleOrder int64) types.Tx {
-	txInfo := TxInfo{SenderID: bInfo.PeerID, BundleSize: bInfo.BundleSize,
-		BundleID: bInfo.BundleID, DesiredHeight: bInfo.DesiredHeight, BundleOrder: bundleOrder}
+	txInfo := TxInfo{
+		SenderID: bInfo.PeerID, BundleSize: bInfo.BundleSize,
+		BundleID: bInfo.BundleID, DesiredHeight: bInfo.DesiredHeight, BundleOrder: bundleOrder,
+	}
 	txBytes := make([]byte, 20)
 	_, err := rand.Read(txBytes)
 	if err != nil {

@@ -69,7 +69,6 @@ func (pool *BlockPool) updateMaxPeerHeight() {
 // UpdatePeer adds a new peer or updates an existing peer with a new base and height.
 // If a peer is short it is not added.
 func (pool *BlockPool) UpdatePeer(peerID p2p.ID, base int64, height int64) error {
-
 	peer := pool.peers[peerID]
 
 	if peer == nil {
@@ -280,7 +279,6 @@ func (pool *BlockPool) BlockAndPeerAtHeight(height int64) (bData *BlockData, err
 	}
 
 	return &BlockData{peer: peer, block: block}, nil
-
 }
 
 // FirstTwoBlocksAndPeers returns the blocks and the delivery peers at pool's height H and H+1.

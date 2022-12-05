@@ -104,7 +104,6 @@ type Mempool interface {
 // Sidecar is a dummy version of a mempool only gossipeed through
 // the SidecarChannel with the Sentinel
 type PriorityTxSidecar interface {
-
 	// AddTx takes in a transaction and adds to the sidecar, no checks
 	// given by CheckTx
 	AddTx(tx types.Tx, txInfo TxInfo) error

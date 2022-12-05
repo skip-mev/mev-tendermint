@@ -73,7 +73,6 @@ func startConsensusNet(t *testing.T, css []*State, n int) (
 			if err := css[i].blockExec.Store().Save(css[i].state); err != nil {
 				t.Error(err)
 			}
-
 		}
 	}
 	// make connected switches and start all reactors
@@ -146,7 +145,7 @@ func TestReactorWithEvidence(t *testing.T) {
 		state, _ := stateStore.LoadFromDBOrGenesisDoc(genDoc)
 		thisConfig := ResetConfig(fmt.Sprintf("%s_%d", testName, i))
 		defer os.RemoveAll(thisConfig.RootDir)
-		ensureDir(path.Dir(thisConfig.Consensus.WalFile()), 0700) // dir for wal
+		ensureDir(path.Dir(thisConfig.Consensus.WalFile()), 0o700) // dir for wal
 		app := appFunc()
 		vals := types.TM2PB.ValidatorUpdates(state.Validators)
 		app.InitChain(abci.RequestInitChain{Validators: vals})
@@ -197,7 +196,8 @@ func TestReactorWithEvidence(t *testing.T) {
 		evpool := &statemocks.EvidencePool{}
 		evpool.On("CheckEvidence", mock.AnythingOfType("types.EvidenceList")).Return(nil)
 		evpool.On("PendingEvidence", mock.AnythingOfType("int64")).Return([]types.Evidence{
-			ev}, int64(len(ev.Bytes())))
+			ev,
+		}, int64(len(ev.Bytes())))
 		evpool.On("Update", mock.AnythingOfType("state.State"), mock.AnythingOfType("types.EvidenceList")).Return()
 
 		evpool2 := sm.EmptyEvidencePool{}
@@ -276,8 +276,10 @@ func TestLegacyReactorReceiveBasicIfAddPeerHasntBeenCalledYet(t *testing.T) {
 		reactor.ReceiveEnvelope(p2p.Envelope{
 			ChannelID: StateChannel,
 			Src:       peer,
-			Message: &tmcons.HasVote{Height: 1,
-				Round: 1, Index: 1, Type: tmproto.PrevoteType},
+			Message: &tmcons.HasVote{
+				Height: 1,
+				Round:  1, Index: 1, Type: tmproto.PrevoteType,
+			},
 		})
 		reactor.AddPeer(peer)
 	})
@@ -331,8 +333,10 @@ func TestReactorReceivePanicsIfInitPeerHasntBeenCalledYet(t *testing.T) {
 		reactor.ReceiveEnvelope(p2p.Envelope{
 			ChannelID: StateChannel,
 			Src:       peer,
-			Message: &tmcons.HasVote{Height: 1,
-				Round: 1, Index: 1, Type: tmproto.PrevoteType},
+			Message: &tmcons.HasVote{
+				Height: 1,
+				Round:  1, Index: 1, Type: tmproto.PrevoteType,
+			},
 		})
 	})
 }
@@ -630,7 +634,6 @@ func waitForAndValidateBlockWithTx(
 				break BLOCK_TX_LOOP
 			}
 		}
-
 	}, css)
 }
 
@@ -642,7 +645,6 @@ func waitForBlockWithUpdatedValsAndValidateIt(
 	css []*State,
 ) {
 	timeoutWaitGroup(t, n, func(j int) {
-
 		var newBlock *types.Block
 	LOOP:
 		for {
@@ -856,8 +858,10 @@ func TestProposalPOLMessageValidateBasic(t *testing.T) {
 		{func(msg *ProposalPOLMessage) { msg.Height = -1 }, "negative Height"},
 		{func(msg *ProposalPOLMessage) { msg.ProposalPOLRound = -1 }, "negative ProposalPOLRound"},
 		{func(msg *ProposalPOLMessage) { msg.ProposalPOL = bits.NewBitArray(0) }, "empty ProposalPOL bit array"},
-		{func(msg *ProposalPOLMessage) { msg.ProposalPOL = bits.NewBitArray(types.MaxVotesCount + 1) },
-			"proposalPOL bit array is too big: 10001, max: 10000"},
+		{
+			func(msg *ProposalPOLMessage) { msg.ProposalPOL = bits.NewBitArray(types.MaxVotesCount + 1) },
+			"proposalPOL bit array is too big: 10001, max: 10000",
+		},
 	}
 
 	for i, tc := range testCases {
@@ -1010,8 +1014,10 @@ func TestVoteSetBitsMessageValidateBasic(t *testing.T) {
 				},
 			}
 		}, "wrong BlockID: wrong PartSetHeader: wrong Hash:"},
-		{func(msg *VoteSetBitsMessage) { msg.Votes = bits.NewBitArray(types.MaxVotesCount + 1) },
-			"votes bit array is too big: 10001, max: 10000"},
+		{
+			func(msg *VoteSetBitsMessage) { msg.Votes = bits.NewBitArray(types.MaxVotesCount + 1) },
+			"votes bit array is too big: 10001, max: 10000",
+		},
 	}
 
 	for i, tc := range testCases {

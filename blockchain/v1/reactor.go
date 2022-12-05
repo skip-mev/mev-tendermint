@@ -72,8 +72,8 @@ type BlockchainReactor struct {
 
 // NewBlockchainReactor returns new reactor instance.
 func NewBlockchainReactor(state sm.State, blockExec *sm.BlockExecutor, store *store.BlockStore,
-	fastSync bool) *BlockchainReactor {
-
+	fastSync bool,
+) *BlockchainReactor {
 	if state.LastBlockHeight != store.Height() {
 		panic(fmt.Sprintf("state (%v) and store (%v) height mismatch", state.LastBlockHeight,
 			store.Height()))
@@ -197,8 +197,8 @@ func (bcR *BlockchainReactor) AddPeer(peer p2p.Peer) {
 // If the block doesn't exist a bcNoBlockResponseMessage is sent.
 // If all nodes are honest, no node should be requesting for a block that doesn't exist.
 func (bcR *BlockchainReactor) sendBlockToPeer(msg *bcproto.BlockRequest,
-	src p2p.Peer) (queued bool) {
-
+	src p2p.Peer,
+) (queued bool) {
 	block := bcR.store.LoadBlock(msg.Height)
 	if block != nil {
 		pbbi, err := block.ToProto()
@@ -330,7 +330,6 @@ func (bcR *BlockchainReactor) Receive(chID byte, peer p2p.Peer, msgBytes []byte)
 
 // processBlocksRoutine processes blocks until signlaed to stop over the stopProcessing channel
 func (bcR *BlockchainReactor) processBlocksRoutine(stopProcessing chan struct{}) {
-
 	processReceivedBlockTicker := time.NewTicker(trySyncIntervalMS * time.Millisecond)
 	doProcessBlockCh := make(chan struct{}, 1)
 
@@ -382,7 +381,6 @@ ForLoop:
 
 // poolRoutine receives and handles messages from the Receive() routine and from the FSM.
 func (bcR *BlockchainReactor) poolRoutine() {
-
 	bcR.fsm.Start()
 
 	sendBlockRequestTicker := time.NewTicker(trySendIntervalMS * time.Millisecond)
@@ -402,7 +400,9 @@ ForLoop:
 			_ = bcR.fsm.Handle(&bcReactorMessage{
 				event: makeRequestsEv,
 				data: bReactorEventData{
-					maxNumRequests: maxNumRequests}})
+					maxNumRequests: maxNumRequests,
+				},
+			})
 
 		case <-statusUpdateTicker.C:
 			// Ask for status updates.
@@ -459,7 +459,6 @@ func (bcR *BlockchainReactor) reportPeerErrorToSwitch(err error, peerID p2p.ID) 
 }
 
 func (bcR *BlockchainReactor) processBlock() error {
-
 	first, second, err := bcR.fsm.FirstTwoBlocks()
 	if err != nil {
 		// We need both to sync the first block.
