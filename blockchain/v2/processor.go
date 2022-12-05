@@ -172,7 +172,8 @@ func (state *pcState) handle(event Event) (Event, error) {
 				state.purgePeer(secondItem.peerID)
 			}
 			return pcBlockVerificationFailure{
-					height: first.Height, firstPeerID: firstItem.peerID, secondPeerID: secondItem.peerID},
+					height: first.Height, firstPeerID: firstItem.peerID, secondPeerID: secondItem.peerID,
+				},
 				nil
 		}
 

@@ -374,7 +374,6 @@ func createMempoolAndSidecarAndMempoolReactor(
 	memplMetrics *mempl.Metrics,
 	logger log.Logger,
 ) (mempl.Mempool, p2p.Reactor, mempl.PriorityTxSidecar) {
-
 	sidecar := mempl.NewCListSidecar(
 		state.LastBlockHeight,
 		logger,
@@ -596,7 +595,8 @@ func createSwitch(config *cfg.Config,
 	evidenceReactor *evidence.Reactor,
 	nodeInfo p2p.NodeInfo,
 	nodeKey *p2p.NodeKey,
-	p2pLogger log.Logger) *p2p.Switch {
+	p2pLogger log.Logger,
+) *p2p.Switch {
 	peerList := splitAndTrimEmpty(config.Sidecar.PersonalPeerIDs, ",", " ")
 
 	if config.Sidecar.RelayerPeerString != "" {

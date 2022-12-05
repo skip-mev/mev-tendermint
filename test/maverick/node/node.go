@@ -380,7 +380,8 @@ func onlyValidatorIsUs(state sm.State, pubKey crypto.PubKey) bool {
 }
 
 func createMempoolAndSidecarAndMempoolReactor(config *cfg.Config, proxyApp proxy.AppConns,
-	state sm.State, memplMetrics *mempl.Metrics, logger log.Logger) (p2p.Reactor, mempl.Mempool, mempl.PriorityTxSidecar) {
+	state sm.State, memplMetrics *mempl.Metrics, logger log.Logger,
+) (p2p.Reactor, mempl.Mempool, mempl.PriorityTxSidecar) {
 	sidecar := mempl.NewCListSidecar(
 		state.LastBlockHeight,
 		logger,

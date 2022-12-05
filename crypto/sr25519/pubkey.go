@@ -56,7 +56,7 @@ func (pubKey PubKey) VerifySignature(msg []byte, sig []byte) bool {
 	}
 
 	isVerified, err := publicKey.Verify(signature, signingContext)
-	if err !=nil {
+	if err != nil {
 		return false
 	}
 
@@ -78,5 +78,4 @@ func (pubKey PubKey) Equals(other crypto.PubKey) bool {
 
 func (pubKey PubKey) Type() string {
 	return keyType
-
 }

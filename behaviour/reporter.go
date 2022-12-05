@@ -55,7 +55,7 @@ type MockReporter struct {
 }
 
 // NewMockReporter returns a Reporter which records all reported
-// behaviours in memory.
+// behaviors in memory.
 func NewMockReporter() *MockReporter {
 	return &MockReporter{
 		pb: map[p2p.ID][]PeerBehaviour{},
@@ -71,7 +71,7 @@ func (mpbr *MockReporter) Report(behaviour PeerBehaviour) error {
 	return nil
 }
 
-// GetBehaviours returns all behaviours reported on the peer identified by peerID.
+// GetBehaviours returns all behaviors reported on the peer identified by peerID.
 func (mpbr *MockReporter) GetBehaviours(peerID p2p.ID) []PeerBehaviour {
 	mpbr.mtx.RLock()
 	defer mpbr.mtx.RUnlock()

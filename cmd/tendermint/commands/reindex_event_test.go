@@ -124,7 +124,6 @@ func TestLoadBlockStore(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, bs)
 	require.NotNil(t, ss)
-
 }
 
 func TestReIndexEvent(t *testing.T) {

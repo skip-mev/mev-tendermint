@@ -135,7 +135,6 @@ func NewSwitch(
 	relayerPeerString string,
 	options ...SwitchOption,
 ) *Switch {
-
 	sw := &Switch{
 		config:               cfg,
 		sidecarPeers:         sidecarPeers,
@@ -418,7 +417,6 @@ func (sw *Switch) StopPeerForError(peer Peer, reason interface{}) {
 		}
 		go sw.reconnectToPeer(addr)
 	}
-
 }
 
 // StopPeerGracefully disconnects from a peer gracefully.
@@ -857,7 +855,6 @@ func (sw *Switch) addOutboundPeerWithConfig(
 	addr *NetAddress,
 	cfg *config.P2PConfig,
 ) error {
-
 	if sw.RelayerNetAddr != nil && addr.ID == sw.RelayerNetAddr.ID {
 		sw.Logger.Info("[relayer-reconnection]: DIALING SENTINEL", "address", addr, "time", time.Now())
 	} else {

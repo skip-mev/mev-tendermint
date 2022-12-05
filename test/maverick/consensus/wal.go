@@ -58,7 +58,7 @@ var _ tmcon.WAL = &BaseWAL{}
 // NewWAL returns a new write-ahead logger based on `baseWAL`, which implements
 // WAL. It's flushed and synced to disk every 2s and once when stopped.
 func NewWAL(walFile string, groupOptions ...func(*auto.Group)) (*BaseWAL, error) {
-	err := tmos.EnsureDir(filepath.Dir(walFile), 0700)
+	err := tmos.EnsureDir(filepath.Dir(walFile), 0o700)
 	if err != nil {
 		return nil, fmt.Errorf("failed to ensure WAL directory is in place: %w", err)
 	}
@@ -199,7 +199,8 @@ type WALSearchOptions struct {
 // CONTRACT: caller must close group reader.
 func (wal *BaseWAL) SearchForEndHeight(
 	height int64,
-	options *tmcon.WALSearchOptions) (rd io.ReadCloser, found bool, err error) {
+	options *tmcon.WALSearchOptions,
+) (rd io.ReadCloser, found bool, err error) {
 	var (
 		msg *tmcon.TimedWALMessage
 		gr  *auto.GroupReader
@@ -373,7 +374,7 @@ func (dec *WALDecoder) Decode() (*tmcon.TimedWALMessage, error) {
 		return nil, DataCorruptionError{fmt.Errorf("checksums do not match: read: %v, actual: %v", crc, actualCRC)}
 	}
 
-	var res = new(tmcons.TimedWALMessage)
+	res := new(tmcons.TimedWALMessage)
 	err = proto.Unmarshal(data, res)
 	if err != nil {
 		return nil, DataCorruptionError{fmt.Errorf("failed to decode data: %v", err)}
@@ -399,7 +400,8 @@ func (nilWAL) Write(m tmcon.WALMessage) error     { return nil }
 func (nilWAL) WriteSync(m tmcon.WALMessage) error { return nil }
 func (nilWAL) FlushAndSync() error                { return nil }
 func (nilWAL) SearchForEndHeight(height int64,
-	options *tmcon.WALSearchOptions) (rd io.ReadCloser, found bool, err error) {
+	options *tmcon.WALSearchOptions,
+) (rd io.ReadCloser, found bool, err error) {
 	return nil, false, nil
 }
 func (nilWAL) Start() error { return nil }

@@ -34,27 +34,27 @@ Multiple testnets can be run with the `run-multiple.sh` script:
 
 The test runner has the following stages, which can also be executed explicitly by running `./build/runner -f <manifest> <stage>`:
 
-* `setup`: generates configuration files.
+- `setup`: generates configuration files.
 
-* `start`: starts Docker containers.
+- `start`: starts Docker containers.
 
-* `load`: generates a transaction load against the testnet nodes.
+- `load`: generates a transaction load against the testnet nodes.
 
-* `perturb`: runs any requested perturbations (e.g. node restarts or network disconnects).
+- `perturb`: runs any requested perturbations (e.g. node restarts or network disconnects).
 
-* `wait`: waits for a few blocks to be produced, and for all nodes to catch up to it.
+- `wait`: waits for a few blocks to be produced, and for all nodes to catch up to it.
 
-* `test`: runs test cases in `tests/` against all nodes in a running testnet.
+- `test`: runs test cases in `tests/` against all nodes in a running testnet.
 
-* `stop`: stops Docker containers.
+- `stop`: stops Docker containers.
 
-* `cleanup`: removes configuration files and Docker containers/networks.
+- `cleanup`: removes configuration files and Docker containers/networks.
 
 Auxiliary commands:
 
-* `logs`: outputs all node logs.
+- `logs`: outputs all node logs.
 
-* `tail`: tails (follows) node logs until cancelled.
+- `tail`: tails (follows) node logs until Canceled.
 
 ## Tests
 

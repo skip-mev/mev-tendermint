@@ -27,7 +27,7 @@
 //	    select {
 //	    case msg <- subscription.Out():
 //	        // handle msg.Data() and msg.Events()
-//	    case <-subscription.Cancelled():
+//	    case <-subscription.Canceled():
 //	        return subscription.Err()
 //	    }
 //	}
@@ -150,7 +150,8 @@ func (s *Server) Subscribe(
 	ctx context.Context,
 	clientID string,
 	query Query,
-	outCapacity ...int) (*Subscription, error) {
+	outCapacity ...int,
+) (*Subscription, error) {
 	outCap := 1
 	if len(outCapacity) > 0 {
 		if outCapacity[0] <= 0 {

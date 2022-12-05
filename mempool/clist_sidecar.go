@@ -131,7 +131,6 @@ func (sc *CListPriorityTxSidecar) notifyTxsAvailable() {
 //--------------------------------------------------------------------------------
 
 func (sc *CListPriorityTxSidecar) AddTx(tx types.Tx, txInfo TxInfo) error {
-
 	sc.updateMtx.RLock()
 	// use defer to unlock mutex because application (*local client*) might panic
 	defer sc.updateMtx.RUnlock()
@@ -367,7 +366,6 @@ func (sc *CListPriorityTxSidecar) Update(
 	txs types.Txs,
 	deliverTxResponses []*abci.ResponseDeliverTx,
 ) error {
-
 	// Set height for block last updated to (i.e. block last committed)
 	sc.height = height
 	sc.notifiedTxsAvailable = false
