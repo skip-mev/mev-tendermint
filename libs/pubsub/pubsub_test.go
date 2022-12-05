@@ -59,7 +59,7 @@ func TestSubscribe(t *testing.T) {
 	select {
 	case <-published:
 		assertReceive(t, "Quicksilver", subscription.Out())
-		assertCancelled(t, subscription, pubsub.ErrOutOfCapacity)
+		assertCanceled(t, subscription, pubsub.ErrOutOfCapacity)
 	case <-time.After(3 * time.Second):
 		t.Fatal("Expected Publish(Asylum) not to block")
 	}
@@ -146,7 +146,7 @@ func TestSlowClientIsRemovedWithErrOutOfCapacity(t *testing.T) {
 	err = s.Publish(ctx, "Viper")
 	require.NoError(t, err)
 
-	assertCancelled(t, subscription, pubsub.ErrOutOfCapacity)
+	assertCanceled(t, subscription, pubsub.ErrOutOfCapacity)
 }
 
 func TestDifferentClients(t *testing.T) {
