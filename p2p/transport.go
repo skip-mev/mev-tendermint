@@ -21,7 +21,7 @@ const (
 	defaultHandshakeTimeout = 3 * time.Second
 )
 
-// IPResolver is a behaviour subset of net.Resolver.
+// IPResolver is a behavior subset of net.Resolver.
 type IPResolver interface {
 	LookupIPAddr(context.Context, string) ([]net.IPAddr, error)
 }
@@ -38,9 +38,9 @@ type accept struct {
 // peerConfig is used to bundle data we need to fully setup a Peer with an
 // MConn, provided by the caller of Accept and Dial (currently the Switch). This
 // a temporary measure until reactor setup is less dynamic and we introduce the
-// concept of PeerBehaviour to communicate about significant Peer lifecycle
+// concept of Peerbehavior to communicate about significant Peer lifecycle
 // events.
-// TODO(xla): Refactor out with more static Reactor setup and PeerBehaviour.
+// TODO(xla): Refactor out with more static Reactor setup and Peerbehavior.
 type peerConfig struct {
 	chDescs     []*conn.ChannelDescriptor
 	onPeerError func(Peer, interface{})
@@ -74,7 +74,7 @@ type Transport interface {
 }
 
 // transportLifecycle bundles the methods for callers to control start and stop
-// behaviour.
+// behavior.
 type transportLifecycle interface {
 	Close() error
 	Listen(NetAddress) error

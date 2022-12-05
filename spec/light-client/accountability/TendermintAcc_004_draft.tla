@@ -21,7 +21,7 @@
 
  Byzantine processes can demonstrate arbitrary behavior, including
  no communication. We show that if agreement is violated, then the Byzantine
- processes demonstrate one of the two behaviours:
+ processes demonstrate one of the two behaviors:
 
    - Equivocation: a Byzantine process may send two different values
      in the same round.
@@ -41,7 +41,7 @@ EXTENDS Integers, FiniteSets
 
 (********************* PROTOCOL PARAMETERS **********************************)
 CONSTANTS
-    Corr,          \* the set of correct processes 
+    Corr,          \* the set of correct processes
     Faulty,        \* the set of Byzantine processes, may be empty
     N,             \* the total number of processes: correct, defective, and Byzantine
     T,             \* an upper bound on the number of Byzantine processes
@@ -78,11 +78,11 @@ a <: b == a
 \* the type of message records
 MT == [type |-> STRING, src |-> STRING, round |-> Int,
        proposal |-> STRING, validRound |-> Int, id |-> STRING]
-       
+
 \* a type annotation for a message
 AsMsg(m) == m <: MT
 \* a type annotation for a set of messages
-SetOfMsgs(S) == S <: {MT}       
+SetOfMsgs(S) == S <: {MT}
 \* a type annotation for an empty set of messages
 EmptyMsgSet == SetOfMsgs({})
 
@@ -104,8 +104,8 @@ VARIABLES
   evidence, \* the messages that were used by the correct processes to make transitions
   action        \* we use this variable to see which action was taken
 
-(* to see a type invariant, check TendermintAccInv3 *)  
- 
+(* to see a type invariant, check TendermintAccInv3 *)
+
 \* a handy definition used in UNCHANGED
 vars == <<round, step, decision, lockedValue, lockedRound,
           validValue, validRound, evidence, msgsPropose, msgsPrevote, msgsPrecommit>>
@@ -122,7 +122,7 @@ AllFaultyProposals ==
 FaultyPrevotes(r) ==
     SetOfMsgs([type: {"PREVOTE"}, src: Faulty, round: {r}, id: Values])
 
-AllFaultyPrevotes ==    
+AllFaultyPrevotes ==
     SetOfMsgs([type: {"PREVOTE"}, src: Faulty, round: Rounds, id: Values])
 
 FaultyPrecommits(r) ==
@@ -130,7 +130,7 @@ FaultyPrecommits(r) ==
 
 AllFaultyPrecommits ==
     SetOfMsgs([type: {"PRECOMMIT"}, src: Faulty, round: Rounds, id: Values])
-   
+
 BenignRoundsInMessages(msgfun) ==
   \* the message function never contains a message for a wrong round
   \A r \in Rounds:
@@ -181,17 +181,17 @@ BroadcastPrecommit(pSrc, pRound, pId) ==
 StartRound(p, r) ==
    /\ step[p] /= "DECIDED" \* a decided process does not participate in consensus
    /\ round' = [round EXCEPT ![p] = r]
-   /\ step' = [step EXCEPT ![p] = "PROPOSE"] 
+   /\ step' = [step EXCEPT ![p] = "PROPOSE"]
 
 \* lines 14-19, a proposal may be sent later
-InsertProposal(p) == 
+InsertProposal(p) ==
   LET r == round[p] IN
   /\ p = Proposer[r]
   /\ step[p] = "PROPOSE"
     \* if the proposer is sending a proposal, then there are no other proposals
     \* by the correct processes for the same round
   /\ \A m \in msgsPropose[r]: m.src /= p
-  /\ \E v \in ValidValues: 
+  /\ \E v \in ValidValues:
       LET proposal == IF validValue[p] /= NilValue THEN validValue[p] ELSE v IN
       BroadcastProposal(p, round[p], proposal, validRound[p])
   /\ UNCHANGED <<evidence, round, decision, lockedValue, lockedRound,
@@ -218,7 +218,7 @@ UponProposalInPropose(p) ==
                    validValue, validRound, msgsPropose, msgsPrecommit>>
     /\ action' = "UponProposalInPropose"
 
-\* lines 28-33        
+\* lines 28-33
 UponProposalInProposeAndPrevote(p) ==
   \E v \in Values, vr \in Rounds:
     /\ step[p] = "PROPOSE" /\ 0 <= vr /\ vr < round[p] \* line 28, the while part
@@ -240,7 +240,7 @@ UponProposalInProposeAndPrevote(p) ==
     /\ UNCHANGED <<round, decision, lockedValue, lockedRound,
                    validValue, validRound, msgsPropose, msgsPrecommit>>
     /\ action' = "UponProposalInProposeAndPrevote"
-                     
+
  \* lines 34-35 + lines 61-64 (onTimeoutPrevote)
 UponQuorumOfPrevotesAny(p) ==
   /\ step[p] = "PREVOTE" \* line 34 and 61
@@ -255,7 +255,7 @@ UponQuorumOfPrevotesAny(p) ==
       /\ UNCHANGED <<round, decision, lockedValue, lockedRound,
                     validValue, validRound, msgsPropose, msgsPrevote>>
       /\ action' = "UponQuorumOfPrevotesAny"
-                     
+
 \* lines 36-46
 UponProposalInPrevoteOrCommitAndPrevote(p) ==
   \E v \in ValidValues, vr \in RoundsOrNil:
@@ -290,12 +290,12 @@ UponQuorumOfPrecommitsAny(p) ==
       /\ Cardinality(Committers) >= THRESHOLD2 \* line 47
       /\ evidence' = MyEvidence \union evidence
       /\ round[p] + 1 \in Rounds
-      /\ StartRound(p, round[p] + 1)   
+      /\ StartRound(p, round[p] + 1)
       /\ UNCHANGED <<decision, lockedValue, lockedRound, validValue,
                     validRound, msgsPropose, msgsPrevote, msgsPrecommit>>
       /\ action' = "UponQuorumOfPrecommitsAny"
-                     
-\* lines 49-54        
+
+\* lines 49-54
 UponProposalInPrecommitNoDecision(p) ==
   /\ decision[p] = NilValue \* line 49
   /\ \E v \in ValidValues (* line 50*) , r \in Rounds, vr \in RoundsOrNil:
@@ -312,7 +312,7 @@ UponProposalInPrecommitNoDecision(p) ==
        /\ UNCHANGED <<round, lockedValue, lockedRound, validValue,
                      validRound, msgsPropose, msgsPrevote, msgsPrecommit>>
        /\ action' = "UponProposalInPrecommitNoDecision"
-                                                          
+
 \* the actions below are not essential for safety, but added for completeness
 
 \* lines 20-21 + 57-60
@@ -368,7 +368,7 @@ Next ==
     \/ OnQuorumOfNilPrevotes(p)
     \/ OnRoundCatchup(p)
 
-  
+
 (**************************** FORK SCENARIOS  ***************************)
 
 \* equivocation by a process p
@@ -423,7 +423,7 @@ Accountability ==
             EquivocationBy(p) \/ AmnesiaBy(p)
 
 (****************** FALSE INVARIANTS TO PRODUCE EXAMPLES ***********************)
- 
+
 \* This property is violated. You can check it to see how amnesic behavior
 \* appears in the evidence variable.
 NoAmnesia ==
@@ -440,12 +440,12 @@ NoAgreement ==
   \A p, q \in Corr:
     (p /= q /\ decision[p] /= NilValue /\ decision[q] /= NilValue)
         => decision[p] /= decision[q]
- 
+
 \* Either agreement holds, or the faulty processes indeed demonstrate amnesia.
 \* This property is violated. A counterexample should demonstrate equivocation.
 AgreementOrAmnesia ==
     Agreement \/ (\A p \in Faulty: AmnesiaBy(p))
- 
+
 \* We expect this property to be violated. It shows us a protocol run,
 \* where one faulty process demonstrates amnesia without equivocation.
 \* However, the absence of amnesia
@@ -462,7 +462,7 @@ AmnesiaImpliesEquivocation ==
 
 (*
   This property is violated. You can check it to see that all correct processes
-  may reach MaxRound without making a decision. 
+  may reach MaxRound without making a decision.
  *)
 NeverUndecidedInMaxRound ==
     LET AllInMax == \A p \in Corr: round[p] = MaxRound
@@ -470,5 +470,5 @@ NeverUndecidedInMaxRound ==
     IN
     AllInMax => AllDecided
 
-=============================================================================    
- 
+=============================================================================
+

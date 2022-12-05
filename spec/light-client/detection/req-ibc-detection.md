@@ -24,22 +24,22 @@ In the following, I distilled what I considered relevant from
 | `Height` | (no epochs) | (epoch,height) pair in lexicographical order (`compare`) |
 | `Header` | ~signed header | validatorSet explicit (no hash); nextValidators missing |
 | `Evidence` | t.b.d. | definition unclear "which the light client would have considered valid". Data structure will need to change |
-| `verify` | `ValidAndVerified` | signature does not match perfectly (ClientState vs. LightBlock) + in `checkMisbehaviourAndUpdateState` it is unclear whether it uses traces or goes to h1 and h2 in one step |
+| `verify` | `ValidAndVerified` | signature does not match perfectly (ClientState vs. LightBlock) + in `checkMisbehaviorAndUpdateState` it is unclear whether it uses traces or goes to h1 and h2 in one step |
 
 #### Some IBC links
 
 - [QueryConsensusState](https://github.com/cosmos/cosmos-sdk/blob/2651427ab4c6ea9f81d26afa0211757fc76cf747/x/ibc/02-client/client/utils/utils.go#L68)
-  
+
 #### Required Changes in ICS 007
 
 - `assert(height > 0)` in definition of `initialise` doesn't match
   definition of `Height` as *(epoch,height)* pair.
-  
+
 - `initialise` needs to be updated to new data structures
 
 - `clientState.frozenHeight` semantics seem not totally consistent in
   document. E.g., `min` needs to be defined over optional value in
-  `checkMisbehaviourAndUpdateState`. Also, if you are frozen, why do
+  `checkMisbehaviorAndUpdateState`. Also, if you are frozen, why do
   you accept more evidence.
 
 - `checkValidityAndUpdateState`
@@ -53,22 +53,22 @@ In the following, I distilled what I considered relevant from
     - clienstState needs to be updated according to complete data
       structure
 
-- `checkMisbehaviourAndUpdateState`: as evidence will contain a trace
+- `checkMisbehaviorAndUpdateState`: as evidence will contain a trace
   (or two), the assertion that uses verify will need to change.
 
 - ICS 002 states w.r.t. `queryChainConsensusState` that "Note that
   retrieval of past consensus states by height (as opposed to just the
   current consensus state) is convenient but not required." For
   Tendermint fork detection, this seems to be a necessity.
-  
+
 - `Header` should become a lightblock
 
 - `Evidence` should become `LightNodeProofOfFork` [LCV-DATA-POF.1]
 
 - `upgradeClientState` what is the semantics (in particular what is
   `height` doing?).
-  
-- `checkMisbehaviourAndUpdateState(cs: ClientState, PoF:
+
+- `checkMisbehaviorAndUpdateState(cs: ClientState, PoF:
   LightNodeProofOfFork)` needs to be adapted
 
 #### Handler
@@ -76,12 +76,12 @@ In the following, I distilled what I considered relevant from
 A blockchain runs a **handler** that passively collects information about
   other blockchains. It can be thought of a state machine that takes
   input events.
-  
+
 - the state includes a lightstore (I guess called `ConsensusState`
   in IBC)
 
 - The following function is used to pass a header to a handler
-  
+
 ```go
 type checkValidityAndUpdateState = (Header) => Void
 ```
@@ -102,9 +102,9 @@ type checkValidityAndUpdateState = (Header) => Void
 
 - The following function is used to pass  "evidence" (this we
   will need to make precise eventually) to a handler
-  
+
 ```go
-type checkMisbehaviourAndUpdateState = (bytes) => Void
+type checkMisbehaviorAndUpdateState = (bytes) => Void
 ```
 
   We have to design this, and the data that the handler can use to
@@ -126,31 +126,31 @@ type queryChainConsensusState = (height: uint64) => ConsensusState
 
 - the relayer send headers and data to the handler to invoke
   `checkValidityAndUpdateState` and
-  `checkMisbehaviourAndUpdateState`. It may also query
+  `checkMisbehaviorAndUpdateState`. It may also query
   `queryChainConsensusState`.
-  
+
 - multiple relayers may talk to one handler. Some relayers might be
   faulty. We assume existence of at least single correct relayer.
 
 ## Informal Problem Statement: Fork detection in IBC
-  
+
 ### Relayer requirement: Evidence for Handler
 
 - The relayer should provide the handler with
   "evidence" that there was a fork.
-  
+
 - The relayer can read the handler's consensus state. Thus the relayer can
   feed the handler precisely the information the handler needs to detect a
   fork.
   What is this
   information needs to be specified.
-  
+
 - The information depends on the verification the handler does. It
   might be necessary to provide a bisection proof (list of
   lightblocks) so that the handler can verify based on its local
   lightstore a header *h* that is conflicting with a header *h'* in the
   local lightstore, that is, *h != h'* and *h.Height = h'.Height*
-  
+
 ### Relayer requirement: Fork detection
 
 Let's assume there is a fork at chain A. There are two ways the
@@ -171,12 +171,12 @@ relayer can figure that out:
     - two lightblocks from different branches +
     - a lightblock (perhaps just a height) from which both blocks
     can be verified.
-  
+
 - in the scenario 2., the relayer must feed the A-handler (on chain B)
   a proof of a fork on A so that chain B can react accordingly
-  
+
 ### Handler requirement
-  
+
 - there are potentially many relayers, some correct some faulty
 
 - a handler cannot trust the information provided by the relayer,
@@ -185,9 +185,9 @@ relayer can figure that out:
 
 - in case of a fork, we accept that the handler temporarily stores
   headers (tagged as verified).
-  
+
 - eventually, a handler should be informed
- (`checkMisbehaviourAndUpdateState`)
+ (`checkMisbehaviorAndUpdateState`)
  by some relayer that it has
   verified a header from a fork. Then the handler should do what is
  required by IBC in this case (stop?)
@@ -205,7 +205,7 @@ relayer can figure that out:
   *h* in the lightstore. If verification fails, we need to download the
   "alternative" header of height *h.Height* to generate evidence for
   the handler.
-  
+
 - we have to specify what precisely `queryChainConsensusState`
   returns. It cannot be the complete lightstore. Is the last header enough?
 
@@ -214,7 +214,7 @@ relayer can figure that out:
   different branch than the relayer.
   And we would like that this is enough to achieve
   the Handler requirement.
-  
+
     - here the correctness argument would be easy if a correct relayer is
      based on a light client with a *trusted* state, that is, a light
      client who never changes its opinion about trusted. Then if such a
@@ -272,11 +272,11 @@ In principle everyone can detect a fork
   accountability" protocol to generate evidence in the form of
   consensus messages. So perhaps we should
   introduce different terms for:
-  
+
     - proof of fork for the handler (basically consisting of lightblocks)
     - proof of fork for a full node (basically consisting of (fewer) lightblocks)
     - proof of misbehavior (consensus messages)
-  
+
 ### Isolating misbehaving nodes
 
 - this is the job of a full node.
@@ -285,7 +285,7 @@ In principle everyone can detect a fork
   full node believes is the "correct" chain. Right now we postulate
   that every full node is on the correct chain, that is, there is no
   fork on the chain.
-  
+
 - The full node figures out which nodes are
     - lunatic
     - double signing
@@ -320,10 +320,10 @@ In principle everyone can detect a fork
   fork detection and misbehavior isolation. So it should be produced
   by protocols (light client, the relayer). So we should fix that
   first.
-  
+
 - Given the problems of not having a light client architecture spec,
   for the relayer we should start with this. E.g.
-  
+
     - the relayer runs light clients for two chains
     - the relayer regularly queries consensus state of a handler
     - the relayer needs to check the consensus state
