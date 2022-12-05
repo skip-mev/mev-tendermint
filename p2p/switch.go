@@ -1011,7 +1011,7 @@ func (sw *Switch) addPeer(p Peer) error {
 		reactor.AddPeer(p)
 	}
 
-	sw.Logger.Debug("Added peer", "peer", p)
+	sw.Logger.Info("Added peer", "peer", p)
 
 	return nil
 }
