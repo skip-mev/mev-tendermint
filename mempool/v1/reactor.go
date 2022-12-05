@@ -386,7 +386,7 @@ func (memR *Reactor) broadcastSidecarTxRoutine(peer p2p.Peer) {
 						GasWanted:     scTx.GasWanted,
 					}
 
-					success := p2p.SendEnvelopeShim(peer, p2p.Envelope{
+					success := p2p.SendEnvelopeShim(peer, p2p.Envelope{ //nolint:staticcheck
 						ChannelID: mempool.SidecarLegacyChannel,
 						Message:   msg,
 					}, memR.Logger)

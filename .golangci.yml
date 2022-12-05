@@ -1,55 +1,106 @@
-linters:
+run:
+  timeout: 10m
+  disable-all: true
+  skip-files:
+    - libs/pubsub/query/query.peg.go
   enable:
+    - asasalint
     - asciicheck
+    - bidichk
     - bodyclose
+    - containedctx
+    - contextcheck
+    - cyclop
+    - deadcode
+    - decorder
     - depguard
     - dogsled
     - dupl
+    - durationcheck
     - errcheck
+    - errchkjson
+    - errname
+    - errorlint
+    - execinquery
+    - exhaustive
+    - exhaustivestruct
+    - exhaustruct
     - exportloopref
-    - gocritic
+    - forbidigo
+    - forcetypeassert
+    - funlen
+    - gci
+    - gochecknoglobals
+    - gochecknoinits
+    - gocognit
     - goconst
+    - gocritic
+    - gocyclo
+    - godot
+    - godox
+    - goerr113
     - gofumpt
-    - revive
+    - goheader
+    - golint
+    - gomnd
+    - gomoddirectives
+    - gomodguard
+    - goprintffuncname
     - gosec
     - gosimple
     - govet
+    - grouper
+    - ifshort
+    - importas
     - ineffassign
+    - interfacebloat
+    - interfacer
+    - ireturn
+    - lll
+    - loggercheck
+    - maintidx
+    - makezero
+    - maligned
     - misspell
     - nakedret
+    - nestif
+    - nilerr
+    - nilnil
+    - nlreturn
+    - noctx
     - nolintlint
+    - nonamedreturns
+    - nosnakecase
+    - nosprintfhostport
+    - paralleltest
     - prealloc
+    - predeclared
+    - promlinter
+    - reassign
+    - revive
+    - rowserrcheck
+    - scopelint
+    - sqlclosecheck
     - staticcheck
+    - structcheck
     - stylecheck
+    - tagliatelle
+    - tenv
+    - testableexamples
+    - testpackage
+    - thelper
+    - tparallel
     - typecheck
     - unconvert
+    - unparam
     - unused
+    - usestdlibvars
+    - varcheck
+    - varnamelen
+    - wastedassign
+    - whitespace
+    - wrapcheck
+    - wsl
 
 issues:
-  exclude-rules:
-    - path: _test\.go
-      linters:
-        - gosec
   max-same-issues: 50
-
-linters-settings:
-  dogsled:
-    max-blank-identifiers: 3
-  golint:
-    min-confidence: 0
-  maligned:
-    suggest-new: true
-  # govet:
-  #   check-shadowing: true
-  revive:
-    min-confidence: 0
-  misspell:
-    locale: US
-    ignore-words:
-      - behaviour
-  lll:
-    line-length: 140
-
-run:
-  skip-files:
-    - libs/pubsub/query/query.peg.go
