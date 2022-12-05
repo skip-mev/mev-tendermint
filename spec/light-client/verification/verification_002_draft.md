@@ -1045,7 +1045,6 @@ func Backwards (primary PeerID, root LightBlock, targetHeight Height)
 [TMBC-FM-2THIRDS-link]: #tmbc-fm-2thirds1
 [TMBC-VAL-CONTAINS-CORR-link]: #tmbc-val-contains-corr1
 [TMBC-VAL-COMMIT-link]: #tmbc-val-commit1
-[TMBC-SOUND-DISTR-POSS-COMMIT-link]: #tmbc-sound-distr-poss-commit1
 
 [lightclient]: https://github.com/interchainio/tendermint-rs/blob/e2cb9aca0b95430fca2eac154edddc9588038982/docs/architecture/adr-002-lite-client.md
 [attack-detector]: https://github.com/tendermint/spec/blob/master/rust-spec/lightclient/detection/detection_001_reviewed.md
@@ -1053,9 +1052,6 @@ func Backwards (primary PeerID, root LightBlock, targetHeight Height)
 
 [ibc-rs]:https://github.com/informalsystems/ibc-rs
 
-[blockchain-validator-set]: https://github.com/tendermint/tendermint/blob/v0.34.x/spec/blockchain/blockchain.md#data-structures
-[fullnode-data-structures]: https://github.com/tendermint/tendermint/blob/v0.34.x/spec/blockchain/fullnode.md#data-structures
 
-[FN-ManifestFaulty-link]: https://github.com/tendermint/tendermint/blob/v0.34.x/spec/blockchain/fullnode.md#fn-manifestfaulty
 
 [arXiv]: https://arxiv.org/abs/1807.04938
