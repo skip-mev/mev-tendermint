@@ -27,27 +27,9 @@ ifeq (race,$(findstring race,$(TENDERMINT_BUILD_OPTIONS)))
   BUILD_FLAGS += -race
 endif
 
-# handle cleveldb
-ifeq (cleveldb,$(findstring cleveldb,$(TENDERMINT_BUILD_OPTIONS)))
-  CGO_ENABLED=1
-  BUILD_TAGS += cleveldb
-endif
 
-# handle badgerdb
-ifeq (badgerdb,$(findstring badgerdb,$(TENDERMINT_BUILD_OPTIONS)))
-  BUILD_TAGS += badgerdb
-endif
 
-# handle rocksdb
-ifeq (rocksdb,$(findstring rocksdb,$(TENDERMINT_BUILD_OPTIONS)))
-  CGO_ENABLED=1
-  BUILD_TAGS += rocksdb
-endif
 
-# handle boltdb
-ifeq (boltdb,$(findstring boltdb,$(TENDERMINT_BUILD_OPTIONS)))
-  BUILD_TAGS += boltdb
-endif
 
 # allow users to pass additional flags via the conventional LDFLAGS variable
 LD_FLAGS += $(LDFLAGS)
@@ -169,38 +151,19 @@ get_deps_bin_size:
 	@echo "Results can be found here: $(CURDIR)/deps_bin_size.log"
 .PHONY: get_deps_bin_size
 
-###############################################################################
-###                                  Libs                                   ###
-###############################################################################
-
-# generates certificates for TLS testing in remotedb and RPC server
-gen_certs: clean_certs
-	certstrap init --common-name "tendermint.com" --passphrase ""
-	certstrap request-cert --common-name "server" -ip "127.0.0.1" --passphrase ""
-	certstrap sign "server" --CA "tendermint.com" --passphrase ""
-	mv out/server.crt rpc/jsonrpc/server/test.crt
-	mv out/server.key rpc/jsonrpc/server/test.key
-	rm -rf out
-.PHONY: gen_certs
-
-# deletes generated certificates
-clean_certs:
-	rm -f rpc/jsonrpc/server/test.crt
-	rm -f rpc/jsonrpc/server/test.key
-.PHONY: clean_certs
 
 ###############################################################################
 ###                  Formatting, linting, and vetting                       ###
 ###############################################################################
 
 format:
-	find . -name '*.go' -type f -not -path "*.git*" -not -name '*.pb.go' -not -name '*pb_test.go' | xargs gofmt -w -s
-	find . -name '*.go' -type f -not -path "*.git*"  -not -name '*.pb.go' -not -name '*pb_test.go' | xargs goimports -w -local github.com/tendermint/tendermint
+	@echo "--> Formatting mev-tendermint"
+	@go run github.com/golangci/golangci-lint/cmd/golangci-lint run ./... --fix
 .PHONY: format
 
 lint:
 	@echo "--> Running linter"
-	@go run github.com/golangci/golangci-lint/cmd/golangci-lint run
+	@go run github.com/golangci/golangci-lint/cmd/golangci-lint run ./...
 .PHONY: lint
 
 DESTINATION = ./index.html.md

@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	dbm "github.com/tendermint/tm-db"
+	dbm "github.com/tendermint/tendermint/db"
 
 	abcitypes "github.com/tendermint/tendermint/abci/types"
 	tmcfg "github.com/tendermint/tendermint/config"
@@ -113,11 +113,11 @@ func TestLoadBlockStore(t *testing.T) {
 	_, _, err := loadStateAndBlockStore(cfg)
 	require.Error(t, err)
 
-	_, err = dbm.NewDB("blockstore", dbm.GoLevelDBBackend, cfg.DBDir())
+	_, err = dbm.NewDB("blockstore", dbm.PebbleDBBackend, cfg.DBDir())
 	require.NoError(t, err)
 
 	// Get StateStore
-	_, err = dbm.NewDB("state", dbm.GoLevelDBBackend, cfg.DBDir())
+	_, err = dbm.NewDB("state", dbm.PebbleDBBackend, cfg.DBDir())
 	require.NoError(t, err)
 
 	bs, ss, err := loadStateAndBlockStore(cfg)
