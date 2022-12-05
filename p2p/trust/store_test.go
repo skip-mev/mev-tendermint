@@ -10,7 +10,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	dbm "github.com/tendermint/tm-db"
+	dbm "github.com/tendermint/tendermint/db"
 
 	"github.com/tendermint/tendermint/libs/log"
 )
@@ -20,7 +20,7 @@ func TestTrustMetricStoreSaveLoad(t *testing.T) {
 	require.NoError(t, err)
 	defer os.Remove(dir)
 
-	historyDB, err := dbm.NewDB("trusthistory", "goleveldb", dir)
+	historyDB, err := dbm.NewDB("trusthistory", "pebbledb", dir)
 	require.NoError(t, err)
 
 	// 0 peers saved

@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
-	dbm "github.com/tendermint/tm-db"
+	dbm "github.com/tendermint/tendermint/db"
 
 	abcitypes "github.com/tendermint/tendermint/abci/types"
 	tmcfg "github.com/tendermint/tendermint/config"
@@ -36,8 +36,8 @@ var ReIndexEventCmd = &cobra.Command{
 	Long: `
 reindex-event is an offline tooling to re-index block and tx events to the eventsinks.
 You can run this command when the event store backend dropped/disconnected or you want to
-replace the backend. The default start-height is 0, meaning the tooling will start 
-reindex from the base block height(inclusive); and the default end-height is 0, meaning 
+replace the backend. The default start-height is 0, meaning the tooling will start
+reindex from the base block height(inclusive); and the default end-height is 0, meaning
 the tooling will reindex until the latest block height(inclusive). User can omit
 either or both arguments.
 
