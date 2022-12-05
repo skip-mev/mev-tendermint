@@ -105,7 +105,7 @@ IMPROVEMENTS:
 BREAKING CHANGES:
 
 - Remove `cmd` and `keys/tx` packages altogether: move it to the cosmos-sdk
-- `cryptostore.Generator` takes a secret 
+- `cryptostore.Generator` takes a secret
 - Remove `String()` from `Signature` interface
 
 FEATURES:
@@ -120,12 +120,12 @@ IMPROVEMENTS:
 ## 0.2.1 (June 21, 2017)
 
 - Improve keys command
-  - No password prompts in non-interactive mode (echo 'foobar' | keys new foo)
-  - Added support for seed phrases
-    - Seed phrase now returned on `keys new`
-    - Add `keys restore` to restore private key from key phrase
-    - Checksum to verify typos in the seed phrase (rather than just a useless key)
-  - Add `keys delete` to remove a key if needed
+    - No password prompts in non-interactive mode (echo 'foobar' | keys new foo)
+    - Added support for seed phrases
+        - Seed phrase now returned on `keys new`
+        - Add `keys restore` to restore private key from key phrase
+        - Checksum to verify typos in the seed phrase (rather than just a useless key)
+    - Add `keys delete` to remove a key if needed
 
 ## 0.2.0 (May 18, 2017)
 
@@ -133,16 +133,16 @@ BREAKING CHANGES:
 
 - [hd] The following functions no longer take a `coin string` as argument: `ComputeAddress`, `AddrFromPubKeyBytes`, `ComputeAddressForPrivKey`, `ComputeWIF`, `WIFFromPrivKeyBytes`
 - Changes to `PrivKey`, `PubKey`, and `Signature` (denoted `Xxx` below):
-  - interfaces are renamed `XxxInner`, and are not for use outside the package, though they must be exposed for sake of serialization.
-  - `Xxx` is now a struct that wraps the corresponding `XxxInner` interface
+    - interfaces are renamed `XxxInner`, and are not for use outside the package, though they must be exposed for sake of serialization.
+    - `Xxx` is now a struct that wraps the corresponding `XxxInner` interface
 
 FEATURES:
 
 - `github.com/tendermint/go-keys -> github.com/tendermint/go-crypto/keys` - command and lib for generating and managing encrypted keys
 - [hd] New function `WIFFromPrivKeyBytes(privKeyBytes []byte, compress bool) string`
 - Changes to `PrivKey`, `PubKey`, and `Signature` (denoted `Xxx` below):
-  - Expose a new method `Unwrap() XxxInner` on the `Xxx` struct which returns the corresponding `XxxInner` interface
-  - Expose a new method `Wrap() Xxx` on the `XxxInner` interface which returns the corresponding `Xxx` struct
+    - Expose a new method `Unwrap() XxxInner` on the `Xxx` struct which returns the corresponding `XxxInner` interface
+    - Expose a new method `Wrap() Xxx` on the `XxxInner` interface which returns the corresponding `Xxx` struct
 
 IMPROVEMENTS:
 
