@@ -1,5 +1,6 @@
 run:
   tests: true
+  skip-files: libs/pubsub/query/query.peg.go
 
 linters:
   enable:
