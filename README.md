@@ -1,4 +1,5 @@
 ![banner](https://skip-protocol.notion.site/image/https%3A%2F%2Fs3-us-west-2.amazonaws.com%2Fsecure.notion-static.com%2F33ea763f-bfa3-4c65-ad35-ad0ee1fd312d%2FGroup_6.png?table=block&id=4e75ce44-3f92-482e-a199-4aa75631706b&spaceId=4ee2f125-c8d3-4d79-9a63-1a260c9b8377&width=2000&userId=&cache=v2)
+
 # mev-tendermint (.8)
 
 ***The purpose of mev-tendermint is to create a private mempool (the “sidecar”) containing atomic bundles of txs and gossip bundles of transactions specifically to the proposer of the next block.***
@@ -23,7 +24,7 @@
 
 In the `go.mod` file of the directory you use to compile your chain binary, add a line into `replace` to import the correct `mev-tendermint` version.
 
-🚨  **You can find the correct version of the `replace` you should use here:** [⚙️ Skip Configurations By Chain](https://www.notion.so/Skip-Configurations-By-Chain-a6076cfa743f4ab38194096403e62f3c) 
+🚨  **You can find the correct version of the `replace` you should use here:** [⚙️ Skip Configurations By Chain](https://www.notion.so/Skip-Configurations-By-Chain-a6076cfa743f4ab38194096403e62f3c)
 
 ```tsx
 // ---------------------------------
@@ -43,7 +44,7 @@ mev-tendermint introduces a new section of config in `config.toml` called `[side
 
 …by the end, the end of your `config.toml` will look something like this (with different string values). **Make sure to include the line `[sidecar]` at the top of this section in `config.toml`.**
 
-🚨 **FIND THE CORRECT VALUES TO USE HERE: [⚙️ Skip Configurations By Chain](https://www.notion.so/Skip-Configurations-By-Chain-a6076cfa743f4ab38194096403e62f3c)** 
+🚨 **FIND THE CORRECT VALUES TO USE HERE: [⚙️ Skip Configurations By Chain](https://www.notion.so/Skip-Configurations-By-Chain-a6076cfa743f4ab38194096403e62f3c)**
 
 ```bash
 # OTHER CONFIG...
@@ -100,13 +101,13 @@ That’s it! After making the changes above, you can recompile your binary (e.g.
 After you have completed the steps above, you can check you connectivity either via:
 
 - Check if you are peered with the sentinel by calling `curl http://localhost:26657/status`
-    
+
     ```jsx
      ”is_peered_with_relayer”: true
     ```
-    
+
 - Check if you are running `mev-tendermint` by running either:
-    
+
     ```bash
     # by running binary
     curl -sL localhost:26657/status | jq .result.mev_info
@@ -114,7 +115,7 @@ After you have completed the steps above, you can check you connectivity either 
     # or by checking version detail
     evmosd version --long | grep mev
     ```
-    
+
 - Via the new prometheus metrics exposed on mev-tendermint, in particular `sidecar_relay_connected`
 
 ---
@@ -125,12 +126,12 @@ Handling chain upgrades is simple:
 
 1. Apply the latest patch to your validators & nodes, **without `mev-tendermint`**
     1. If you have local changes to `go.mod` and `go.sum` that prevent you from pulling the new version, you can run:
-    
+
     ```bash
     git stash
     git stash apply
     ```
-    
+
     1. to remove them first, then pull again
 2. Recompile your binary with `mev-tendermint` (**same as step 2)**, keeping the same config
 3. Restart your nodes and validators, you’re back up! 🎉
@@ -174,7 +175,7 @@ The design goals of MEV-Tendermint is to allow & preserve:
 
 [reinforce that we have a new transaction data structure]
 
-🚜  **Reaping** 
+🚜  **Reaping**
 
 - On reap, mev-tendermint first checks whether there are any fully-constructed bundles in the sidecar then reaps these first.
 - Next, it reaps from the ordinary mempool, with some additional checks to ensure that transactions reaped from the sidecar don’t get reaped again if they are also present in the standard mempool

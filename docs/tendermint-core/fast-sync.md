@@ -28,7 +28,7 @@ has at least one peer and it's height is at least as high as the max
 reported peer height. See [the IsCaughtUp
 method](https://github.com/tendermint/tendermint/blob/b467515719e686e4678e6da4e102f32a491b85a0/blockchain/pool.go#L128).
 
-Note: There are three versions of fast sync. We recommend using v0 as v1 and v2 are still in beta. 
+Note: There are three versions of fast sync. We recommend using v0 as v1 and v2 are still in beta.
   If you would like to use a different version you can do so by changing the version in the `config.toml`:
 
 ```toml
