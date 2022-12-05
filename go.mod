@@ -32,24 +32,14 @@ require (
 	github.com/spf13/cobra v1.6.0
 	github.com/spf13/viper v1.13.0
 	github.com/stretchr/testify v1.8.0
-)
-
-require (
 	github.com/google/uuid v1.3.0
 	github.com/tendermint/tm-db v0.6.6
 	golang.org/x/crypto v0.1.0
 	golang.org/x/net v0.1.0
 	google.golang.org/grpc v1.50.1
-)
-
-require (
 	github.com/gogo/protobuf v1.3.2
 	github.com/informalsystems/tm-load-test v1.0.0
-)
-
-require github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
-
-require (
+	github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
 	github.com/btcsuite/btcd/btcec/v2 v2.2.1
 	github.com/btcsuite/btcd/btcutil v1.1.2
 	github.com/cosmos/gogoproto v1.4.3

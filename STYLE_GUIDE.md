@@ -27,7 +27,7 @@ scroll down and understand the functionality of it just as well as you do. A loo
 
 ## General
 
-* Use `gofmt` (or `goimport`) to format all code upon saving it.  (If you use VIM, check out vim-go).
+* Use `gofumpt` to format all code upon saving it.  (If you use VIM, check out vim-go).
 * Use a linter (see below) and generally try to keep the linter happy (where it makes sense).
 * Think about documentation, and try to leave godoc comments, when it will help new developers.
 * Every package should have a high level doc.go file to describe the purpose of that package, its main functions, and any other relevant information.

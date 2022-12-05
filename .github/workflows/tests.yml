@@ -33,13 +33,11 @@ jobs:
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-go-
-        if: env.GIT_DIFF
       # Cache binaries for use by other jobs
       - uses: actions/cache@v3
         with:
           path: ~/go/bin
           key: ${{ runner.os }}-${{ github.sha }}-tm-binary
-        if: env.GIT_DIFF
 
   test_abci_apps:
     runs-on: ubuntu-latest
