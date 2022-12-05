@@ -602,7 +602,7 @@ var testGenesisFmt = `{
 		"block": {
 			"max_bytes": "22020096",
 			"max_gas": "-1",
-			"time_iota_ms": "10"
+			"time_iota_ms": "1"
 		},
 		"evidence": {
 			"max_age_num_blocks": "100000",

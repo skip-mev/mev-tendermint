@@ -171,7 +171,7 @@ func verifyNewHeaderAndVals(
 			trustedHeader.Time)
 	}
 
-	if !untrustedHeader.Time.Before(now.Add(maxClockDrift)) {
+	if !untrustedHeader.Time.Before(now.UTC().Add(maxClockDrift)) {
 		return fmt.Errorf("new header has a time from the future %v (now: %v; max clock drift: %v)",
 			untrustedHeader.Time,
 			now,
