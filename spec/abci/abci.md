@@ -79,7 +79,7 @@ Tendermint consensus.
 ### Query
 
 The `Query` ABCI method query queries the application for information about application state.
-When Tendermint receives a `ResponseQuery` with a non-zero `Code`, this code is 
+When Tendermint receives a `ResponseQuery` with a non-zero `Code`, this code is
 returned directly to the client that initiated the query.
 
 ## Events
@@ -91,7 +91,7 @@ transactions and blocks this metadata relates to.
 Events returned via these ABCI methods do not impact Tendermint consensus in any way
 and instead exist to power subscriptions and queries of Tendermint state.
 
-An `Event` contains a `type` and a list of `EventAttributes`, which are key-value 
+An `Event` contains a `type` and a list of `EventAttributes`, which are key-value
 string pairs denoting metadata about what happened during the method's execution.
 `Event` values can be used to index transactions and blocks according to what happened
 during their execution. Note that the set of events returned for a block from
@@ -161,10 +161,10 @@ Example:
 ## EvidenceType
 
 Tendermint's security model relies on the use of "evidence". Evidence is proof of
-malicious behaviour by a network participant. It is the responsibility of Tendermint
-to detect such malicious behaviour. When malicious behavior is detected, Tendermint
-will gossip evidence of the behavior to other nodes and commit the evidence to 
-the chain once it is verified by all validators. This evidence will then be 
+malicious behavior by a network participant. It is the responsibility of Tendermint
+to detect such malicious behavior. When malicious behavior is detected, Tendermint
+will gossip evidence of the behavior to other nodes and commit the evidence to
+the chain once it is verified by all validators. This evidence will then be
 passed it on to the application through the ABCI. It is the responsibility of the
 application to handle the evidence and exercise punishment.
 
@@ -297,7 +297,7 @@ the blockchain's `AppHash` which is verified via [light client verification](../
     | abci_version  | string | The Tendermint ABCI semantic version     | 4            |
 
 * **Response**:
-  
+
     | Name                | Type   | Description                                      | Field Number |
     |---------------------|--------|--------------------------------------------------|--------------|
     | data                | string | Some arbitrary information                       | 1            |
@@ -351,7 +351,7 @@ the blockchain's `AppHash` which is verified via [light client verification](../
 ### Query
 
 * **Request**:
-  
+
     | Name   | Type   | Description                                                                                                                                                                                                                                                                            | Field Number |
     |--------|--------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|--------------|
     | data   | bytes  | Raw query bytes. Can be used with or in lieu of Path.                                                                                                                                                                                                                                  | 1            |
@@ -734,7 +734,7 @@ Most of the data structures used in ABCI are shared [common data structures](../
     | Name      | Type                                                          | Description                                                                  | Field Number |
     |-----------|---------------------------------------------------------------|------------------------------------------------------------------------------|--------------|
     | block     | [BlockParams](../core/data_structures.md#blockparams)                                   | Parameters limiting the size of a block and time between consecutive blocks. | 1            |
-    | evidence  | [EvidenceParams](../core/data_structures.md#evidenceparams)   | Parameters limiting the validity of evidence of byzantine behaviour.         | 2            |
+    | evidence  | [EvidenceParams](../core/data_structures.md#evidenceparams)   | Parameters limiting the validity of evidence of byzantine behavior.         | 2            |
     | validator | [ValidatorParams](../core/data_structures.md#validatorparams) | Parameters limiting the types of public keys validators can use.             | 3            |
     | version   | [VersionsParams](../core/data_structures.md#versionparams)       | The ABCI application version.                                                | 4            |
 

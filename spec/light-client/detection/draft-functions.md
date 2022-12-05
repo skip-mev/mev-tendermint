@@ -14,7 +14,7 @@ submitting proof of fork in the IBC context
 #### [TAG-IBC-MISBEHAVIOR.1]
 
 ```go
-func checkMisbehaviourAndUpdateState(cs: ClientState, PoF: LightNodeProofOfFork)
+func checkMisbehaviorAndUpdateState(cs: ClientState, PoF: LightNodeProofOfFork)
 ```
 
 **TODO:** finish conditions
@@ -33,7 +33,7 @@ func checkMisbehaviourAndUpdateState(cs: ClientState, PoF: LightNodeProofOfFork)
      *0 < i < length(PoF.PrimaryTrace)*
         - supports(PoF.TrustedBlock,  PoF.SecondaryTrace[1], t)
         - supports(PoF.SecondaryTrace[i], PoF.SecondaryTrace[i+1], t) for
-     *0 < i < length(PoF.SecondaryTrace)*  
+     *0 < i < length(PoF.SecondaryTrace)*
 - Expected postcondition
     - set cs.FrozenHeight to min(cs.FrozenHeight, PoF.TrustedBlock.Header.Height)
 - Error condition
@@ -113,7 +113,7 @@ func SubmitIBCProofOfFork(
   ibc IBCComponent) (Error) {
     if ibc.queryChainConsensusState(PoF.TrustedBlock.Height) = PoF.TrustedBlock {
   // IBC component has root of PoF on store, we can just submit
-        ibc.submitMisbehaviourToClient(ibc.id,PoF)
+        ibc.submitMisbehaviorToClient(ibc.id,PoF)
   return Success
      // note sure about the id parameter
     }
@@ -122,12 +122,12 @@ func SubmitIBCProofOfFork(
   // even be on yet a different branch. We have to compute a PoF
   // that the ibc component can verifiy based on its current
         // knowledge
-  
+
         ibcLightBlock, lblock, _, result := commonRoot(lightStore, ibc, PoF.TrustedBlock)
 
      if result = Success {
    newPoF = extendPoF(ibcLightBlock, lblock, lightStore, PoF)
-      ibc.submitMisbehaviourToClient(ibc.id, newPoF)
+      ibc.submitMisbehaviorToClient(ibc.id, newPoF)
       return Success
      }
   else{
@@ -169,7 +169,7 @@ LightBlock) (LightBlock, LightBlock, LightStore, Result) {
                      lblock.Height - 1);
   // this function does not exist yet. Alternatively, we may
   // request all transactions that installed headers via CosmosSDK
-  
+
 
         for {
             h, result = max(ibcHeights)
@@ -237,7 +237,7 @@ func extendPoF (root LightBlock,
         - let prefix =
        connector +
        lightStore.Subtrace(connector.Header.Height, PoF.TrustedBlock.Header.Height-1) +
-       PoF.TrustedBlock  
+       PoF.TrustedBlock
             - newPoF.PrimaryTrace = prefix + PoF.PrimaryTrace
             - newPoF.SecondaryTrace = prefix + PoF.SecondaryTrace
 
@@ -259,7 +259,7 @@ func DetectIBCFork(ibc IBCComponent, lightStore LightStore) (LightNodeProofOfFor
         lb, result = LightClient.Main(primary, lightStore, cs.Header.Height)
   // [LCV-FUNC-IBCMAIN.1]
   **TODO** decide what to do following the outcome of Issue #499
-  
+
   // I guess here we have to get into the light client
 
     }

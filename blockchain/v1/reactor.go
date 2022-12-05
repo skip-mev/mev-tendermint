@@ -6,7 +6,7 @@ import (
 
 	"github.com/gogo/protobuf/proto"
 
-	"github.com/tendermint/tendermint/behaviour"
+	"github.com/tendermint/tendermint/behavior"
 	bc "github.com/tendermint/tendermint/blockchain"
 	"github.com/tendermint/tendermint/libs/log"
 	"github.com/tendermint/tendermint/p2p"
@@ -67,7 +67,7 @@ type BlockchainReactor struct {
 	// the switch.
 	eventsFromFSMCh chan bcFsmMessage
 
-	swReporter *behaviour.SwitchReporter
+	swReporter *behavior.SwitchReporter
 }
 
 // NewBlockchainReactor returns new reactor instance.
@@ -101,7 +101,7 @@ func NewBlockchainReactor(state sm.State, blockExec *sm.BlockExecutor, store *st
 	fsm := NewFSM(startHeight, bcR)
 	bcR.fsm = fsm
 	bcR.BaseReactor = *p2p.NewBaseReactor("BlockchainReactor", bcR)
-	// bcR.swReporter = behaviour.NewSwitchReporter(bcR.BaseReactor.Switch)
+	// bcR.swReporter = behavior.NewSwitchReporter(bcR.BaseReactor.Switch)
 
 	return bcR
 }
@@ -139,7 +139,7 @@ func (bcR *BlockchainReactor) SetLogger(l log.Logger) {
 
 // OnStart implements service.Service.
 func (bcR *BlockchainReactor) OnStart() error {
-	bcR.swReporter = behaviour.NewSwitchReporter(bcR.BaseReactor.Switch)
+	bcR.swReporter = behavior.NewSwitchReporter(bcR.BaseReactor.Switch)
 	if bcR.fastSync {
 		go bcR.poolRoutine()
 	}
@@ -246,7 +246,7 @@ func (bcR *BlockchainReactor) RemovePeer(peer p2p.Peer, reason interface{}) {
 func (bcR *BlockchainReactor) ReceiveEnvelope(e p2p.Envelope) {
 	if err := bc.ValidateMsg(e.Message); err != nil {
 		bcR.Logger.Error("peer sent us invalid msg", "peer", e.Src, "msg", e.Message, "err", err)
-		_ = bcR.swReporter.Report(behaviour.BadMessage(e.Src.ID(), err.Error()))
+		_ = bcR.swReporter.Report(behavior.BadMessage(e.Src.ID(), err.Error()))
 		return
 	}
 
@@ -454,7 +454,7 @@ ForLoop:
 func (bcR *BlockchainReactor) reportPeerErrorToSwitch(err error, peerID p2p.ID) {
 	peer := bcR.Switch.Peers().Get(peerID)
 	if peer != nil {
-		_ = bcR.swReporter.Report(behaviour.BadMessage(peerID, err.Error()))
+		_ = bcR.swReporter.Report(behavior.BadMessage(peerID, err.Error()))
 	}
 }
 
