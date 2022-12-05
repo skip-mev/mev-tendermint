@@ -17,9 +17,7 @@ import (
 	"time"
 )
 
-var (
-	numRegex = regexp.MustCompile(`([0-9\.]+)`)
-)
+var numRegex = regexp.MustCompile(`([0-9\.]+)`)
 
 // Query holds the query string and the query parser.
 type Query struct {

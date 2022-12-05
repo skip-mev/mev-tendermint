@@ -53,7 +53,6 @@ func DoublePrevoteMisbehavior() Misbehavior {
 	b := DefaultMisbehavior()
 	b.Name = "double-prevote"
 	b.EnterPrevote = func(cs *State, height int64, round int32) {
-
 		// If a block is locked, prevote that.
 		if cs.LockedBlock != nil {
 			cs.Logger.Debug("enterPrevote: already locked on a block, prevoting locked block")
@@ -346,7 +345,6 @@ func defaultReceivePrevote(cs *State, vote *types.Vote) {
 			cs.enterPrevote(height, cs.Round)
 		}
 	}
-
 }
 
 func defaultReceivePrecommit(cs *State, vote *types.Vote) {

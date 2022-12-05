@@ -749,7 +749,8 @@ func TestSwitchAcceptRoutineErrorCases(t *testing.T) {
 	})
 
 	sw = NewSwitch(cfg, make(SidecarPeers, 0), errorTransport{ErrRejected{
-		conn: nil, err: errors.New("filtered"), isFiltered: true}}, "")
+		conn: nil, err: errors.New("filtered"), isFiltered: true,
+	}}, "")
 	assert.NotPanics(t, func() {
 		err := sw.Start()
 		require.NoError(t, err)

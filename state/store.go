@@ -39,9 +39,7 @@ func calcABCIResponsesKey(height int64) []byte {
 
 //----------------------
 
-var (
-	lastABCIResponseKey = []byte("lastABCIResponseKey")
-)
+var lastABCIResponseKey = []byte("lastABCIResponseKey")
 
 //go:generate ../scripts/mockery_generate.sh Store
 
@@ -86,7 +84,6 @@ type dbStore struct {
 }
 
 type StoreOptions struct {
-
 	// DiscardABCIResponses determines whether or not the store
 	// retains all ABCIResponses. If DiscardABCiResponses is enabled,
 	// the store will maintain only the response object from the latest
@@ -387,7 +384,6 @@ func (store dbStore) LoadABCIResponses(height int64) (*tmstate.ABCIResponses, er
 		return nil, err
 	}
 	if len(buf) == 0 {
-
 		return nil, ErrNoABCIResponsesForHeight{height}
 	}
 

@@ -7,9 +7,9 @@ linters:
     - dupl
     - errcheck
     - exportloopref
+    - gocritic
     - goconst
-    - gofmt
-    - goimports
+    - gofumpt
     - revive
     - gosec
     - gosimple
@@ -20,7 +20,6 @@ linters:
     - nolintlint
     - prealloc
     - staticcheck
-    # - structcheck // to be fixed by golangci-lint
     - stylecheck
     - typecheck
     - unconvert

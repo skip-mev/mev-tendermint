@@ -57,7 +57,7 @@ func TestByzantinePrevoteEquivocation(t *testing.T) {
 		state, _ := stateStore.LoadFromDBOrGenesisDoc(genDoc)
 		thisConfig := ResetConfig(fmt.Sprintf("%s_%d", testName, i))
 		defer os.RemoveAll(thisConfig.RootDir)
-		ensureDir(path.Dir(thisConfig.Consensus.WalFile()), 0700) // dir for wal
+		ensureDir(path.Dir(thisConfig.Consensus.WalFile()), 0o700) // dir for wal
 		app := appFunc()
 		vals := types.TM2PB.ValidatorUpdates(state.Validators)
 		app.InitChain(abci.RequestInitChain{Validators: vals})
@@ -589,12 +589,15 @@ func (br *ByzantineReactor) AddPeer(peer p2p.Peer) {
 		br.reactor.sendNewRoundStepMessage(peer)
 	}
 }
+
 func (br *ByzantineReactor) RemovePeer(peer p2p.Peer, reason interface{}) {
 	br.reactor.RemovePeer(peer, reason)
 }
+
 func (br *ByzantineReactor) ReceiveEnvelope(e p2p.Envelope) {
 	br.reactor.ReceiveEnvelope(e)
 }
+
 func (br *ByzantineReactor) Receive(chID byte, p p2p.Peer, m []byte) {
 	br.reactor.Receive(chID, p, m)
 }

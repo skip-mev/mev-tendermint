@@ -21,7 +21,6 @@ import (
 // More: https://docs.tendermint.com/v0.34/rpc/#/Tx/broadcast_tx_async
 func BroadcastTxAsync(ctx *rpctypes.Context, tx types.Tx) (*ctypes.ResultBroadcastTx, error) {
 	err := env.Mempool.CheckTx(tx, nil, mempl.TxInfo{})
-
 	if err != nil {
 		return nil, err
 	}
@@ -38,7 +37,6 @@ func BroadcastTxSync(ctx *rpctypes.Context, tx types.Tx) (*ctypes.ResultBroadcas
 		case <-ctx.Context().Done():
 		case resCh <- res:
 		}
-
 	}, mempl.TxInfo{})
 	if err != nil {
 		return nil, err
@@ -121,14 +119,14 @@ func BroadcastTxCommit(ctx *rpctypes.Context, tx types.Tx) (*ctypes.ResultBroadc
 				Hash:      tx.Hash(),
 				Height:    deliverTxRes.Height,
 			}, nil
-		case <-deliverTxSub.Cancelled():
+		case <-deliverTxSub.Canceled():
 			var reason string
 			if deliverTxSub.Err() == nil {
 				reason = "Tendermint exited"
 			} else {
 				reason = deliverTxSub.Err().Error()
 			}
-			err = fmt.Errorf("deliverTxSub was cancelled (reason: %s)", reason)
+			err = fmt.Errorf("deliverTxSub was canceled (reason: %s)", reason)
 			env.Logger.Error("Error on broadcastTxCommit", "err", err)
 			return &ctypes.ResultBroadcastTxCommit{
 				CheckTx:   *checkTxRes,
@@ -159,7 +157,8 @@ func UnconfirmedTxs(ctx *rpctypes.Context, limitPtr *int) (*ctypes.ResultUnconfi
 		Count:      len(txs),
 		Total:      env.Mempool.Size(),
 		TotalBytes: env.Mempool.SizeBytes(),
-		Txs:        txs}, nil
+		Txs:        txs,
+	}, nil
 }
 
 // NumUnconfirmedTxs gets number of unconfirmed transactions.
@@ -168,7 +167,8 @@ func NumUnconfirmedTxs(ctx *rpctypes.Context) (*ctypes.ResultUnconfirmedTxs, err
 	return &ctypes.ResultUnconfirmedTxs{
 		Count:      env.Mempool.Size(),
 		Total:      env.Mempool.Size(),
-		TotalBytes: env.Mempool.SizeBytes()}, nil
+		TotalBytes: env.Mempool.SizeBytes(),
+	}, nil
 }
 
 // CheckTx checks the transaction without executing it. The transaction won't

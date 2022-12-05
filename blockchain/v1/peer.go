@@ -40,8 +40,8 @@ type BpPeer struct {
 
 // NewBpPeer creates a new peer.
 func NewBpPeer(peerID p2p.ID, base int64, height int64,
-	onErr func(err error, peerID p2p.ID), params *BpPeerParams) *BpPeer {
-
+	onErr func(err error, peerID p2p.ID), params *BpPeerParams,
+) *BpPeer {
 	if params == nil {
 		params = BpPeerDefaultParams()
 	}

@@ -138,7 +138,6 @@ func (ev bReactorEvent) String() string {
 	default:
 		return "event unknown"
 	}
-
 }
 
 // states

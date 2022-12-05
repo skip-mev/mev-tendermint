@@ -578,7 +578,6 @@ func makeAndConnectReactorsEvensSidecar(config *cfg.Config, n int) []*Reactor {
 	p2p.MakeConnectedSwitches(config.P2P, n, func(i int, s *p2p.Switch) *p2p.Switch {
 		s.AddReactor("MEMPOOL", reactors[i])
 		return s
-
 	}, p2p.Connect2SwitchesEvensSidecar)
 	return reactors
 }
@@ -601,7 +600,6 @@ func makeAndConnectReactors(config *cfg.Config, n int) []*Reactor {
 	p2p.MakeConnectedSwitches(config.P2P, n, func(i int, s *p2p.Switch) *p2p.Switch {
 		s.AddReactor("MEMPOOL", reactors[i])
 		return s
-
 	}, p2p.Connect2Switches)
 	return reactors
 }
@@ -708,8 +706,10 @@ func addNumBundlesToSidecar(t *testing.T, sidecar mempool.PriorityTxSidecar, num
 	txs := make(types.Txs, 0)
 	for i := 0; i < numBundles; i++ {
 		totalTxsCount += int(bundleSize)
-		newTxs := createSidecarBundleAndTxs(t, sidecar, testBundleInfo{BundleSize: bundleSize,
-			PeerID: mempool.UnknownPeerID, DesiredHeight: sidecar.HeightForFiringAuction(), BundleID: int64(i)})
+		newTxs := createSidecarBundleAndTxs(t, sidecar, testBundleInfo{
+			BundleSize: bundleSize,
+			PeerID:     mempool.UnknownPeerID, DesiredHeight: sidecar.HeightForFiringAuction(), BundleID: int64(i),
+		})
 		txs = append(txs, newTxs...)
 	}
 	return txs
@@ -725,8 +725,10 @@ func createSidecarBundleAndTxs(t *testing.T, sidecar mempool.PriorityTxSidecar, 
 }
 
 func addTxToSidecar(t *testing.T, sidecar mempool.PriorityTxSidecar, bInfo testBundleInfo, bundleOrder int64) types.Tx {
-	txInfo := mempool.TxInfo{SenderID: bInfo.PeerID, BundleSize: bInfo.BundleSize,
-		BundleID: bInfo.BundleID, DesiredHeight: bInfo.DesiredHeight, BundleOrder: bundleOrder}
+	txInfo := mempool.TxInfo{
+		SenderID: bInfo.PeerID, BundleSize: bInfo.BundleSize,
+		BundleID: bInfo.BundleID, DesiredHeight: bInfo.DesiredHeight, BundleOrder: bundleOrder,
+	}
 	txBytes := make([]byte, 20)
 	_, err := rand.Read(txBytes)
 	if err != nil {
