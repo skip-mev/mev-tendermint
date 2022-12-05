@@ -908,7 +908,7 @@ func NewNode(config *cfg.Config,
 			return nil, fmt.Errorf("could not add relayer from relayer_conn_string field: %w", err)
 		}
 	} else {
-		logger.Info("[node startup]: No relayer_conn_string specified, not adding relayer as peer")
+		logger.Info("[node startup]: No relayer_conn_string specified, not adding sentinel as peer")
 	}
 
 	unconditionalPeerIDs := splitAndTrimEmpty(config.P2P.UnconditionalPeerIDs, ",", " ")
@@ -916,10 +916,10 @@ func NewNode(config *cfg.Config,
 		splitStr := strings.Split(config.Sidecar.RelayerPeerString, "@")
 		if len(splitStr) > 0 {
 			relayerID := splitStr[0]
-			logger.Info("[node startup]: Adding relayer as an unconditional peer", relayerID)
+			logger.Info("[node startup]: Adding sentinel as an unconditional peer", relayerID)
 			unconditionalPeerIDs = append(unconditionalPeerIDs, relayerID)
 		} else {
-			fmt.Println("[node startup]: ERR: Could not parse relayer peer string",
+			fmt.Println("[node startup]: ERR: Could not parse sentinel peer string",
 				" to add as unconditional peer, is it correctly configured?",
 				config.Sidecar.RelayerPeerString)
 		}
