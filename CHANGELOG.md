@@ -679,11 +679,11 @@ just by including a CommitSig with arbitrary signature data. While this doesn't
 seem to impact safety of Tendermint per se, it means that Commits may contain a
 lot of invalid data.
 
-_This was already true of blocks, since they could include invalid txs filled
+*This was already true of blocks, since they could include invalid txs filled
 with garbage, but in that case the application knew that they are invalid and
 could punish the proposer. But since applications didn't--and don't--
 verify commit signatures directly (they trust Tendermint to do that),
-they won't be able to detect it._
+they won't be able to detect it.*
 
 This can impact incentivization logic in the application that depends on the
 LastCommitInfo sent in BeginBlock, which includes which validators signed. For
@@ -694,8 +694,8 @@ their signatures. There may be other tricks that can be played because of this.
 
 Tendermint 0.33.6 verifies all the signatures during block execution.
 
-_Please note that the light client does not check nil votes and exits as soon
-as 2/3+ of the signatures are checked._
+*Please note that the light client does not check nil votes and exits as soon
+as 2/3+ of the signatures are checked.*
 
 **All clients are recommended to upgrade.**
 
@@ -970,7 +970,7 @@ subjectivity interface. Refer to the [spec](https://github.com/tendermint/tender
     - [rpc] [\#3188](https://github.com/tendermint/tendermint/issues/3188) Remove `BlockMeta` in `ResultBlock` in favor of `BlockId` for `/block`
     - [rpc] `/block_results` response format updated (see RPC docs for details)
 
-    ```
+    ```json
     {
       "jsonrpc": "2.0",
       "id": "",
@@ -984,18 +984,20 @@ subjectivity interface. Refer to the [spec](https://github.com/tendermint/tender
       }
     }
     ```
+
     - [rpc] [\#4141](https://github.com/tendermint/tendermint/pull/4141) Remove `#event` suffix from the ID in event responses.
     `{"jsonrpc": "2.0", "id": 0, "result": ...}`
     - [rpc] [\#4141](https://github.com/tendermint/tendermint/pull/4141) Switch to integer IDs instead of `json-client-XYZ`
 
-    ```
+    ```log
     id=0 method=/subscribe
     id=0 result=...
     id=1 method=/abci_query
     id=1 result=...
     ```
-        - ID is unique for each request;
-        - Request.ID is now optional. Notification is a Request without an ID. Previously ID="" or ID=0 were considered as notifications.
+
+    - ID is unique for each request;
+    - Request.ID is now optional. Notification is a Request without an ID. Previously ID="" or ID=0 were considered as notifications.
 
     - [config] [\#4046](https://github.com/tendermint/tendermint/issues/4046) Rename tag(s) to CompositeKey & places where tag is still present it was renamed to event or events. Find how a compositeKey is constructed [here](https://github.com/tendermint/tendermint/blob/6d05c531f7efef6f0619155cf10ae8557dd7832f/docs/app-dev/indexing-transactions.md)
         - You will have to generate a new config for your Tendermint node(s)
@@ -1083,7 +1085,7 @@ subjectivity interface. Refer to the [spec](https://github.com/tendermint/tender
 
 ### BUG FIXES
 
-- [rpc/lib][\#4051](https://github.com/tendermint/tendermint/pull/4131) Fix RPC client, which was previously resolving https protocol to http (@yenkhoon)
+- [rpc/lib] [\#4051](https://github.com/tendermint/tendermint/pull/4131) Fix RPC client, which was previously resolving https protocol to http (@yenkhoon)
 - [rpc] [\#4141](https://github.com/tendermint/tendermint/pull/4141) JSONRPCClient: validate that Response.ID matches Request.ID
 - [rpc] [\#4141](https://github.com/tendermint/tendermint/pull/4141) WSClient: check for unsolicited responses
 - [types] [\4164](https://github.com/tendermint/tendermint/pull/4164) Prevent temporary power overflows on validator updates
@@ -1401,7 +1403,7 @@ This release contains a minor enhancement to the ABCI and some breaking changes 
 ### FEATURES
 
 - [node] Add variadic argument to `NewNode` to support functional options, allowing the Node to be more easily customized.
-- [node][\#3730](https://github.com/tendermint/tendermint/pull/3730) Add `CustomReactors` option to `NewNode` allowing caller to pass
+- [node] [\#3730](https://github.com/tendermint/tendermint/pull/3730) Add `CustomReactors` option to `NewNode` allowing caller to pass
   custom reactors to run inside Tendermint node (@ParthDesai)
 - [abci] [\#2127](https://github.com/tendermint/tendermint/issues/2127)RequestCheckTx has a new field, `CheckTxType`, which can take values of `CheckTxType_New` and `CheckTxType_Recheck`, indicating whether this is a new tx being checked for the first time or whether this tx is being rechecked after a block commit. This allows applications to skip certain expensive operations, like signature checking, if they've already been done once. see [docs](https://github.com/tendermint/tendermint/blob/eddb433d7c082efbeaf8974413a36641519ee895/docs/spec/abci/apps.md#mempool-connection)
 
@@ -1777,6 +1779,7 @@ keys are valid, and it prevents certain DNS lookups that would cause the node to
 panic if the lookup failed.
 
 ### BREAKING CHANGES
+
 - Go API
     - [crypto/secp256k1] [\#3439](https://github.com/tendermint/tendermint/issues/3439)
     The `secp256k1.GenPrivKeySecp256k1` function has changed to guarantee that it returns a valid key, which means it
@@ -3675,13 +3678,14 @@ containing substructs: `BaseConfig`, `P2PConfig`, `MempoolConfig`, `ConsensusCon
         - `--grpc_laddr` is now `--rpc.grpc_laddr`
     - Any configuration option now within a substract must come under that heading in the `config.toml`, for instance:
 
-    ```
+    ```toml
     [p2p]
     laddr="tcp://1.2.3.4:46656"
 
     [consensus]
     timeout_propose=1000
     ```
+
     - Use viper and `DefaultConfig() / TestConfig()` functions to handle defaults, and remove `config/tendermint` and `config/tendermint_test`
     - Change some function and method signatures to
     - Change some [function and method signatures](https://gist.github.com/ebuchman/640d5fc6c2605f73497992fe107ebe0b) accomodate new config
@@ -3695,12 +3699,13 @@ See our new [logging library](https://github.com/tendermint/tmlibs/log) and [blo
 - JSON serialization:
     - Replace `[TypeByte, Xxx]` with `{"type": "some-type", "data": Xxx}` in RPC and all `.json` files by using `go-wire/data`. For instance, a public key is now:
 
-    ```
+    ```json
     "pub_key": {
       "type": "ed25519",
       "data": "83DDF8775937A4A12A2704269E2729FCFCD491B933C4B0A7FFE37FE41D7760D0"
     }
     ```
+
     - Remove type information about RPC responses, so `[TypeByte, {"jsonrpc": "2.0", ... }]` is now just `{"jsonrpc": "2.0", ... }`
     - Change `[]byte` to `data.Bytes` in all serialized types (for hex encoding)
     - Lowercase the JSON tags in `ValidatorSet` fields
@@ -3770,7 +3775,7 @@ BREAKING CHANGES:
 
 - Update ABCI to v0.4.0, where Query is now `Query(RequestQuery) ResponseQuery`, enabling precise proofs at particular heights:
 
-```
+```go
 message RequestQuery{
 	bytes data = 1;
 	string path = 2;
@@ -3792,7 +3797,7 @@ message ResponseQuery{
 
 - `BlockMeta` data type unifies its Hash and PartSetHash under a `BlockID`:
 
-```
+```go
 type BlockMeta struct {
 	BlockID BlockID `json:"block_id"` // the block hash and partsethash
 	Header  *Header `json:"header"`   // The block's Header
@@ -3835,7 +3840,7 @@ BREAKING CHANGES:
 
 - New data type `BlockID` to represent blocks:
 
-```
+```go
 type BlockID struct {
 	Hash        []byte        `json:"hash"`
 	PartsHeader PartSetHeader `json:"parts"`
@@ -3844,7 +3849,7 @@ type BlockID struct {
 
 - `Vote` data type now includes validator address and index:
 
-```
+```go
 type Vote struct {
 	ValidatorAddress []byte           `json:"validator_address"`
 	ValidatorIndex   int              `json:"validator_index"`
@@ -3865,7 +3870,7 @@ FEATURES:
 - New message type on the ConsensusReactor, `Maj23Msg`, for peers to alert others they've seen a Maj23,
 in order to track and handle conflicting votes intelligently to prevent Byzantine faults from causing halts:
 
-```
+```go
 type VoteSetMaj23Message struct {
 	Height  int
 	Round   int

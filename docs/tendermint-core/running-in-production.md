@@ -6,11 +6,8 @@ order: 4
 
 ## Database
 
-By default, Tendermint uses the `syndtr/goleveldb` package for its in-process
-key-value database. If you want maximal performance, it may be best to install
-the real C-implementation of LevelDB and compile Tendermint to use that using
-`make build TENDERMINT_BUILD_OPTIONS=cleveldb`. See the [install
-instructions](../introduction/install.md) for details.
+By default, Tendermint uses the `cockroachdb/pebbledb` package for its in-process
+key-value database.
 
 Tendermint keeps multiple distinct databases in the `$TMROOT/data`:
 
