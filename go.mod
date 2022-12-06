@@ -10,7 +10,6 @@ require (
 	github.com/btcsuite/btcd/btcec/v2 v2.2.1
 	github.com/btcsuite/btcd/btcutil v1.1.2
 	github.com/cockroachdb/pebble v0.0.0-20221205175550-4a63cdb3a71e
-	github.com/cosmos/gogoproto v1.4.3
 	github.com/creachadair/taskgroup v0.3.2
 	github.com/fortytw2/leaktest v1.3.0
 	github.com/go-kit/kit v0.12.0
