@@ -14,15 +14,7 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/setup-go@v3
-        with:
-          go-version: '1.19'
       - uses: actions/checkout@v3
-      - uses: technote-space/get-diff-action@v6
-        with:
-          PATTERNS: |
-            **/**.go
-            go.mod
-            go.sum
 
       - name: Build
         working-directory: test/e2e
