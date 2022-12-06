@@ -521,7 +521,7 @@ func (a *addrBook) getBucket(bucketType byte, bucketIdx int) map[string]*knownAd
 	}
 }
 
-// Adds ka to new bucket. Returns false if it couldn't do it cuz buckets full.
+// Adds ka to new bucket. Returns false if it couldn't do it because the bucket is full.
 // NOTE: currently it always returns true.
 func (a *addrBook) addToNewBucket(ka *knownAddress, bucketIdx int) error {
 	// Consistency check to ensure we don't add an already known address
@@ -802,7 +802,7 @@ func (a *addrBook) removeAddress(addr *p2p.NetAddress) {
 	if ka == nil {
 		return
 	}
-	a.Logger.Info("Remove address from book", "addr", addr)
+	a.Logger.Debug("Remove address from book", "addr", addr)
 	a.removeFromAllBuckets(ka)
 }
 
@@ -818,7 +818,7 @@ func (a *addrBook) addBadPeer(addr *p2p.NetAddress, banTime time.Duration) bool 
 		// add to bad peer list
 		ka.ban(banTime)
 		a.badPeers[addr.ID] = ka
-		a.Logger.Info("Add address to blacklist", "addr", addr)
+		a.Logger.Debug("Add address to blacklist", "addr", addr)
 	}
 	return true
 }
