@@ -395,10 +395,10 @@ func (sw *Switch) StopPeerForError(peer Peer, reason interface{}) {
 		return
 	}
 
-	sw.Logger.Error("Stopping peer for error", "peer", peer, "err", reason)
+	sw.Logger.Debug("Stopping peer for error", "peer", peer, "err", reason)
 	sw.stopAndRemovePeer(peer, reason)
 
-	sw.Logger.Info("Looking to reconnect after StopPeerForError, peer is ", peer, "sentinel is ", sw.SentinelNetAddr)
+	sw.Logger.Error("Looking to reconnect after StopPeerForError, peer is ", peer, "sentinel is ", sw.SentinelNetAddr)
 	if sw.SentinelNetAddr != nil && peer.ID() == sw.SentinelNetAddr.ID {
 		fmt.Println("Sentinel peer disconnected, attempting to reconnect")
 		go sw.reconnectToSentinelPeer(sw.SentinelNetAddr)
@@ -422,14 +422,14 @@ func (sw *Switch) StopPeerForError(peer Peer, reason interface{}) {
 // StopPeerGracefully disconnects from a peer gracefully.
 // TODO: handle graceful disconnects.
 func (sw *Switch) StopPeerGracefully(peer Peer) {
-	sw.Logger.Info("Stopping peer gracefully")
+	sw.Logger.Debug("Stopping peer gracefully")
 	sw.stopAndRemovePeer(peer, nil)
 }
 
 func (sw *Switch) stopAndRemovePeer(peer Peer, reason interface{}) {
 	sw.transport.Cleanup(peer)
 	if err := peer.Stop(); err != nil {
-		sw.Logger.Error("error while stopping peer", "error", err) // TODO: should return error to be handled accordingly
+		sw.Logger.Debug("error while stopping peer", "error", err) // TODO: should return error to be handled accordingly
 	}
 
 	for _, reactor := range sw.reactors {
@@ -510,7 +510,7 @@ func (sw *Switch) reconnectToPeer(addr *NetAddress) {
 	defer sw.reconnecting.Delete(string(addr.ID))
 
 	start := time.Now()
-	sw.Logger.Info("Reconnecting to peer", "addr", addr)
+	sw.Logger.Debug("Reconnecting to peer", "addr", addr)
 	for i := 0; i < reconnectAttempts; i++ {
 		if !sw.IsRunning() {
 			return
@@ -523,13 +523,13 @@ func (sw *Switch) reconnectToPeer(addr *NetAddress) {
 			return
 		}
 
-		sw.Logger.Info("Error reconnecting to peer. Trying again", "tries", i, "err", err, "addr", addr)
+		sw.Logger.Debug("Error reconnecting to peer. Trying again", "tries", i, "err", err, "addr", addr)
 		// sleep a set amount
 		sw.randomSleep(reconnectInterval)
 		continue
 	}
 
-	sw.Logger.Error("Failed to reconnect to peer. Beginning exponential backoff",
+	sw.Logger.Debug("Failed to reconnect to peer. Beginning exponential backoff",
 		"addr", addr, "elapsed", time.Since(start))
 	for i := 0; i < reconnectBackOffAttempts; i++ {
 		if !sw.IsRunning() {
@@ -546,9 +546,9 @@ func (sw *Switch) reconnectToPeer(addr *NetAddress) {
 		} else if _, ok := err.(ErrCurrentlyDialingOrExistingAddress); ok {
 			return
 		}
-		sw.Logger.Info("Error reconnecting to peer. Trying again", "tries", i, "err", err, "addr", addr)
+		sw.Logger.Debug("Error reconnecting to peer. Trying again", "tries", i, "err", err, "addr", addr)
 	}
-	sw.Logger.Error("Failed to reconnect to peer. Giving up", "addr", addr, "elapsed", time.Since(start))
+	sw.Logger.Debug("Failed to reconnect to peer. Giving up", "addr", addr, "elapsed", time.Since(start))
 }
 
 // SetAddrBook allows to set address book on Switch.
@@ -644,7 +644,7 @@ func (sw *Switch) dialPeersAsync(netAddrs []*NetAddress) {
 				case ErrSwitchConnectToSelf, ErrSwitchDuplicatePeerID, ErrCurrentlyDialingOrExistingAddress:
 					sw.Logger.Debug("Error dialing peer", "err", err)
 				default:
-					sw.Logger.Error("Error dialing peer", "err", err)
+					sw.Logger.Debug("Error dialing peer", "err", err)
 				}
 			}
 		}(i)
@@ -858,7 +858,7 @@ func (sw *Switch) addOutboundPeerWithConfig(
 	if sw.SentinelNetAddr != nil && addr.ID == sw.SentinelNetAddr.ID {
 		sw.Logger.Info("[sentinel-reconnection]: DIALING SENTINEL", "address", addr, "time", time.Now())
 	} else {
-		sw.Logger.Info("Dialing peer", "address", addr)
+		sw.Logger.Debug("Dialing peer", "address", addr)
 	}
 
 	// XXX(xla): Remove the leakage of test concerns in implementation.

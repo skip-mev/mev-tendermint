@@ -22,7 +22,7 @@ func RegisterWithSentinel(logger log.Logger, APIKey, peerID, sentinel string) {
 
 	jsonData, err := makePostRequestData(peerID, APIKey)
 	if err != nil {
-		logger.Info("[p2p.sentinel]: Err marshaling json data:", err)
+		logger.Error("[p2p.sentinel]: Err marshaling json data:", err)
 		return
 	}
 
