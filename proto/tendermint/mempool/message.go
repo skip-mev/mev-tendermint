@@ -8,6 +8,7 @@ import (
 )
 
 var _ p2p.Wrapper = &Txs{}
+var _ p2p.Wrapper = &MEVTxs{}
 var _ p2p.Unwrapper = &Message{}
 
 // Wrap implements the p2p Wrapper interface and wraps a mempool message.
@@ -17,13 +18,21 @@ func (m *Txs) Wrap() proto.Message {
 	return mm
 }
 
+// Wrap implements the p2p Wrapper interface and wraps a mempool message
+func (m *MEVTxs) Wrap() proto.Message {
+	mm := &Message{}
+	mm.Sum = &Message_MevTxs{MevTxs: m}
+	return mm
+}
+
 // Unwrap implements the p2p Wrapper interface and unwraps a wrapped mempool
 // message.
 func (m *Message) Unwrap() (proto.Message, error) {
 	switch msg := m.Sum.(type) {
 	case *Message_Txs:
 		return m.GetTxs(), nil
-
+	case *Message_MevTxs:
+		return m.GetMevTxs(), nil
 	default:
 		return nil, fmt.Errorf("unknown message: %T", msg)
 	}

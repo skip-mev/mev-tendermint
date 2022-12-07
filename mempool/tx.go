@@ -14,4 +14,18 @@ type TxInfo struct {
 
 	// SenderP2PID is the actual p2p.ID of the sender, used e.g. for logging.
 	SenderP2PID p2p.ID
+
+	// ordering for sidecar tx
+	BundleID int64
+
+	// auction height desired for tx
+	DesiredHeight int64
+
+	// order desired within bundle (i.e. per BundleID)
+	BundleOrder int64
+
+	// total size of bundle
+	BundleSize int64
+
+	GasWanted int64
 }
