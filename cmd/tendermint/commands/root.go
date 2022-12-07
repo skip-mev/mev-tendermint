@@ -53,19 +53,19 @@ func ParseConfig(cmd *cobra.Command) (*cfg.Config, error) {
 	if err := conf.ValidateBasic(); err != nil {
 		return nil, fmt.Errorf("error in config file: %v", err)
 	}
-	// Add auction relayer to config if not present and set
-	if len(conf.Sidecar.RelayerPeerString) > 0 {
-		relayerID := strings.Split(conf.Sidecar.RelayerPeerString, "@")[0]
-		if !strings.Contains(conf.P2P.PrivatePeerIDs, relayerID) {
+	// Add auction sentinel to config if not present and set
+	if len(conf.Sidecar.SentinelPeerString) > 0 {
+		sentinelID := strings.Split(conf.Sidecar.SentinelPeerString, "@")[0]
+		if !strings.Contains(conf.P2P.PrivatePeerIDs, sentinelID) {
 			// safety check to not blow away existing private peers if any
 			if len(conf.P2P.PrivatePeerIDs) > 0 {
 				if conf.P2P.PrivatePeerIDs[len(conf.P2P.PrivatePeerIDs)-1:] == "," {
-					conf.P2P.PrivatePeerIDs = conf.P2P.PrivatePeerIDs + relayerID
+					conf.P2P.PrivatePeerIDs = conf.P2P.PrivatePeerIDs + sentinelID
 				} else {
-					conf.P2P.PrivatePeerIDs = conf.P2P.PrivatePeerIDs + "," + relayerID
+					conf.P2P.PrivatePeerIDs = conf.P2P.PrivatePeerIDs + "," + sentinelID
 				}
 			} else {
-				conf.P2P.PrivatePeerIDs = relayerID
+				conf.P2P.PrivatePeerIDs = sentinelID
 			}
 		}
 	}

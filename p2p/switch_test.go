@@ -848,15 +848,15 @@ func BenchmarkSwitchBroadcast(b *testing.B) {
 
 func TestSetRelayerPeer(t *testing.T) {
 	sw := MakeSwitch(cfg, 1, "testing", "123.123.123", initSwitchFunc)
-	relayerString := "79044d1d81d24a8ff3c7fd7e010f455f7ae9e1ad@1.2.3.4:26656"
-	relayerNetAddr, _ := NewNetAddressString(relayerString)
+	sentinelString := "79044d1d81d24a8ff3c7fd7e010f455f7ae9e1ad@1.2.3.4:26656"
+	sentinelNetAddr, _ := NewNetAddressString(sentinelString)
 
 	err := sw.SetRelayerPeer(relayerString)
 	if err != nil {
 		t.Errorf("Err in SetRelayerPeer: %s", err)
 	}
 
-	assert.Equal(t, relayerNetAddr, sw.RelayerNetAddr, "Expected RelayerNetAddr %s, got %s", relayerNetAddr, sw.RelayerNetAddr)
+	assert.Equal(t, sentinelNetAddr, sw.SentinelNetAddr, "Expected SentinelNetAddr %s, got %s", sentinelNetAddr, sw.SentinelNetAddr)
 
 	errRelayerString := "abcd@1.2.3.4:26656"
 	err = sw.SetRelayerPeer(errRelayerString)
