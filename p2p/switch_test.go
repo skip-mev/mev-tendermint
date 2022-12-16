@@ -863,14 +863,14 @@ func TestAddRelayerPeer(t *testing.T) {
 	relayerString := "79044d1d81d24a8ff3c7fd7e010f455f7ae9e1ad@1.2.3.4:26656"
 	relayerNetAddr, _ := NewNetAddressString(relayerString)
 
-	err := sw.AddRelayerPeer(relayerString)
+	err := sw.SetRelayerPeer(relayerString)
 	if err != nil {
-		t.Errorf("Err in AddRelayerPeer: %s", err)
+		t.Errorf("Err in SetRelayerPeer: %s", err)
 	}
 
 	assert.Equal(t, relayerNetAddr, sw.RelayerNetAddr, "Expected RelayerNetAddr %s, got %s", relayerNetAddr, sw.RelayerNetAddr)
 
 	errRelayerString := "abcd@1.2.3.4:26656"
-	err = sw.AddRelayerPeer(errRelayerString)
+	err = sw.SetRelayerPeer(errRelayerString)
 	assert.True(t, err != nil, "Expected err with invalid relayer string")
 }
