@@ -10,17 +10,20 @@ import (
 
 	"github.com/tendermint/tendermint/libs/log"
 	"github.com/tendermint/tendermint/rpc/jsonrpc/types"
+	"github.com/tendermint/tendermint/version"
 )
 
 func RegisterWithSentinel(logger log.Logger, APIKey, peerID, sentinel string) {
+	version := version.MevTMVersion
 	logger.Info(
 		"[p2p.sentinel]: Registering with sentinel (first try)",
 		"API Key", APIKey,
 		"peerID", peerID,
+		"version", version,
 		"sentinel string", sentinel,
 	)
 
-	jsonData, err := makePostRequestData(peerID, APIKey)
+	jsonData, err := makePostRequestData(peerID, APIKey, version)
 	if err != nil {
 		logger.Info("[p2p.sentinel]: Err marshaling json data:", err)
 		return
@@ -88,10 +91,10 @@ func postRequestRoutine(logger log.Logger, sentinel string, jsonData []byte) {
 	}
 }
 
-func makePostRequestData(peerID, APIKey string) ([]byte, error) {
-	params := [2]string{peerID, APIKey}
+func makePostRequestData(peerID, APIKey, version string) ([]byte, error) {
+	params := [3]string{peerID, APIKey, version}
 	data := map[string]interface{}{
-		"method": "register_node_api",
+		"method": "register_node",
 		"params": params,
 		"id":     1,
 	}
