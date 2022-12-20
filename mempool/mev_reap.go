@@ -1,12 +1,21 @@
 package mempool
 
 import (
-	"fmt"
-
+	"github.com/tendermint/tendermint/libs/log"
 	"github.com/tendermint/tendermint/types"
 )
 
-func CombineSidecarAndMempoolTxs(memplTxs, sidecarTxs types.ReapedTxs, maxBytes, maxGas int64) types.Txs {
+// CombineSidecarAndMempoolTxs takes the txs reaped from the mempool and sidecar
+// and combines them into one output Txs.
+//
+// param memplTxs - the ReapedTxs resulting from ReapMaxBytesMaxGas on the mempool
+// param sidecarTxs - the ReapedTxs resulting from ReapMaxBytes on the sidecar
+// param maxBytes - max allowed bytes of output txs
+// param maxGas - max allows gas of output txs
+// param logger - a logger
+//
+// returns a types.Txs of the sidecar txs followed by as many mempool txs as possible
+func CombineSidecarAndMempoolTxs(memplTxs, sidecarTxs types.ReapedTxs, maxBytes, maxGas int64, logger log.Logger) types.Txs {
 	var (
 		totalGas    int64
 		runningSize int64
@@ -20,25 +29,30 @@ func CombineSidecarAndMempoolTxs(memplTxs, sidecarTxs types.ReapedTxs, maxBytes,
 
 		// Check total size requirement
 		if maxBytes > -1 && runningSize+dataSize > maxBytes {
-			return txs
+			logger.Info("[mev-tendermint]: Sidecar txs exceeded block maxBytes, falling back to mempool txs")
+			return memplTxs.Txs
 		}
 		runningSize += dataSize
 
 		newTotalGas := totalGas + sidecarTxs.GasWanteds[i]
 		if maxGas > -1 && newTotalGas > maxGas {
-			return txs
+			logger.Info("[mev-tendermint]: Sidecar txs exceeded block maxGas, falling back to mempool txs")
+			return memplTxs.Txs
 		}
 		totalGas = newTotalGas
 		txs = append(txs, sidecarTx)
 		sidecarTxsMap[sidecarTx.Key()] = struct{}{}
-		fmt.Printf("[mev-tendermint]: reaped sidecar mev transaction %s with gasWanted %d\n",
-			getLastNumBytesFromTx(sidecarTx, 20), sidecarTxs.GasWanteds[i])
+		logger.Info(
+			"[mev-tendermint]: reaped sidecar",
+			"mev transaction", getLastNumBytesFromTx(sidecarTx, 20),
+			"gasWanted", sidecarTxs.GasWanteds[i],
+		)
 	}
 
 	for i, memplTx := range memplTxs.Txs {
 		if _, ok := sidecarTxsMap[memplTx.Key()]; ok {
 			// SKIP THIS TRANSACTION, ALREADY SEEN IN SIDECAR
-			fmt.Println("[mev-tendermint]: skipped mempool tx, already found in sidecar", getLastNumBytesFromTx(memplTx, 20))
+			logger.Info("[mev-tendermint]: skipped mempool tx, already found in sidecar", getLastNumBytesFromTx(memplTx, 20))
 			continue
 		}
 
