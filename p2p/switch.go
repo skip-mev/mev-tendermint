@@ -939,6 +939,10 @@ func (sw *Switch) filterPeer(p Peer) error {
 // the peer is filtered out or failed to start or can't be added.
 func (sw *Switch) addPeer(p Peer) error {
 	if err := sw.filterPeer(p); err != nil {
+		// if peer is relayer, log the error
+		if sw.RelayerNetAddr != nil && p.ID() == sw.RelayerNetAddr.ID {
+			sw.Logger.Error("[relayer-reconnection]: filterPeer filtered relayer", "err", err)
+		}
 		return err
 	}
 
