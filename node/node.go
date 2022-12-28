@@ -575,16 +575,6 @@ func createTransport(
 	return transport, peerFilters
 }
 
-func contains(s []string, str string) bool {
-	for _, v := range s {
-		if v == str {
-			return true
-		}
-	}
-
-	return false
-}
-
 func createSwitch(config *cfg.Config,
 	transport p2p.Transport,
 	p2pMetrics *p2p.Metrics,
@@ -597,19 +587,7 @@ func createSwitch(config *cfg.Config,
 	nodeInfo p2p.NodeInfo,
 	nodeKey *p2p.NodeKey,
 	p2pLogger log.Logger) *p2p.Switch {
-	peerList := splitAndTrimEmpty(config.Sidecar.PersonalPeerIDs, ",", " ")
-
-	if config.Sidecar.RelayerPeerString != "" {
-		relayerID := strings.Split(config.Sidecar.RelayerPeerString, "@")[0]
-		if !contains(peerList, relayerID) {
-			peerList = append(peerList, relayerID)
-		}
-	}
-
-	sidecarPeers, err := p2p.NewSidecarPeers(peerList)
-	if err != nil {
-		panic(fmt.Sprintln("Problem with peer initialization", err))
-	}
+	sidecarPeers := splitAndTrimEmpty(config.Sidecar.PersonalPeerIDs, ",", " ")
 
 	sw := p2p.NewSwitch(
 		config.P2P,
@@ -1080,6 +1058,7 @@ func (n *Node) OnStart() error {
 	if err != nil {
 		return fmt.Errorf("could not dial peers from persistent_peers field: %w", err)
 	}
+	n.sw.StartRelayerConnectionCheckRoutine()
 
 	// Run state sync
 	if n.stateSync {
