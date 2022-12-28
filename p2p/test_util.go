@@ -205,7 +205,7 @@ func MakeSwitchWithSidecarPeers(
 	i int,
 	network, version string,
 	initSwitch func(int, *Switch) *Switch,
-	sp SidecarPeers,
+	sp []string,
 	opts ...SwitchOption,
 ) *Switch {
 
@@ -270,7 +270,7 @@ func MakeSwitch(
 	}
 
 	// TODO: let the config be passed in?
-	sw := initSwitch(i, NewSwitch(cfg, make(SidecarPeers, 0), t, "", opts...))
+	sw := initSwitch(i, NewSwitch(cfg, make([]string, 0), t, "", opts...))
 	sw.SetLogger(log.TestingLogger().With("switch", i))
 	sw.SetNodeKey(&nodeKey)
 
