@@ -93,7 +93,7 @@ func PrometheusMetrics(namespace string, labelsAndValues ...string) *Metrics {
 // NopMetrics returns no-op Metrics.
 func NopMetrics() *Metrics {
 	return &Metrics{
-		RelayConnected:        discard.NewGauge(),
+		RelayConnected: discard.NewGauge(),
 		// SIDECAR METRICS
 		MevBundleMempoolSize: discard.NewGauge(),
 		MevTxSizeBytes:       discard.NewHistogram(),
@@ -103,4 +103,3 @@ func NopMetrics() *Metrics {
 		NumTxsLastBlock:      discard.NewGauge(),
 	}
 }
-

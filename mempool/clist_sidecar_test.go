@@ -11,8 +11,8 @@ import (
 
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/log"
-	"github.com/tendermint/tendermint/types"
 	"github.com/tendermint/tendermint/mev"
+	"github.com/tendermint/tendermint/types"
 )
 
 type testBundleInfo struct {

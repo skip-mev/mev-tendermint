@@ -31,6 +31,7 @@ import (
 	mempl "github.com/tendermint/tendermint/mempool"
 	mempoolv0 "github.com/tendermint/tendermint/mempool/v0"
 	mempoolv1 "github.com/tendermint/tendermint/mempool/v1"
+	"github.com/tendermint/tendermint/mev"
 	"github.com/tendermint/tendermint/p2p"
 	p2pmock "github.com/tendermint/tendermint/p2p/mock"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
@@ -38,7 +39,6 @@ import (
 	statemocks "github.com/tendermint/tendermint/state/mocks"
 	"github.com/tendermint/tendermint/store"
 	"github.com/tendermint/tendermint/types"
-	"github.com/tendermint/tendermint/mev"
 )
 
 //----------------------------------------------
