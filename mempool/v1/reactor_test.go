@@ -23,6 +23,7 @@ import (
 	memproto "github.com/tendermint/tendermint/proto/tendermint/mempool"
 	"github.com/tendermint/tendermint/proxy"
 	"github.com/tendermint/tendermint/types"
+	"github.com/tendermint/tendermint/mev"
 )
 
 const (
@@ -101,7 +102,7 @@ func makeAndConnectReactors(config *cfg.Config, n int) []*Reactor {
 	for i := 0; i < n; i++ {
 		app := kvstore.NewApplication()
 		cc := proxy.NewLocalClientCreator(app)
-		sidecar := mempool.NewCListSidecar(0, log.NewNopLogger(), mempool.NopMetrics())
+		sidecar := mempool.NewCListSidecar(0, log.NewNopLogger(), mev.NopMetrics())
 		mempool, cleanup := newMempoolWithApp(cc)
 		defer cleanup()
 
@@ -292,7 +293,7 @@ func makeAndConnectReactorsEvensSidecar(config *cfg.Config, n int) []*Reactor {
 	for i := 0; i < n; i++ {
 		app := kvstore.NewApplication()
 		cc := proxy.NewLocalClientCreator(app)
-		sidecar := mempool.NewCListSidecar(0, log.NewNopLogger(), mempool.NopMetrics())
+		sidecar := mempool.NewCListSidecar(0, log.NewNopLogger(), mev.NopMetrics())
 		mempool, cleanup := newMempoolWithApp(cc)
 		defer cleanup()
 

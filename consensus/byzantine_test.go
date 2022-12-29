@@ -30,6 +30,7 @@ import (
 	sm "github.com/tendermint/tendermint/state"
 	"github.com/tendermint/tendermint/store"
 	"github.com/tendermint/tendermint/types"
+	"github.com/tendermint/tendermint/mev"
 )
 
 //----------------------------------------------
@@ -71,7 +72,7 @@ func TestByzantinePrevoteEquivocation(t *testing.T) {
 
 		// Make Mempool
 		var mempool mempl.Mempool
-		sidecar := mempl.NewCListSidecar(state.LastBlockHeight, log.NewNopLogger(), mempl.NopMetrics())
+		sidecar := mempl.NewCListSidecar(state.LastBlockHeight, log.NewNopLogger(), mev.NopMetrics())
 
 		switch thisConfig.Mempool.Version {
 		case cfg.MempoolV0:

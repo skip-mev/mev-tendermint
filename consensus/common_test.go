@@ -40,6 +40,7 @@ import (
 	"github.com/tendermint/tendermint/store"
 	"github.com/tendermint/tendermint/types"
 	tmtime "github.com/tendermint/tendermint/types/time"
+	"github.com/tendermint/tendermint/mev"
 )
 
 const (
@@ -400,7 +401,7 @@ func newStateWithConfigAndBlockStore(
 
 	// Make Mempool
 	var mempool mempl.Mempool
-	sidecar := mempl.NewCListSidecar(state.LastBlockHeight, log.NewNopLogger(), memplMetrics)
+	sidecar := mempl.NewCListSidecar(state.LastBlockHeight, log.NewNopLogger(), mev.NopMetrics())
 
 	switch config.Mempool.Version {
 	case cfg.MempoolV0:
