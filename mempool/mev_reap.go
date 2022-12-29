@@ -16,7 +16,6 @@ func CombineSidecarAndMempoolTxs(memplTxs, sidecarTxs types.ReapedTxs, maxBytes,
 	sidecarTxsMap := make(map[[TxKeySize]byte]struct{})
 
 	for i, sidecarTx := range sidecarTxs.Txs {
-		fmt.Println("[mev-tendermint]: reaped sidecar mev transaction", getLastNumBytesFromTx(sidecarTx, 20))
 		dataSize := types.ComputeProtoSizeForTxs([]types.Tx{sidecarTx})
 
 		// Check total size requirement
@@ -32,6 +31,8 @@ func CombineSidecarAndMempoolTxs(memplTxs, sidecarTxs types.ReapedTxs, maxBytes,
 		totalGas = newTotalGas
 		txs = append(txs, sidecarTx)
 		sidecarTxsMap[TxKey(sidecarTx)] = struct{}{}
+		fmt.Printf("[mev-tendermint]: reaped sidecar mev transaction %s with gasWanted %d\n",
+			getLastNumBytesFromTx(sidecarTx, 20), sidecarTxs.GasWanteds[i])
 	}
 
 	for i, memplTx := range memplTxs.Txs {

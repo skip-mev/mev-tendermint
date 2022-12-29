@@ -855,7 +855,7 @@ func NewNode(config *cfg.Config,
 	}
 
 	if config.Sidecar.RelayerPeerString != "" {
-		err = sw.AddRelayerPeer(config.Sidecar.RelayerPeerString)
+		err = sw.SetRelayerPeer(config.Sidecar.RelayerPeerString)
 		if err != nil {
 			return nil, fmt.Errorf("could not add relayer from relayer_conn_string field: %w", err)
 		}
