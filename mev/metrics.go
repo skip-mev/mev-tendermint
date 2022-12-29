@@ -54,13 +54,13 @@ func PrometheusMetrics(namespace string, labelsAndValues ...string) *Metrics {
 		MevBundleMempoolSize: prometheus.NewGaugeFrom(stdprometheus.GaugeOpts{
 			Namespace: namespace,
 			Subsystem: MetricsSubsystem,
-			Name:      "size",
+			Name:      "bundle_mempool_size",
 			Help:      "Size of the MEV bundle mempool (number of uncommitted transactions).",
 		}, labels).With(labelsAndValues...),
 		MevTxSizeBytes: prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
 			Namespace: namespace,
 			Subsystem: MetricsSubsystem,
-			Name:      "size_bytes",
+			Name:      "tx_size_bytes",
 			Help:      "MEV transaction sizes in bytes.",
 		}, labels).With(labelsAndValues...),
 		NumBundlesTotal: prometheus.NewCounterFrom(stdprometheus.CounterOpts{
