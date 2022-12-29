@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/tendermint/tendermint/libs/log"
+	"github.com/tendermint/tendermint/version"
 )
 
 func TestPostRequestRoutine(t *testing.T) {
@@ -32,8 +33,8 @@ func TestPostRequestRoutine(t *testing.T) {
 		if id := body["id"].(float64); id != float64(1) {
 			t.Errorf("Expected post body to have id=%f, got %f", float64(1), id)
 		}
-		if method := body["method"].(string); method != "register_node_api" {
-			t.Errorf("Expected post body to have method=%s, got %s", "add_node_api", method)
+		if method := body["method"].(string); method != "register_node" {
+			t.Errorf("Expected post body to have method=%s, got %s", "register_node", method)
 		}
 		params := body["params"].([]interface{})
 		if peerID := params[0].(string); peerID != "a1b2c3d4" {
@@ -41,6 +42,9 @@ func TestPostRequestRoutine(t *testing.T) {
 		}
 		if apikey := params[1].(string); apikey != "test-api-key" {
 			t.Errorf("Expected post body params to have apikey %s, got %s", "test-api-key", apikey)
+		}
+		if versionParam := params[2].(string); versionParam != version.MevTMVersion {
+			t.Errorf("Expected post body params to have version %s, got %s", version.MevTMVersion, versionParam)
 		}
 		w.WriteHeader(http.StatusOK)
 		_, err = w.Write([]byte(`{"jsonrpc": "2.0", "id": 1, "result": "success"}`))
@@ -50,7 +54,7 @@ func TestPostRequestRoutine(t *testing.T) {
 	}))
 	defer server.Close()
 
-	jsonData, _ := makePostRequestData("a1b2c3d4", "test-api-key")
+	jsonData, _ := makePostRequestData("a1b2c3d4", "test-api-key", version.MevTMVersion)
 	postRequestRoutine(log.NewNopLogger(), server.URL, jsonData)
 }
 
