@@ -311,10 +311,10 @@ func (sc *CListPriorityTxSidecar) AddTx(tx types.Tx, txInfo TxInfo) error {
 	atomic.AddInt64(&sc.txsBytes, int64(len(scTx.Tx)))
 
 	// add metric for new sidecar size
-	sc.metrics.SidecarSize.Set(float64(sc.Size()))
+	sc.metrics.MevBundleMempoolSize.Set(float64(sc.Size()))
 
 	// add metric for sidecar tx sampling
-	sc.metrics.SidecarTxSizeBytes.Observe(float64(len(scTx.Tx)))
+	sc.metrics.MevTxSizeBytes.Observe(float64(len(scTx.Tx)))
 
 	sc.lastBundleHeight = scTx.DesiredHeight
 
@@ -433,7 +433,7 @@ func (sc *CListPriorityTxSidecar) Update(
 	})
 
 	// add metric for new sidecar size
-	sc.metrics.SidecarSize.Set(float64(sc.Size()))
+	sc.metrics.MevBundleMempoolSize.Set(float64(sc.Size()))
 
 	return nil
 }

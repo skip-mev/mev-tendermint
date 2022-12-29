@@ -19,10 +19,10 @@ type Metrics struct {
 	RelayConnected metrics.Gauge
 
 	// SIDECAR METRICS
-	// Histogram of sidecar transaction sizes, in bytes.
-	SidecarTxSizeBytes metrics.Histogram
 	// Size of the sidecar.
-	SidecarSize metrics.Gauge
+	MevBundleMempoolSize metrics.Gauge
+	// Histogram of sidecar transaction sizes, in bytes.
+	MevTxSizeBytes metrics.Histogram
 
 	// Number of MEV bundles received by the sidecar in total.
 	NumBundlesTotal metrics.Counter
@@ -51,13 +51,13 @@ func PrometheusMetrics(namespace string, labelsAndValues ...string) *Metrics {
 			Help:      "Whether or not a node is connected to the mev relay / sentinel. 1 if yes, 0 if no.",
 		}, labels).With(labelsAndValues...),
 		// SIDECAR METRICS
-		SidecarSize: prometheus.NewGaugeFrom(stdprometheus.GaugeOpts{
+		MevBundleMempoolSize: prometheus.NewGaugeFrom(stdprometheus.GaugeOpts{
 			Namespace: namespace,
 			Subsystem: MetricsSubsystem,
 			Name:      "size",
-			Help:      "Size of the sidecar (number of uncommitted transactions).",
+			Help:      "Size of the MEV bundle mempool (number of uncommitted transactions).",
 		}, labels).With(labelsAndValues...),
-		SidecarTxSizeBytes: prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
+		MevTxSizeBytes: prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
 			Namespace: namespace,
 			Subsystem: MetricsSubsystem,
 			Name:      "size_bytes",
@@ -67,25 +67,25 @@ func PrometheusMetrics(namespace string, labelsAndValues ...string) *Metrics {
 			Namespace: namespace,
 			Subsystem: MetricsSubsystem,
 			Name:      "num_bundles_total",
-			Help:      "Number of MEV bundles received by the sidecar in total.",
+			Help:      "Number of MEV bundles received in total.",
 		}, labels).With(labelsAndValues...),
 		NumBundlesLastBlock: prometheus.NewGaugeFrom(stdprometheus.GaugeOpts{
 			Namespace: namespace,
 			Subsystem: MetricsSubsystem,
 			Name:      "num_bundles_last_block",
-			Help:      "Number of MEV bundles received by the sidecar in the last block.",
+			Help:      "Number of MEV bundles received in the last block.",
 		}, labels).With(labelsAndValues...),
 		NumTxsTotal: prometheus.NewCounterFrom(stdprometheus.CounterOpts{
 			Namespace: namespace,
 			Subsystem: MetricsSubsystem,
 			Name:      "num_txs_total",
-			Help:      "Number of MEV transactions received to the sidecar in total.",
+			Help:      "Number of MEV transactions received in total.",
 		}, labels).With(labelsAndValues...),
 		NumTxsLastBlock: prometheus.NewGaugeFrom(stdprometheus.GaugeOpts{
 			Namespace: namespace,
 			Subsystem: MetricsSubsystem,
 			Name:      "num_txs_last_block",
-			Help:      "Number of MEV transactions received to the sidecar in the last block.",
+			Help:      "Number of MEV transactions received in the last block.",
 		}, labels).With(labelsAndValues...),
 	}
 }
@@ -95,12 +95,12 @@ func NopMetrics() *Metrics {
 	return &Metrics{
 		RelayConnected:        discard.NewGauge(),
 		// SIDECAR METRICS
-		SidecarSize:        discard.NewGauge(),
-		SidecarTxSizeBytes: discard.NewHistogram(),
-		NumBundlesTotal:     discard.NewCounter(),
-		NumBundlesLastBlock: discard.NewGauge(),
-		NumTxsTotal:     discard.NewCounter(),
-		NumTxsLastBlock: discard.NewGauge(),
+		MevBundleMempoolSize: discard.NewGauge(),
+		MevTxSizeBytes:       discard.NewHistogram(),
+		NumBundlesTotal:      discard.NewCounter(),
+		NumBundlesLastBlock:  discard.NewGauge(),
+		NumTxsTotal:          discard.NewCounter(),
+		NumTxsLastBlock:      discard.NewGauge(),
 	}
 }
 
