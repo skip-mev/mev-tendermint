@@ -594,11 +594,17 @@ func createSwitch(config *cfg.Config,
 	p2pLogger log.Logger) *p2p.Switch {
 	sidecarPeers := splitAndTrimEmpty(config.Sidecar.PersonalPeerIDs, ",", " ")
 
+	// Temporarily support both SentinelPeerString and RelayerPeerString
+	sentinelPeerString := config.Sidecar.SentinelPeerString
+	if len(sentinelPeerString) == 0 {
+		sentinelPeerString = config.Sidecar.RelayerPeerString
+	}
+
 	sw := p2p.NewSwitch(
 		config.P2P,
 		sidecarPeers,
 		transport,
-		config.Sidecar.SentinelPeerString,
+		sentinelPeerString,
 		p2p.WithMetrics(p2pMetrics),
 		p2p.WithMevMetrics(mevMetrics),
 		p2p.SwitchPeerFilters(peerFilters...),
@@ -885,18 +891,24 @@ func NewNode(config *cfg.Config,
 		return nil, fmt.Errorf("could not add peers from persistent_peers field: %w", err)
 	}
 
-	if config.Sidecar.RelayerPeerString != "" {
-		err = sw.SetRelayerPeer(config.Sidecar.RelayerPeerString)
+	// Temporarily support both SentinelPeerString and RelayerPeerString
+	sentinelPeerString := config.Sidecar.SentinelPeerString
+	if len(sentinelPeerString) == 0 {
+		sentinelPeerString = config.Sidecar.RelayerPeerString
+	}
+
+	if sentinelPeerString != "" {
+		err = sw.SetSentinelPeer(sentinelPeerString)
 		if err != nil {
-			return nil, fmt.Errorf("could not add sentinel from sentinel_conn_string field: %w", err)
+			return nil, fmt.Errorf("could not add sentinel from sentinel_peer_string field: %w", err)
 		}
 	} else {
-		logger.Info("[node startup]: No sentinel_conn_string specified, not adding sentinel as peer")
+		logger.Info("[node startup]: No sentinel_peer_string specified, not adding sentinel as peer")
 	}
 
 	unconditionalPeerIDs := splitAndTrimEmpty(config.P2P.UnconditionalPeerIDs, ",", " ")
-	if config.Sidecar.SentinelPeerString != "" {
-		splitStr := strings.Split(config.Sidecar.SentinelPeerString, "@")
+	if sentinelPeerString != "" {
+		splitStr := strings.Split(sentinelPeerString, "@")
 		if len(splitStr) > 0 {
 			sentinelID := splitStr[0]
 			logger.Info("[node startup]: Adding sentinel as an unconditional peer", sentinelID)
@@ -904,7 +916,7 @@ func NewNode(config *cfg.Config,
 		} else {
 			fmt.Println("[node startup]: ERR: Could not parse sentinel peer string",
 				" to add as unconditional peer, is it correctly configured?",
-				config.Sidecar.SentinelPeerString)
+				sentinelPeerString)
 		}
 	}
 	err = sw.AddUnconditionalPeerIDs(unconditionalPeerIDs)
@@ -994,19 +1006,31 @@ func (n *Node) OnStart() error {
 		time.Sleep(genTime.Sub(now))
 	}
 
+	// Temporarily support both SentinelRPCString and RelayerRPCString
+	sentinelRPCString := n.config.Sidecar.SentinelRPCString
+	if len(sentinelRPCString) == 0 {
+		sentinelRPCString = n.config.Sidecar.RelayerRPCString
+	}
+
 	// If all required info is set in config, register with sentinel
-	if n.config.Sidecar.APIKey != "" && n.config.Sidecar.SentinelRPCString != "" {
+	if n.config.Sidecar.APIKey != "" && sentinelRPCString != "" {
 		p2p.RegisterWithSentinel(n.Logger, n.config.Sidecar.APIKey,
-			string(n.nodeInfo.ID()), n.config.Sidecar.SentinelRPCString)
+			string(n.nodeInfo.ID()), sentinelRPCString)
 	} else {
 		n.Logger.Info("[node startup]: Not registering with sentinel, config has API Key:", n.config.Sidecar.APIKey,
-			"sentinel rpc string:", n.config.Sidecar.SentinelRPCString)
+			"sentinel rpc string:", sentinelRPCString)
+	}
+
+	// Temporarily support both SentinelPeerString and RelayerPeerString
+	sentinelPeerString := n.config.Sidecar.SentinelPeerString
+	if len(sentinelPeerString) == 0 {
+		sentinelPeerString = n.config.Sidecar.RelayerPeerString
 	}
 
 	// Add private IDs to addrbook to block those peers being added
 	privateIDs := splitAndTrimEmpty(n.config.P2P.PrivatePeerIDs, ",", " ")
-	if n.config.Sidecar.SentinelPeerString != "" {
-		splitStr := strings.Split(n.config.Sidecar.SentinelPeerString, "@")
+	if sentinelPeerString != "" {
+		splitStr := strings.Split(sentinelPeerString, "@")
 		if len(splitStr) > 1 {
 			sentinelID := splitStr[0]
 			n.Logger.Info("[node startup]: Adding sentinel as a private peer", sentinelID)
@@ -1014,7 +1038,7 @@ func (n *Node) OnStart() error {
 		} else {
 			n.Logger.Info("[node startup]: ERR Could not parse sentinel peer string ",
 				"to add as private peer, is it correctly configured?",
-				n.config.Sidecar.SentinelPeerString)
+				sentinelPeerString)
 		}
 	}
 	n.addrBook.AddPrivateIDs(privateIDs)
@@ -1053,16 +1077,16 @@ func (n *Node) OnStart() error {
 
 	// Always connect to persistent peers
 	peersToDialOnStartup := splitAndTrimEmpty(n.config.P2P.PersistentPeers, ",", " ")
-	if n.config.Sidecar.SentinelPeerString != "" {
-		peersToDialOnStartup = append(peersToDialOnStartup, n.config.Sidecar.SentinelPeerString)
+	if sentinelPeerString != "" {
+		peersToDialOnStartup = append(peersToDialOnStartup, sentinelPeerString)
 	} else {
-		n.Logger.Info("[node startup]: No sentinel_conn_string specified, not dialing sentinel on startup")
+		n.Logger.Info("[node startup]: No sentinel_peer_string specified, not dialing sentinel on startup")
 	}
 	err = n.sw.DialPeersAsync(peersToDialOnStartup)
 	if err != nil {
 		return fmt.Errorf("could not dial peers from persistent_peers field: %w", err)
 	}
-	n.sw.StartRelayerConnectionCheckRoutine()
+	n.sw.StartSentinelConnectionCheckRoutine()
 
 	// Run state sync
 	if n.stateSync {

@@ -54,8 +54,13 @@ func ParseConfig(cmd *cobra.Command) (*cfg.Config, error) {
 		return nil, fmt.Errorf("error in config file: %v", err)
 	}
 	// Add auction sentinel to config if not present and set
-	if len(conf.Sidecar.SentinelPeerString) > 0 {
-		sentinelID := strings.Split(conf.Sidecar.SentinelPeerString, "@")[0]
+	// Temporarily support both SentinelPeerString and RelayerPeerString
+	sentinelPeerString := conf.Sidecar.SentinelPeerString
+	if len(sentinelPeerString) == 0 {
+		sentinelPeerString = conf.Sidecar.RelayerPeerString
+	}
+	if len(sentinelPeerString) > 0 {
+		sentinelID := strings.Split(sentinelPeerString, "@")[0]
 		if !strings.Contains(conf.P2P.PrivatePeerIDs, sentinelID) {
 			// safety check to not blow away existing private peers if any
 			if len(conf.P2P.PrivatePeerIDs) > 0 {

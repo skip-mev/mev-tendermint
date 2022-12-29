@@ -1086,9 +1086,13 @@ func (cfg *ConsensusConfig) ValidateBasic() error {
 // Sidecar defines configuration for gossiping the private sidecar
 // mempool among the sentinel and the nodes that belong to a particular proposer
 type SidecarConfig struct {
-	RootDir            string `mapstructure:"home"`
+	RootDir string `mapstructure:"home"`
+	// Temporarily support both Sentinel and Relayer names
 	SentinelRPCString  string `mapstructure:"sentinel_rpc_string"`
 	SentinelPeerString string `mapstructure:"sentinel_peer_string"`
+
+	RelayerRPCString  string `mapstructure:"relayer_rpc_string"`
+	RelayerPeerString string `mapstructure:"relayer_peer_string"`
 
 	PersonalPeerIDs string `mapstructure:"personal_peer_ids"`
 	APIKey          string `mapstructure:"api_key"`

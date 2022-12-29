@@ -57,7 +57,12 @@ func Status(ctx *rpctypes.Context) (*ctypes.ResultStatus, error) {
 		lastReceivedBundleHeight int64
 	)
 
-	if sentinel := env.SidecarConfig.SentinelPeerString; sentinel != "" {
+	// Temporarily support both SentinelPeerString and RelayerPeerString
+	sentinel := env.SidecarConfig.SentinelPeerString
+	if len(sentinel) == 0 {
+		sentinel = env.SidecarConfig.RelayerPeerString
+	}
+	if sentinel != "" {
 		isPeeredWithSentinel = env.P2PPeers.Peers().Has(p2p.ID(strings.Split(sentinel, "@")[0]))
 	}
 
