@@ -33,7 +33,6 @@ import (
 	"github.com/tendermint/tendermint/store"
 	"github.com/tendermint/tendermint/types"
 	tmtime "github.com/tendermint/tendermint/types/time"
-	"github.com/tendermint/tendermint/mev"
 )
 
 func TestNodeStartStop(t *testing.T) {

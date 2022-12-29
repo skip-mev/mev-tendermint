@@ -13,7 +13,6 @@ import (
 	"github.com/tendermint/tendermint/libs/log"
 	"github.com/tendermint/tendermint/mev"
 	"github.com/tendermint/tendermint/types"
-	"github.com/tendermint/tendermint/mev"
 )
 
 type testBundleInfo struct {

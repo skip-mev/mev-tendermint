@@ -8,7 +8,6 @@ import (
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/clist"
 	"github.com/tendermint/tendermint/libs/log"
-	"github.com/tendermint/tendermint/mev"
 	tmsync "github.com/tendermint/tendermint/libs/sync"
 	"github.com/tendermint/tendermint/mev"
 	"github.com/tendermint/tendermint/types"

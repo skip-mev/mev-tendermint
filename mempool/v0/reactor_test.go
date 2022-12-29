@@ -27,7 +27,6 @@ import (
 	memproto "github.com/tendermint/tendermint/proto/tendermint/mempool"
 	"github.com/tendermint/tendermint/proxy"
 	"github.com/tendermint/tendermint/types"
-	"github.com/tendermint/tendermint/mev"
 )
 
 const (
