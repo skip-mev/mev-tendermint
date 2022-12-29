@@ -220,4 +220,6 @@ type TxInfo struct {
 	BundleOrder int64
 	// total size of bundle
 	BundleSize int64
+	// gas wanted for tx
+	GasWanted int64
 }
