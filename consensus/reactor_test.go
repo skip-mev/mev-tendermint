@@ -39,6 +39,7 @@ import (
 	statemocks "github.com/tendermint/tendermint/state/mocks"
 	"github.com/tendermint/tendermint/store"
 	"github.com/tendermint/tendermint/types"
+	"github.com/tendermint/tendermint/mev"
 )
 
 //----------------------------------------------

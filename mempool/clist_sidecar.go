@@ -8,6 +8,7 @@ import (
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/clist"
 	"github.com/tendermint/tendermint/libs/log"
+	"github.com/tendermint/tendermint/mev"
 	tmsync "github.com/tendermint/tendermint/libs/sync"
 	"github.com/tendermint/tendermint/mev"
 	"github.com/tendermint/tendermint/types"
@@ -170,7 +171,7 @@ func (sc *CListPriorityTxSidecar) AddTx(tx types.Tx, txInfo TxInfo) error {
 	}
 
 	// add to metrics that we've received a new tx
-	sc.metrics.NumMevTxsTotal.Add(1)
+	sc.metrics.NumTxsTotal.Add(1)
 
 	// -------- BASIC CHECKS ON TX INFO ---------
 
@@ -629,7 +630,7 @@ func (sc *CListPriorityTxSidecar) ReapMaxTxs() types.ReapedTxs {
 	sc.metrics.NumBundlesLastBlock.Set(float64(completedBundles))
 
 	// update metrics for number of mev transactions reaped this block
-	sc.metrics.NumMevTxsLastBlock.Set(float64(numTxsInBundles))
+	sc.metrics.NumTxsLastBlock.Set(float64(numTxsInBundles))
 
 	// Gather info to return a ReapedTxs
 	txs := make([]types.Tx, 0, len(scTxs))
