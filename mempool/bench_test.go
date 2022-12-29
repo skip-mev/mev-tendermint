@@ -11,7 +11,7 @@ import (
 func BenchmarkReap(b *testing.B) {
 	app := kvstore.NewApplication()
 	cc := proxy.NewLocalClientCreator(app)
-	mempool, _, cleanup := newMempoolWithApp(cc)
+	mempool, cleanup := newMempoolWithApp(cc)
 	defer cleanup()
 
 	size := 10000
@@ -24,14 +24,14 @@ func BenchmarkReap(b *testing.B) {
 	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		mempool.ReapMaxBytesMaxGas(100000000, 10000000, nil)
+		mempool.ReapMaxBytesMaxGas(100000000, 10000000)
 	}
 }
 
 func BenchmarkCheckTx(b *testing.B) {
 	app := kvstore.NewApplication()
 	cc := proxy.NewLocalClientCreator(app)
-	mempool, _, cleanup := newMempoolWithApp(cc)
+	mempool, cleanup := newMempoolWithApp(cc)
 	defer cleanup()
 
 	for i := 0; i < b.N; i++ {
@@ -40,34 +40,5 @@ func BenchmarkCheckTx(b *testing.B) {
 		if err := mempool.CheckTx(tx, nil, TxInfo{}); err != nil {
 			b.Error(err)
 		}
-	}
-}
-
-func BenchmarkCacheInsertTime(b *testing.B) {
-	cache := newMapTxCache(b.N)
-	txs := make([][]byte, b.N)
-	for i := 0; i < b.N; i++ {
-		txs[i] = make([]byte, 8)
-		binary.BigEndian.PutUint64(txs[i], uint64(i))
-	}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		cache.Push(txs[i])
-	}
-}
-
-// This benchmark is probably skewed, since we actually will be removing
-// txs in parallel, which may cause some overhead due to mutex locking.
-func BenchmarkCacheRemoveTime(b *testing.B) {
-	cache := newMapTxCache(b.N)
-	txs := make([][]byte, b.N)
-	for i := 0; i < b.N; i++ {
-		txs[i] = make([]byte, 8)
-		binary.BigEndian.PutUint64(txs[i], uint64(i))
-		cache.Push(txs[i])
-	}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		cache.Remove(txs[i])
 	}
 }

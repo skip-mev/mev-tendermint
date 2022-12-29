@@ -164,7 +164,6 @@ func (memR *Reactor) GetChannels() []*p2p.ChannelDescriptor {
 func (memR *Reactor) AddPeer(peer p2p.Peer) {
 	if memR.config.Broadcast {
 		go memR.broadcastMempoolTxRoutine(peer)
-		// go memR.broadcastSidecarTxRoutine(peer)
 		if peer.IsSidecarPeer() {
 			go memR.broadcastSidecarTxRoutine(peer)
 		}
@@ -300,7 +299,8 @@ func (memR *Reactor) broadcastSidecarTxRoutine(peer p2p.Peer) {
 				}
 				bz, err := msg.Marshal()
 				if err != nil {
-					panic(err)
+					memR.Logger.Info("not sending a sidecarTx for peer", peerID, "failed to marshal", msg)
+					continue
 				}
 				success := peer.Send(SidecarChannel, bz)
 				if !success {
@@ -369,8 +369,8 @@ func (memR *Reactor) broadcastMempoolTxRoutine(peer p2p.Peer) {
 		}
 
 		// Allow for a lag of 1 block.
-		memTx := next.Value.(*MempoolTx)
-		if peerState.GetHeight() < memTx.Height-1 {
+		memTx := next.Value.(*mempoolTx)
+		if peerState.GetHeight() < memTx.height-1 {
 			time.Sleep(peerCatchupSleepIntervalMS * time.Millisecond)
 			continue
 		}
@@ -378,10 +378,10 @@ func (memR *Reactor) broadcastMempoolTxRoutine(peer p2p.Peer) {
 		// NOTE: Transaction batching was disabled due to
 		// https://github.com/tendermint/tendermint/issues/5796
 
-		if _, ok := memTx.Senders.Load(peerID); !ok {
+		if _, ok := memTx.senders.Load(peerID); !ok {
 			msg := protomem.Message{
 				Sum: &protomem.Message_Txs{
-					Txs: &protomem.Txs{Txs: [][]byte{memTx.Tx}},
+					Txs: &protomem.Txs{Txs: [][]byte{memTx.tx}},
 				},
 			}
 			bz, err := msg.Marshal()

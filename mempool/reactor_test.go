@@ -61,7 +61,7 @@ func TestReactorBroadcastTxsMessage(t *testing.T) {
 		}
 	}
 
-	txs := checkTxs(t, reactors[0].mempool, numTxs, UnknownPeerID, reactors[0].sidecar, false)
+	txs := checkTxs(t, reactors[0].mempool, numTxs, UnknownPeerID)
 	waitForTxsOnReactors(t, txs, reactors, false)
 }
 
@@ -167,7 +167,7 @@ func TestReactorConcurrency(t *testing.T) {
 
 		// 1. submit a bunch of txs
 		// 2. update the whole mempool
-		txs := checkTxs(t, reactors[0].mempool, numTxs, UnknownPeerID, nil, false)
+		txs := checkTxs(t, reactors[0].mempool, numTxs, UnknownPeerID)
 		go func() {
 			defer wg.Done()
 
@@ -184,7 +184,7 @@ func TestReactorConcurrency(t *testing.T) {
 
 		// 1. submit a bunch of txs
 		// 2. update none
-		_ = checkTxs(t, reactors[1].mempool, numTxs, UnknownPeerID, nil, false)
+		_ = checkTxs(t, reactors[1].mempool, numTxs, UnknownPeerID)
 		go func() {
 			defer wg.Done()
 
@@ -221,7 +221,7 @@ func TestReactorNoBroadcastToSender(t *testing.T) {
 	}
 
 	const peerID = 1
-	checkTxs(t, reactors[0].mempool, numTxs, peerID, nil, false)
+	checkTxs(t, reactors[0].mempool, numTxs, peerID)
 	ensureNoTxs(t, reactors[peerID], 100*time.Millisecond)
 }
 
@@ -381,7 +381,8 @@ func makeAndConnectReactorsEvensSidecar(config *cfg.Config, n int) []*Reactor {
 	for i := 0; i < n; i++ {
 		app := kvstore.NewApplication()
 		cc := proxy.NewLocalClientCreator(app)
-		mempool, sidecar, cleanup := newMempoolWithApp(cc)
+		sidecar := NewCListSidecar(0, log.NewNopLogger(), NopMetrics())
+		mempool, cleanup := newMempoolWithApp(cc)
 		defer cleanup()
 
 		reactors[i] = NewReactor(config.Mempool, mempool, sidecar) // so we dont start the consensus states
@@ -403,7 +404,8 @@ func makeAndConnectReactors(config *cfg.Config, n int) []*Reactor {
 	for i := 0; i < n; i++ {
 		app := kvstore.NewApplication()
 		cc := proxy.NewLocalClientCreator(app)
-		mempool, sidecar, cleanup := newMempoolWithApp(cc)
+		sidecar := NewCListSidecar(0, log.NewNopLogger(), NopMetrics())
+		mempool, cleanup := newMempoolWithApp(cc)
 		defer cleanup()
 
 		reactors[i] = NewReactor(config.Mempool, mempool, sidecar) // so we dont start the consensus states
@@ -468,8 +470,7 @@ func waitForSidecarTxsOnReactor(t *testing.T, txs types.Txs, reactor *Reactor, r
 
 	reapedTxs := sidecar.ReapMaxTxs()
 	var i int
-	for _, scMemTx := range reapedTxs {
-		scTx := scMemTx.Tx
+	for _, scTx := range reapedTxs.Txs {
 		assert.Equalf(t, txs[i], scTx,
 			"txs at index %d on reactor %d don't match: %s vs %s", i, reactorIndex, txs[i], scTx)
 		i++

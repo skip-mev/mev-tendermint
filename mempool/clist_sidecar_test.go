@@ -8,9 +8,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/tendermint/tendermint/abci/example/kvstore"
 	abci "github.com/tendermint/tendermint/abci/types"
-	"github.com/tendermint/tendermint/proxy"
+	"github.com/tendermint/tendermint/libs/log"
 	"github.com/tendermint/tendermint/types"
 )
 
@@ -79,10 +78,7 @@ func addBundlesToSidecar(t *testing.T, sidecar PriorityTxSidecar, bundles []test
 }
 
 func TestSidecarUpdate(t *testing.T) {
-	app := kvstore.NewApplication()
-	cc := proxy.NewLocalClientCreator(app)
-	_, sidecar, cleanup := newMempoolWithApp(cc)
-	defer cleanup()
+	sidecar := NewCListSidecar(0, log.NewNopLogger(), NopMetrics())
 
 	// 1. Flushes the sidecar
 	{
@@ -114,10 +110,7 @@ func TestSidecarUpdate(t *testing.T) {
 }
 
 func TestSidecarTxsAvailable(t *testing.T) {
-	app := kvstore.NewApplication()
-	cc := proxy.NewLocalClientCreator(app)
-	_, sidecar, cleanup := newMempoolWithApp(cc)
-	defer cleanup()
+	sidecar := NewCListSidecar(0, log.NewNopLogger(), NopMetrics())
 	sidecar.EnableTxsAvailable()
 
 	timeoutMS := 500
@@ -154,10 +147,7 @@ func TestSidecarTxsAvailable(t *testing.T) {
 
 // TODO: shorten
 func TestReapSidecarWithTxsOutOfOrder(t *testing.T) {
-	app := kvstore.NewApplication()
-	cc := proxy.NewLocalClientCreator(app)
-	_, sidecar, cleanup := newMempoolWithApp(cc)
-	defer cleanup()
+	sidecar := NewCListSidecar(0, log.NewNopLogger(), NopMetrics())
 
 	// 1. Inserted out of order, but sequential, but bundleSize 1, so should get one tx
 	{
@@ -181,7 +171,7 @@ func TestReapSidecarWithTxsOutOfOrder(t *testing.T) {
 
 		sidecar.PrettyPrintBundles()
 
-		txs := sidecar.ReapMaxTxs()
+		txs := sidecar.ReapMaxTxs().Txs
 		assert.Equal(t, 1, len(txs), "Got %d txs, expected %d",
 			len(txs), 1)
 
@@ -208,7 +198,7 @@ func TestReapSidecarWithTxsOutOfOrder(t *testing.T) {
 		bundleOrder = 0
 		addTxToSidecar(t, sidecar, bInfo, bundleOrder)
 
-		txs := sidecar.ReapMaxTxs()
+		txs := sidecar.ReapMaxTxs().Txs
 		assert.Equal(t, 2, len(txs), "Got %d txs, expected %d",
 			len(txs), 2)
 
@@ -235,7 +225,7 @@ func TestReapSidecarWithTxsOutOfOrder(t *testing.T) {
 		bundleOrder = 1
 		addTxToSidecar(t, sidecar, bInfo, bundleOrder)
 
-		txs := sidecar.ReapMaxTxs()
+		txs := sidecar.ReapMaxTxs().Txs
 		assert.Equal(t, 0, len(txs), "Got %d txs, expected %d",
 			len(txs), 0)
 
@@ -312,14 +302,14 @@ func TestReapSidecarWithTxsOutOfOrder(t *testing.T) {
 		bundleOrder = 0
 		addTxToSidecar(t, sidecar, bInfo, bundleOrder)
 
-		txs := sidecar.ReapMaxTxs()
+		txs := sidecar.ReapMaxTxs().Txs
 		assert.Equal(t, 7, len(txs), "Got %d txs, expected %d",
 			len(txs), 7)
 		sidecar.PrettyPrintBundles()
 
 		fmt.Println("TXS FROM REAP ----------")
 		for _, memTx := range txs {
-			fmt.Println(memTx.Tx.String())
+			fmt.Println(memTx.String())
 		}
 		fmt.Println("----------")
 
@@ -399,14 +389,14 @@ func TestReapSidecarWithTxsOutOfOrder(t *testing.T) {
 		bundleOrder = 0
 		addTxToSidecar(t, sidecar, bInfo, bundleOrder)
 
-		txs := sidecar.ReapMaxTxs()
+		txs := sidecar.ReapMaxTxs().Txs
 		assert.Equal(t, 0, len(txs), "Got %d txs, expected %d",
 			len(txs), 0)
 		sidecar.PrettyPrintBundles()
 
 		fmt.Println("TXS FROM REAP ----------")
 		for _, memTx := range txs {
-			fmt.Println(memTx.Tx.String())
+			fmt.Println(memTx.String())
 		}
 		fmt.Println("----------")
 
@@ -415,10 +405,7 @@ func TestReapSidecarWithTxsOutOfOrder(t *testing.T) {
 }
 
 func TestBasicAddMultipleBundles(t *testing.T) {
-	app := kvstore.NewApplication()
-	cc := proxy.NewLocalClientCreator(app)
-	_, sidecar, cleanup := newMempoolWithApp(cc)
-	defer cleanup()
+	sidecar := NewCListSidecar(0, log.NewNopLogger(), NopMetrics())
 
 	tests := []struct {
 		numBundlesTxsToCreate int
@@ -440,10 +427,7 @@ func TestBasicAddMultipleBundles(t *testing.T) {
 }
 
 func TestSpecificAddTxsToMultipleBundles(t *testing.T) {
-	app := kvstore.NewApplication()
-	cc := proxy.NewLocalClientCreator(app)
-	_, sidecar, cleanup := newMempoolWithApp(cc)
-	defer cleanup()
+	sidecar := NewCListSidecar(0, log.NewNopLogger(), NopMetrics())
 
 	// only one since no txs in first
 	{
@@ -502,10 +486,7 @@ func TestSpecificAddTxsToMultipleBundles(t *testing.T) {
 }
 
 func TestGetEnforcedBundleSize(t *testing.T) {
-	app := kvstore.NewApplication()
-	cc := proxy.NewLocalClientCreator(app)
-	_, sidecar, cleanup := newMempoolWithApp(cc)
-	defer cleanup()
+	sidecar := NewCListSidecar(0, log.NewNopLogger(), NopMetrics())
 
 	assert.Equal(t, 0, sidecar.GetEnforcedBundleSize(0), "Expected enforced bundle size %d, got %d", 0, sidecar.GetEnforcedBundleSize(0))
 
@@ -517,10 +498,7 @@ func TestGetEnforcedBundleSize(t *testing.T) {
 }
 
 func TestGetCurrBundleSize(t *testing.T) {
-	app := kvstore.NewApplication()
-	cc := proxy.NewLocalClientCreator(app)
-	_, sidecar, cleanup := newMempoolWithApp(cc)
-	defer cleanup()
+	sidecar := NewCListSidecar(0, log.NewNopLogger(), NopMetrics())
 
 	assert.Equal(t, 0, sidecar.GetCurrBundleSize(0), "Expected curr bundle size %d, got %d", 0, sidecar.GetCurrBundleSize(0))
 
