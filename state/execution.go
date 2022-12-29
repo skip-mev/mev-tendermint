@@ -112,10 +112,10 @@ func (blockExec *BlockExecutor) CreateProposalBlock(
 	if blockExec.sidecar != nil {
 		sidecarTxs = blockExec.sidecar.ReapMaxTxs()
 	} else {
-		fmt.Println("Sidecar is nil, not reaping")
+		blockExec.logger.Info("[mev-tendermint]: Sidecar is nil, not reaping")
 	}
 	memplTxs := blockExec.mempool.ReapMaxBytesMaxGas(maxDataBytes, maxGas)
-	txs := mempl.CombineSidecarAndMempoolTxs(memplTxs, sidecarTxs, maxDataBytes, maxGas)
+	txs := mempl.CombineSidecarAndMempoolTxs(memplTxs, sidecarTxs, maxDataBytes, maxGas, blockExec.logger)
 
 	return state.MakeBlock(height, txs, commit, evidence, proposerAddr)
 }
