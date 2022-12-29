@@ -71,7 +71,7 @@ func TestPostRequestRoutine_DoesNotPanicOn500(t *testing.T) {
 	}))
 	defer server.Close()
 
-	jsonData, _ := makePostRequestData("a1b2c3d4", "test-api-key")
+	jsonData, _ := makePostRequestData("a1b2c3d4", "test-api-key", version.MevTMVersion)
 	err := attemptRegisterOnce(log.NewNopLogger(), server.URL, jsonData)
 	if err == nil {
 		t.Errorf("Expected error on fake server")
@@ -89,7 +89,7 @@ func TestErrorOnJSONRPCError(t *testing.T) {
 	}))
 	defer server.Close()
 
-	jsonData, _ := makePostRequestData("a1b2c3d4", "test-api-key")
+	jsonData, _ := makePostRequestData("a1b2c3d4", "test-api-key", version.MevTMVersion)
 	err := attemptRegisterOnce(log.NewNopLogger(), server.URL, jsonData)
 	if err == nil {
 		t.Errorf("Expected error on jsonrpc error")
@@ -97,7 +97,7 @@ func TestErrorOnJSONRPCError(t *testing.T) {
 }
 
 func TestErrorOnFailedToRespond(t *testing.T) {
-	jsonData, _ := makePostRequestData("a1b2c3d4", "test-api-key")
+	jsonData, _ := makePostRequestData("a1b2c3d4", "test-api-key", version.MevTMVersion)
 	err := attemptRegisterOnce(log.NewNopLogger(), "http://1.2.3.4:6969", jsonData)
 	if err == nil {
 		t.Errorf("Expected error on fake server")

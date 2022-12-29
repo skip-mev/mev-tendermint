@@ -91,9 +91,11 @@ type Switch struct {
 	rng *rand.Rand // seed for randomizing dial times and orders
 
 	metrics           *Metrics
-	sidecarPeers      SidecarPeers
+	sidecarPeers      sidecarPeers
 	RelayerPeerString string
 	RelayerNetAddr    *NetAddress
+
+	relayerReconnectionMtx sync.Mutex
 }
 
 // NetAddress returns the address the switch is listening on.
@@ -105,12 +107,12 @@ func (sw *Switch) NetAddress() *NetAddress {
 // SwitchOption sets an optional parameter on the Switch.
 type SwitchOption func(*Switch)
 
-type SidecarPeers map[ID]struct{}
+type sidecarPeers map[ID]struct{}
 
 // create map of sidecar peers that will privately gossip
 // auction-winning txs among themselves
-func NewSidecarPeers(pl []string) (SidecarPeers, error) {
-	sp := make(SidecarPeers)
+func newSidecarPeers(pl []string) (sidecarPeers, error) {
+	sp := make(sidecarPeers)
 	for _, pid := range pl {
 		if pid == "" {
 			continue
@@ -127,14 +129,13 @@ func NewSidecarPeers(pl []string) (SidecarPeers, error) {
 // NewSwitch creates a new Switch with the given config.
 func NewSwitch(
 	cfg *config.P2PConfig,
-	sidecarPeers SidecarPeers,
+	sidecarPeerList []string,
 	transport Transport,
 	relayerPeerString string,
 	options ...SwitchOption,
 ) *Switch {
 	sw := &Switch{
 		config:               cfg,
-		sidecarPeers:         sidecarPeers,
 		reactors:             make(map[string]Reactor),
 		chDescs:              make([]*conn.ChannelDescriptor, 0),
 		reactorsByCh:         make(map[byte]Reactor),
@@ -148,6 +149,18 @@ func NewSwitch(
 		unconditionalPeerIDs: make(map[ID]struct{}),
 		RelayerPeerString:    relayerPeerString,
 	}
+
+	if relayerPeerString != "" {
+		relayerID := strings.Split(relayerPeerString, "@")[0]
+		if !contains(sidecarPeerList, relayerID) {
+			sidecarPeerList = append(sidecarPeerList, relayerID)
+		}
+	}
+	sidecarPeers, err := newSidecarPeers(sidecarPeerList)
+	if err != nil {
+		panic(fmt.Sprintln("Problem with peer initialization", err))
+	}
+	sw.sidecarPeers = sidecarPeers
 
 	// Ensure we have a completely undeterministic PRNG.
 	sw.rng = rand.NewRand()
@@ -358,7 +371,7 @@ func (sw *Switch) StopPeerForError(peer Peer, reason interface{}) {
 
 	sw.Logger.Info("Looking to reconnect after StopPeerForError, peer is ", peer, "relayer is ", sw.RelayerNetAddr)
 	if sw.RelayerNetAddr != nil && peer.ID() == sw.RelayerNetAddr.ID {
-		fmt.Println("Relayer peer disconnected, attempting to reconnect")
+		sw.Logger.Info("Relayer peer disconnected, attempting to reconnect")
 		go sw.reconnectToRelayerPeer()
 	} else if peer.IsPersistent() {
 		var addr *NetAddress
@@ -420,11 +433,20 @@ func (sw *Switch) stopAndRemovePeer(peer Peer, reason interface{}) {
 
 func (sw *Switch) reconnectToRelayerPeer() {
 	sw.Logger.Info("[relayer-reconnection]: starting relayer reconnect routine")
-	if sw.reconnecting.Has(sw.RelayerPeerString) {
-		sw.Logger.Info("[relayer-reconnection]: already have a reconnection routine for ", sw.RelayerPeerString)
+	shouldReturn := func() bool {
+		sw.relayerReconnectionMtx.Lock()
+		defer sw.relayerReconnectionMtx.Unlock()
+
+		if sw.reconnecting.Has(sw.RelayerPeerString) {
+			sw.Logger.Info("[relayer-reconnection]: already have a reconnection routine for ", sw.RelayerPeerString)
+			return true
+		}
+		sw.reconnecting.Set(sw.RelayerPeerString, struct{}{})
+		return false
+	}()
+	if shouldReturn {
 		return
 	}
-	sw.reconnecting.Set(sw.RelayerPeerString, struct{}{})
 	defer sw.reconnecting.Delete(sw.RelayerPeerString)
 
 	i := 0
@@ -912,6 +934,10 @@ func (sw *Switch) filterPeer(p Peer) error {
 // the peer is filtered out or failed to start or can't be added.
 func (sw *Switch) addPeer(p Peer) error {
 	if err := sw.filterPeer(p); err != nil {
+		// if peer is relayer, log the error
+		if sw.RelayerNetAddr != nil && p.ID() == sw.RelayerNetAddr.ID {
+			sw.Logger.Error("[relayer-reconnection]: filterPeer filtered relayer", "err", err)
+		}
 		return err
 	}
 
@@ -971,4 +997,31 @@ func (sw *Switch) addPeer(p Peer) error {
 	sw.Logger.Info("Added peer", "peer", p)
 
 	return nil
+}
+
+func (sw *Switch) StartRelayerConnectionCheckRoutine() {
+	go func() {
+		for {
+			// Do this check roughly every 5 minutes
+			sw.randomSleep(5 * 60 * time.Second)
+
+			sw.Logger.Info("[relayer-check]: Entering periodic check for relayer peer connection")
+			if !sw.peers.Has(ID(strings.Split(sw.RelayerPeerString, "@")[0])) {
+				sw.Logger.Info("[relayer-check]: Relayer connection check routine didn't find relayer peer, starting reconnection routine")
+				go sw.reconnectToRelayerPeer()
+			} else {
+				sw.Logger.Info("[relayer-check]: Found existing connection to relayer, going back to sleep")
+			}
+		}
+	}()
+}
+
+func contains(s []string, str string) bool {
+	for _, v := range s {
+		if v == str {
+			return true
+		}
+	}
+
+	return false
 }
