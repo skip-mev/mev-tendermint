@@ -41,8 +41,6 @@ type Metrics struct {
 	MessageReceiveBytesTotal metrics.Counter
 	// Number of bytes of each message type sent.
 	MessageSendBytesTotal metrics.Counter
-	// Whether or not a node is connected to the relay.
-	RelayConnected metrics.Gauge
 }
 
 // PrometheusMetrics returns Metrics build using Prometheus client library.
@@ -96,12 +94,6 @@ func PrometheusMetrics(namespace string, labelsAndValues ...string) *Metrics {
 			Name:      "message_send_bytes_total",
 			Help:      "Number of bytes of each message type sent.",
 		}, append(labels, "message_type")).With(labelsAndValues...),
-		RelayConnected: prometheus.NewGaugeFrom(stdprometheus.GaugeOpts{
-			Namespace: namespace,
-			Subsystem: MetricsSubsystem,
-			Name:      "relay_connected",
-			Help:      "Whether or not a node is connected to the mev relay / sentinel. 1 if yes, 0 if no.",
-		}, labels).With(labelsAndValues...),
 	}
 }
 
@@ -114,7 +106,6 @@ func NopMetrics() *Metrics {
 		NumTxs:                   discard.NewGauge(),
 		MessageReceiveBytesTotal: discard.NewCounter(),
 		MessageSendBytesTotal:    discard.NewCounter(),
-		RelayConnected:           discard.NewGauge(),
 	}
 }
 

@@ -25,6 +25,7 @@ import (
 	cfg "github.com/tendermint/tendermint/config"
 	mempoolv0 "github.com/tendermint/tendermint/mempool/v0"
 	mempoolv1 "github.com/tendermint/tendermint/mempool/v1"
+	"github.com/tendermint/tendermint/mev"
 	"github.com/tendermint/tendermint/p2p"
 	tmcons "github.com/tendermint/tendermint/proto/tendermint/consensus"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
@@ -72,7 +73,7 @@ func TestByzantinePrevoteEquivocation(t *testing.T) {
 
 		// Make Mempool
 		var mempool mempl.Mempool
-		sidecar := mempl.NewCListSidecar(state.LastBlockHeight, log.NewNopLogger(), mempl.NopMetrics())
+		sidecar := mempl.NewCListSidecar(state.LastBlockHeight, log.NewNopLogger(), mev.NopMetrics())
 
 		switch thisConfig.Mempool.Version {
 		case cfg.MempoolV0:

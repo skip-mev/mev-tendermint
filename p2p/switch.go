@@ -12,6 +12,7 @@ import (
 	"github.com/tendermint/tendermint/libs/cmap"
 	"github.com/tendermint/tendermint/libs/rand"
 	"github.com/tendermint/tendermint/libs/service"
+	"github.com/tendermint/tendermint/mev"
 	"github.com/tendermint/tendermint/p2p/conn"
 )
 
@@ -94,6 +95,7 @@ type Switch struct {
 
 	metrics           *Metrics
 	mlc               *metricsLabelCache
+	mevMetrics        *mev.Metrics
 	sidecarPeers      sidecarPeers
 	RelayerPeerString string
 	RelayerNetAddr    *NetAddress
@@ -193,6 +195,10 @@ func SwitchPeerFilters(filters ...PeerFilterFunc) SwitchOption {
 // WithMetrics sets the metrics.
 func WithMetrics(metrics *Metrics) SwitchOption {
 	return func(sw *Switch) { sw.metrics = metrics }
+}
+
+func WithMevMetrics(metrics *mev.Metrics) SwitchOption {
+	return func(sw *Switch) { sw.mevMetrics = metrics }
 }
 
 //---------------------------------------------------------------------
@@ -468,7 +474,7 @@ func (sw *Switch) stopAndRemovePeer(peer Peer, reason interface{}) {
 			relayerIDConv := ID(splitStr[0])
 			if err := validateID(relayerIDConv); err == nil {
 				if peer.ID() == relayerIDConv {
-					sw.metrics.RelayConnected.Set(0)
+					sw.mevMetrics.RelayConnected.Set(0)
 				}
 			} else {
 				sw.Logger.Error("Error validating relayer ID", "err", err, "is it correctly configured?", sw.RelayerPeerString)
@@ -1041,7 +1047,7 @@ func (sw *Switch) addPeer(p Peer) error {
 		relayerIDConv := ID(splitStr[0])
 		if err := validateID(relayerIDConv); err == nil {
 			if p.ID() == relayerIDConv {
-				sw.metrics.RelayConnected.Set(1)
+				sw.mevMetrics.RelayConnected.Set(1)
 			}
 		} else {
 			sw.Logger.Error("Error validating relayer ID", "err", err, "is it correctly configured?", sw.RelayerPeerString)
