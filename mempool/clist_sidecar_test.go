@@ -11,6 +11,7 @@ import (
 
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/log"
+	"github.com/tendermint/tendermint/mev"
 	"github.com/tendermint/tendermint/types"
 )
 
@@ -86,7 +87,7 @@ func addBundlesToSidecar(t *testing.T, sidecar PriorityTxSidecar, bundles []test
 }
 
 func TestSidecarUpdate(t *testing.T) {
-	sidecar := NewCListSidecar(0, log.NewNopLogger(), NopMetrics())
+	sidecar := NewCListSidecar(0, log.NewNopLogger(), mev.NopMetrics())
 
 	// 1. Flushes the sidecar
 	{
@@ -118,7 +119,7 @@ func TestSidecarUpdate(t *testing.T) {
 }
 
 func TestSidecarTxsAvailable(t *testing.T) {
-	sidecar := NewCListSidecar(0, log.NewNopLogger(), NopMetrics())
+	sidecar := NewCListSidecar(0, log.NewNopLogger(), mev.NopMetrics())
 	sidecar.EnableTxsAvailable()
 
 	timeoutMS := 500
@@ -155,7 +156,7 @@ func TestSidecarTxsAvailable(t *testing.T) {
 
 // TODO: shorten
 func TestReapSidecarWithTxsOutOfOrder(t *testing.T) {
-	sidecar := NewCListSidecar(0, log.NewNopLogger(), NopMetrics())
+	sidecar := NewCListSidecar(0, log.NewNopLogger(), mev.NopMetrics())
 
 	// 1. Inserted out of order, but sequential, but bundleSize 1, so should get one tx
 	{
@@ -413,7 +414,7 @@ func TestReapSidecarWithTxsOutOfOrder(t *testing.T) {
 }
 
 func TestBasicAddMultipleBundles(t *testing.T) {
-	sidecar := NewCListSidecar(0, log.NewNopLogger(), NopMetrics())
+	sidecar := NewCListSidecar(0, log.NewNopLogger(), mev.NopMetrics())
 
 	tests := []struct {
 		numBundlesTxsToCreate int
@@ -435,7 +436,7 @@ func TestBasicAddMultipleBundles(t *testing.T) {
 }
 
 func TestSpecificAddTxsToMultipleBundles(t *testing.T) {
-	sidecar := NewCListSidecar(0, log.NewNopLogger(), NopMetrics())
+	sidecar := NewCListSidecar(0, log.NewNopLogger(), mev.NopMetrics())
 
 	// only one since no txs in first
 	{
@@ -494,7 +495,7 @@ func TestSpecificAddTxsToMultipleBundles(t *testing.T) {
 }
 
 func TestGetEnforcedBundleSize(t *testing.T) {
-	sidecar := NewCListSidecar(0, log.NewNopLogger(), NopMetrics())
+	sidecar := NewCListSidecar(0, log.NewNopLogger(), mev.NopMetrics())
 
 	assert.Equal(t, 0, sidecar.GetEnforcedBundleSize(0), "Expected enforced bundle size %d, got %d", 0, sidecar.GetEnforcedBundleSize(0))
 
@@ -506,7 +507,7 @@ func TestGetEnforcedBundleSize(t *testing.T) {
 }
 
 func TestGetCurrBundleSize(t *testing.T) {
-	sidecar := NewCListSidecar(0, log.NewNopLogger(), NopMetrics())
+	sidecar := NewCListSidecar(0, log.NewNopLogger(), mev.NopMetrics())
 
 	assert.Equal(t, 0, sidecar.GetCurrBundleSize(0), "Expected curr bundle size %d, got %d", 0, sidecar.GetCurrBundleSize(0))
 
