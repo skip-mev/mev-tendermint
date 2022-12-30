@@ -21,6 +21,7 @@ import (
 	"github.com/tendermint/tendermint/libs/log"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 	"github.com/tendermint/tendermint/mempool"
+	"github.com/tendermint/tendermint/mev"
 	"github.com/tendermint/tendermint/p2p"
 	"github.com/tendermint/tendermint/p2p/mock"
 	memproto "github.com/tendermint/tendermint/proto/tendermint/mempool"
@@ -384,7 +385,7 @@ func makeAndConnectReactorsEvensSidecar(config *cfg.Config, n int) []*Reactor {
 	for i := 0; i < n; i++ {
 		app := kvstore.NewApplication()
 		cc := proxy.NewLocalClientCreator(app)
-		sidecar := mempool.NewCListSidecar(0, log.NewNopLogger(), mempool.NopMetrics())
+		sidecar := mempool.NewCListSidecar(0, log.NewNopLogger(), mev.NopMetrics())
 		mempool, cleanup := newMempoolWithApp(cc)
 		defer cleanup()
 
@@ -407,7 +408,7 @@ func makeAndConnectReactors(config *cfg.Config, n int) []*Reactor {
 	for i := 0; i < n; i++ {
 		app := kvstore.NewApplication()
 		cc := proxy.NewLocalClientCreator(app)
-		sidecar := mempool.NewCListSidecar(0, log.NewNopLogger(), mempool.NopMetrics())
+		sidecar := mempool.NewCListSidecar(0, log.NewNopLogger(), mev.NopMetrics())
 		mempool, cleanup := newMempoolWithApp(cc)
 		defer cleanup()
 

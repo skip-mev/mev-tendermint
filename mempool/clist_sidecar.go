@@ -9,6 +9,7 @@ import (
 	"github.com/tendermint/tendermint/libs/clist"
 	"github.com/tendermint/tendermint/libs/log"
 	tmsync "github.com/tendermint/tendermint/libs/sync"
+	"github.com/tendermint/tendermint/mev"
 	"github.com/tendermint/tendermint/types"
 )
 
@@ -52,7 +53,7 @@ type CListPriorityTxSidecar struct {
 
 	logger log.Logger
 
-	metrics *Metrics
+	metrics *mev.Metrics
 }
 
 var _ PriorityTxSidecar = &CListPriorityTxSidecar{}
@@ -66,14 +67,14 @@ type Key struct {
 func NewCListSidecar(
 	height int64,
 	memLogger log.Logger,
-	memMetrics *Metrics,
+	mevMetrics *mev.Metrics,
 ) *CListPriorityTxSidecar {
 	sidecar := &CListPriorityTxSidecar{
 		txs:                    clist.New(),
 		height:                 height,
 		heightForFiringAuction: height + 1,
 		logger:                 memLogger,
-		metrics:                memMetrics,
+		metrics:                mevMetrics,
 	}
 	sidecar.cache = NewLRUTxCache(10000)
 	return sidecar
@@ -310,10 +311,10 @@ func (sc *CListPriorityTxSidecar) AddTx(tx types.Tx, txInfo TxInfo) error {
 	atomic.AddInt64(&sc.txsBytes, int64(len(scTx.Tx)))
 
 	// add metric for new sidecar size
-	sc.metrics.SidecarSize.Set(float64(sc.Size()))
+	sc.metrics.MevBundleMempoolSize.Set(float64(sc.Size()))
 
 	// add metric for sidecar tx sampling
-	sc.metrics.SidecarTxSizeBytes.Observe(float64(len(scTx.Tx)))
+	sc.metrics.MevTxSizeBytes.Observe(float64(len(scTx.Tx)))
 
 	sc.lastBundleHeight = scTx.DesiredHeight
 
@@ -432,7 +433,7 @@ func (sc *CListPriorityTxSidecar) Update(
 	})
 
 	// add metric for new sidecar size
-	sc.metrics.SidecarSize.Set(float64(sc.Size()))
+	sc.metrics.MevBundleMempoolSize.Set(float64(sc.Size()))
 
 	return nil
 }
