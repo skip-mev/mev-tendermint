@@ -40,23 +40,6 @@ type Metrics struct {
 
 	// Number of times transactions are rechecked in the mempool.
 	RecheckTimes metrics.Counter
-
-	// SIDECAR METRICS
-
-	// Histogram of sidecar transaction sizes, in bytes.
-	SidecarTxSizeBytes metrics.Histogram
-	// Size of the sidecar.
-	SidecarSize metrics.Gauge
-
-	// Number of MEV bundles received by the sidecar in total.
-	NumBundlesTotal metrics.Counter
-	// Number of mev bundles received during the last block.
-	NumBundlesLastBlock metrics.Gauge
-
-	// Number of mev transactions added in total.
-	NumMevTxsTotal metrics.Counter
-	// Number of mev transactions received by sidecar in the last block.
-	NumMevTxsLastBlock metrics.Gauge
 }
 
 // PrometheusMetrics returns Metrics build using Prometheus client library.
@@ -110,46 +93,6 @@ func PrometheusMetrics(namespace string, labelsAndValues ...string) *Metrics {
 			Name:      "recheck_times",
 			Help:      "Number of times transactions are rechecked in the mempool.",
 		}, labels).With(labelsAndValues...),
-
-		// SIDECAR METRICS
-		SidecarSize: prometheus.NewGaugeFrom(stdprometheus.GaugeOpts{
-			Namespace: namespace,
-			Subsystem: SidecarMetricsSubsystem,
-			Name:      "size",
-			Help:      "Size of the sidecar (number of uncommitted transactions).",
-		}, labels).With(labelsAndValues...),
-		SidecarTxSizeBytes: prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
-			Namespace: namespace,
-			Subsystem: SidecarMetricsSubsystem,
-			Name:      "size_bytes",
-			Help:      "MEV transaction sizes in bytes.",
-		}, labels).With(labelsAndValues...),
-
-		NumBundlesTotal: prometheus.NewCounterFrom(stdprometheus.CounterOpts{
-			Namespace: namespace,
-			Subsystem: SidecarMetricsSubsystem,
-			Name:      "num_bundles_total",
-			Help:      "Number of MEV bundles received by the sidecar in total.",
-		}, labels).With(labelsAndValues...),
-		NumBundlesLastBlock: prometheus.NewGaugeFrom(stdprometheus.GaugeOpts{
-			Namespace: namespace,
-			Subsystem: SidecarMetricsSubsystem,
-			Name:      "num_bundles_last_block",
-			Help:      "Number of MEV bundles received by the sidecar in the last block.",
-		}, labels).With(labelsAndValues...),
-
-		NumMevTxsTotal: prometheus.NewCounterFrom(stdprometheus.CounterOpts{
-			Namespace: namespace,
-			Subsystem: SidecarMetricsSubsystem,
-			Name:      "num_mev_txs_total",
-			Help:      "Number of MEV transactions received to the sidecar in total.",
-		}, labels).With(labelsAndValues...),
-		NumMevTxsLastBlock: prometheus.NewGaugeFrom(stdprometheus.GaugeOpts{
-			Namespace: namespace,
-			Subsystem: SidecarMetricsSubsystem,
-			Name:      "num_mev_txs_last_block",
-			Help:      "Number of MEV transactions received to the sidecar in the last block.",
-		}, labels).With(labelsAndValues...),
 	}
 }
 
@@ -162,15 +105,5 @@ func NopMetrics() *Metrics {
 		RejectedTxs:  discard.NewCounter(),
 		EvictedTxs:   discard.NewCounter(),
 		RecheckTimes: discard.NewCounter(),
-
-		// SIDECAR METRICS
-		SidecarSize:        discard.NewGauge(),
-		SidecarTxSizeBytes: discard.NewHistogram(),
-
-		NumBundlesTotal:     discard.NewCounter(),
-		NumBundlesLastBlock: discard.NewGauge(),
-
-		NumMevTxsTotal:     discard.NewCounter(),
-		NumMevTxsLastBlock: discard.NewGauge(),
 	}
 }

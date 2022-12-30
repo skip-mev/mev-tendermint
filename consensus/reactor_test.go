@@ -32,6 +32,7 @@ import (
 	mempl "github.com/tendermint/tendermint/mempool"
 	mempoolv0 "github.com/tendermint/tendermint/mempool/v0"
 	mempoolv1 "github.com/tendermint/tendermint/mempool/v1"
+	"github.com/tendermint/tendermint/mev"
 	"github.com/tendermint/tendermint/p2p"
 	p2pmock "github.com/tendermint/tendermint/p2p/mock"
 	tmcons "github.com/tendermint/tendermint/proto/tendermint/consensus"
@@ -166,7 +167,7 @@ func TestReactorWithEvidence(t *testing.T) {
 
 		// Make Mempool
 		var mempool mempl.Mempool
-		sidecar := mempl.NewCListSidecar(state.LastBlockHeight, log.NewNopLogger(), memplMetrics)
+		sidecar := mempl.NewCListSidecar(state.LastBlockHeight, log.NewNopLogger(), mev.NopMetrics())
 
 		switch config.Mempool.Version {
 		case cfg.MempoolV0:
