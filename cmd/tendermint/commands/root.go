@@ -57,6 +57,8 @@ func ParseConfig(cmd *cobra.Command) (*cfg.Config, error) {
 	// Temporarily support both SentinelPeerString and RelayerPeerString
 	sentinelPeerString := conf.Sidecar.SentinelPeerString
 	if len(sentinelPeerString) == 0 {
+		logger.Info(`[mev-tendermint]: WARNING: sentinel_peer_string not found in config.toml. 
+			relayer_peer_string is being deprecated for sentinel_peer_string`)
 		sentinelPeerString = conf.Sidecar.RelayerPeerString
 	}
 	if len(sentinelPeerString) > 0 {

@@ -597,6 +597,8 @@ func createSwitch(config *cfg.Config,
 	// Temporarily support both SentinelPeerString and RelayerPeerString
 	sentinelPeerString := config.Sidecar.SentinelPeerString
 	if len(sentinelPeerString) == 0 {
+		p2pLogger.Info(`[mev-tendermint]: WARNING: sentinel_peer_string not found in config.toml. 
+			relayer_peer_string is being deprecated for sentinel_peer_string`)
 		sentinelPeerString = config.Sidecar.RelayerPeerString
 	}
 
@@ -894,6 +896,8 @@ func NewNode(config *cfg.Config,
 	// Temporarily support both SentinelPeerString and RelayerPeerString
 	sentinelPeerString := config.Sidecar.SentinelPeerString
 	if len(sentinelPeerString) == 0 {
+		logger.Info(`[mev-tendermint]: WARNING: sentinel_peer_string not found in config.toml. 
+			relayer_peer_string is being deprecated for sentinel_peer_string`)
 		sentinelPeerString = config.Sidecar.RelayerPeerString
 	}
 
@@ -1009,6 +1013,8 @@ func (n *Node) OnStart() error {
 	// Temporarily support both SentinelRPCString and RelayerRPCString
 	sentinelRPCString := n.config.Sidecar.SentinelRPCString
 	if len(sentinelRPCString) == 0 {
+		n.Logger.Info(`[mev-tendermint]: WARNING: sentinel_rpc_string not found in config.toml. 
+			relayer_rpc_string is being deprecated for sentinel_rpc_string`)
 		sentinelRPCString = n.config.Sidecar.RelayerRPCString
 	}
 
@@ -1024,6 +1030,8 @@ func (n *Node) OnStart() error {
 	// Temporarily support both SentinelPeerString and RelayerPeerString
 	sentinelPeerString := n.config.Sidecar.SentinelPeerString
 	if len(sentinelPeerString) == 0 {
+		n.Logger.Info(`[mev-tendermint]: WARNING: sentinel_peer_string not found in config.toml. 
+			relayer_peer_string is being deprecated for sentinel_peer_string`)
 		sentinelPeerString = n.config.Sidecar.RelayerPeerString
 	}
 
