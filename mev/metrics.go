@@ -30,9 +30,9 @@ type Metrics struct {
 	NumBundlesLastBlock metrics.Gauge
 
 	// Number of mev transactions added in total.
-	NumTxsTotal metrics.Counter
+	NumMevTxsTotal metrics.Counter
 	// Number of mev transactions received by sidecar in the last block.
-	NumTxsLastBlock metrics.Gauge
+	NumMevTxsLastBlock metrics.Gauge
 }
 
 // PrometheusMetrics returns Metrics build using Prometheus client library.
@@ -75,13 +75,13 @@ func PrometheusMetrics(namespace string, labelsAndValues ...string) *Metrics {
 			Name:      "num_bundles_last_block",
 			Help:      "Number of MEV bundles received in the last block.",
 		}, labels).With(labelsAndValues...),
-		NumTxsTotal: prometheus.NewCounterFrom(stdprometheus.CounterOpts{
+		NumMevTxsTotal: prometheus.NewCounterFrom(stdprometheus.CounterOpts{
 			Namespace: namespace,
 			Subsystem: MetricsSubsystem,
 			Name:      "num_txs_total",
 			Help:      "Number of MEV transactions received in total.",
 		}, labels).With(labelsAndValues...),
-		NumTxsLastBlock: prometheus.NewGaugeFrom(stdprometheus.GaugeOpts{
+		NumMevTxsLastBlock: prometheus.NewGaugeFrom(stdprometheus.GaugeOpts{
 			Namespace: namespace,
 			Subsystem: MetricsSubsystem,
 			Name:      "num_txs_last_block",
@@ -99,7 +99,7 @@ func NopMetrics() *Metrics {
 		MevTxSizeBytes:       discard.NewHistogram(),
 		NumBundlesTotal:      discard.NewCounter(),
 		NumBundlesLastBlock:  discard.NewGauge(),
-		NumTxsTotal:          discard.NewCounter(),
-		NumTxsLastBlock:      discard.NewGauge(),
+		NumMevTxsTotal:       discard.NewCounter(),
+		NumMevTxsLastBlock:   discard.NewGauge(),
 	}
 }
