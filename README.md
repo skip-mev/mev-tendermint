@@ -50,29 +50,29 @@ mev-tendermint introduces a new section of config in `config.toml` called `[side
 
 # **EXAMPLE** below (please use the correct values)
 [sidecar]
-relayer_peer_string = "d1463b730c6e0dcea59db726836aeaff13a8119f@uni-5-sentinel.skip.money:26656"
-relayer_rpc_string = "uni-5-gateway.skip.money"
+sentinel_peer_string = "d1463b730c6e0dcea59db726836aeaff13a8119f@uni-5-sentinel.skip.money:26656"
+sentinel_rpc_string = "uni-5-gateway.skip.money"
 api_key = "2314ajinashg2389jfjap"
 personal_peer_ids = "557611c7a7307ce023a7d13486b570282521296d,5740acbf39a9ae59953801fe4997421b6736e091"
 ```
 
 Here’s an explanation of what these are:
 
-### `relayer_peer_string`
+### `sentinel_peer_string`
 
 - The `p2p@ip:port` for the Skip Sentinel that is used to establish a secret, authenticated handshake between your node and the Skip sentinel
 - For nodes that should not communicate with the sentinel directly (e.g. validator nodes that have sentries), this does not need to be set.
-- **⭐  Find the `relayer_peer_string` here:** [⚙️ Skip Configurations By Chain](https://www.notion.so/Skip-Configurations-By-Chain-a6076cfa743f4ab38194096403e62f3c)
+- **⭐ Find the `sentinel_peer_string` here:** [⚙️Skip Configurations By Chain](https://www.notion.so/Skip-Configurations-By-Chain-a6076cfa743f4ab38194096403e62f3c)
 
-### `relayer_rpc_string`
+### `sentinel_rpc_string`
 
 - The `api` for the Skip Sentinel that is used to register your node
 - For nodes that should not communicate with the sentinel directly (e.g. validator nodes that have sentries), this does not need to be set.
-- **⭐  Find the `relayer_rpc_string` here:** [⚙️ Skip Configurations By Chain](https://www.notion.so/Skip-Configurations-By-Chain-a6076cfa743f4ab38194096403e62f3c)
+- **⭐ Find the `sentinel_rpc_string` here:** [⚙️Skip Configurations By Chain](https://www.notion.so/Skip-Configurations-By-Chain-a6076cfa743f4ab38194096403e62f3c)
 
 ### `api_key`
 
-- This is the unique string key Skip uses to ensure a node establishing a connection with our relay actually belongs to your validator.
+- This is the unique string key Skip uses to ensure a node establishing a connection with our Sentinel actually belongs to your validator.
 - If you don't have one, please request one from the Skip team on our **[discord](https://discord.gg/amAgf9Z39w)**
 
 ### `personal_peer_ids`
@@ -102,7 +102,7 @@ After you have completed the steps above, you can check you connectivity either 
 - Check if you are peered with the sentinel by calling `curl http://localhost:26657/status`
     
     ```jsx
-     ”is_peered_with_relayer”: true
+     ”is_peered_with_sentinel”: true
     ```
     
 - Check if you are running `mev-tendermint` by running either:
@@ -115,7 +115,7 @@ After you have completed the steps above, you can check you connectivity either 
     evmosd version --long | grep mev
     ```
     
-- Via the new prometheus metrics exposed on mev-tendermint, in particular `sidecar_relay_connected`
+- Via the new prometheus metrics exposed on mev-tendermint, in particular `mev_sentinel_connected`
 
 ---
 
@@ -221,10 +221,10 @@ The design goals of MEV-Tendermint is to allow & preserve:
 
 | Name | Type | Description |
 | --- | --- | --- |
-| sidecar_size_bytes | Histogram | Histogram of sidecar mev transaction sizes, in bytes |
-| sidecar_size | Gauge | Size of the sidecar |
-| sidecar_num_bundles_total | Counter | Number of MEV bundles received by the sidecar in total |
-| sidecar_num_bundles_last_block | Gauge | Number of mev bundles received during the last block |
-| sidecar_num_mev_txs_total | Counter | Number of mev transactions added in total |
-| sidecar_num_mev_txs_last_block | Gauge | Number of mev transactions received by sidecar in the last block |
-| p2p_relay_connected | Gauge | Whether or not a node is connected to the relay, 1 if connected, 0 if not. |
+| mev_tx_size_bytes | Histogram | Histogram of mev transaction sizes, in bytes |
+| mev_bundle_mempool_size | Gauge | Size of the MEV bundle mempool |
+| mev_num_bundles_total | Counter | Number of MEV bundles received in total |
+| mev_num_bundles_last_block | Gauge | Number of mev bundles received during the last block |
+| mev_num_txs_total | Counter | Number of mev transactions added in total |
+| mev_num_txs_last_block | Gauge | Number of mev transactions received in the last block |
+| mev_sentinel_connected | Gauge | Whether or not a node is connected to the sentinel, 1 if connected, 0 if not. |

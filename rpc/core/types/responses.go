@@ -92,7 +92,7 @@ type ValidatorInfo struct {
 }
 
 type MevInfo struct {
-	IsPeeredWithRelayer      bool  `json:"is_peered_with_relayer"`
+	IsPeeredWithSentinel     bool  `json:"is_peered_with_sentinel"`
 	LastReceivedBundleHeight int64 `json:"last_received_bundle_height"`
 }
 

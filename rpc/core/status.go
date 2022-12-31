@@ -53,12 +53,17 @@ func Status(ctx *rpctypes.Context) (*ctypes.ResultStatus, error) {
 	}
 
 	var (
-		isPeeredWithRelayer      bool
+		isPeeredWithSentinel     bool
 		lastReceivedBundleHeight int64
 	)
 
-	if relayer := env.SidecarConfig.RelayerPeerString; relayer != "" {
-		isPeeredWithRelayer = env.P2PPeers.Peers().Has(p2p.ID(strings.Split(relayer, "@")[0]))
+	// Temporarily support both SentinelPeerString and RelayerPeerString
+	sentinel := env.SidecarConfig.SentinelPeerString
+	if len(sentinel) == 0 {
+		sentinel = env.SidecarConfig.RelayerPeerString
+	}
+	if sentinel != "" {
+		isPeeredWithSentinel = env.P2PPeers.Peers().Has(p2p.ID(strings.Split(sentinel, "@")[0]))
 	}
 
 	if env.Sidecar != nil {
@@ -84,7 +89,7 @@ func Status(ctx *rpctypes.Context) (*ctypes.ResultStatus, error) {
 			VotingPower: votingPower,
 		},
 		MevInfo: ctypes.MevInfo{
-			IsPeeredWithRelayer:      isPeeredWithRelayer,
+			IsPeeredWithSentinel:     isPeeredWithSentinel,
 			LastReceivedBundleHeight: lastReceivedBundleHeight,
 		},
 	}
