@@ -15,8 +15,8 @@ const (
 
 // Metrics contains metrics exposed by this package.
 type Metrics struct {
-	// Whether or not a node is connected to the relay.
-	RelayConnected metrics.Gauge
+	// Whether or not a node is connected to the sentinel.
+	SentinelConnected metrics.Gauge
 
 	// SIDECAR METRICS
 	// Size of the sidecar.
@@ -44,11 +44,11 @@ func PrometheusMetrics(namespace string, labelsAndValues ...string) *Metrics {
 		labels = append(labels, labelsAndValues[i])
 	}
 	return &Metrics{
-		RelayConnected: prometheus.NewGaugeFrom(stdprometheus.GaugeOpts{
+		SentinelConnected: prometheus.NewGaugeFrom(stdprometheus.GaugeOpts{
 			Namespace: namespace,
 			Subsystem: MetricsSubsystem,
-			Name:      "relay_connected",
-			Help:      "Whether or not a node is connected to the mev relay / sentinel. 1 if yes, 0 if no.",
+			Name:      "sentinel_connected",
+			Help:      "Whether or not a node is connected to the mev sentinel. 1 if yes, 0 if no.",
 		}, labels).With(labelsAndValues...),
 		// SIDECAR METRICS
 		MevBundleMempoolSize: prometheus.NewGaugeFrom(stdprometheus.GaugeOpts{
@@ -93,7 +93,7 @@ func PrometheusMetrics(namespace string, labelsAndValues ...string) *Metrics {
 // NopMetrics returns no-op Metrics.
 func NopMetrics() *Metrics {
 	return &Metrics{
-		RelayConnected: discard.NewGauge(),
+		SentinelConnected: discard.NewGauge(),
 		// SIDECAR METRICS
 		MevBundleMempoolSize: discard.NewGauge(),
 		MevTxSizeBytes:       discard.NewHistogram(),

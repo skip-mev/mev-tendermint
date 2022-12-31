@@ -594,11 +594,19 @@ func createSwitch(config *cfg.Config,
 	p2pLogger log.Logger) *p2p.Switch {
 	sidecarPeers := splitAndTrimEmpty(config.Sidecar.PersonalPeerIDs, ",", " ")
 
+	// Temporarily support both SentinelPeerString and RelayerPeerString
+	sentinelPeerString := config.Sidecar.SentinelPeerString
+	if len(sentinelPeerString) == 0 {
+		p2pLogger.Info(`[mev-tendermint]: WARNING: sentinel_peer_string not found in config.toml. 
+			relayer_peer_string is being deprecated for sentinel_peer_string`)
+		sentinelPeerString = config.Sidecar.RelayerPeerString
+	}
+
 	sw := p2p.NewSwitch(
 		config.P2P,
 		sidecarPeers,
 		transport,
-		config.Sidecar.RelayerPeerString,
+		sentinelPeerString,
 		p2p.WithMetrics(p2pMetrics),
 		p2p.WithMevMetrics(mevMetrics),
 		p2p.SwitchPeerFilters(peerFilters...),
@@ -885,26 +893,35 @@ func NewNode(config *cfg.Config,
 		return nil, fmt.Errorf("could not add peers from persistent_peers field: %w", err)
 	}
 
-	if config.Sidecar.RelayerPeerString != "" {
-		err = sw.SetRelayerPeer(config.Sidecar.RelayerPeerString)
+	// Temporarily support both SentinelPeerString and RelayerPeerString
+	sentinelPeerString := config.Sidecar.SentinelPeerString
+	if len(sentinelPeerString) == 0 && len(config.Sidecar.RelayerPeerString) > 0 {
+		logger.Info(`[mev-tendermint]: WARNING: sentinel_peer_string not found in config.toml. 
+			relayer_peer_string is being deprecated for sentinel_peer_string. Please update your 
+			config.toml to use sentinel_peer_string.`)
+		sentinelPeerString = config.Sidecar.RelayerPeerString
+	}
+
+	if sentinelPeerString != "" {
+		err = sw.SetSentinelPeer(sentinelPeerString)
 		if err != nil {
-			return nil, fmt.Errorf("could not add relayer from relayer_conn_string field: %w", err)
+			return nil, fmt.Errorf("could not add sentinel from sentinel_peer_string field: %w", err)
 		}
 	} else {
-		logger.Info("[node startup]: No relayer_conn_string specified, not adding relayer as peer")
+		logger.Info("[node startup]: No sentinel_peer_string specified, not adding sentinel as peer")
 	}
 
 	unconditionalPeerIDs := splitAndTrimEmpty(config.P2P.UnconditionalPeerIDs, ",", " ")
-	if config.Sidecar.RelayerPeerString != "" {
-		splitStr := strings.Split(config.Sidecar.RelayerPeerString, "@")
+	if sentinelPeerString != "" {
+		splitStr := strings.Split(sentinelPeerString, "@")
 		if len(splitStr) > 0 {
-			relayerID := splitStr[0]
-			logger.Info("[node startup]: Adding relayer as an unconditional peer", relayerID)
-			unconditionalPeerIDs = append(unconditionalPeerIDs, relayerID)
+			sentinelID := splitStr[0]
+			logger.Info("[node startup]: Adding sentinel as an unconditional peer", sentinelID)
+			unconditionalPeerIDs = append(unconditionalPeerIDs, sentinelID)
 		} else {
-			fmt.Println("[node startup]: ERR: Could not parse relayer peer string",
+			fmt.Println("[node startup]: ERR: Could not parse sentinel peer string",
 				" to add as unconditional peer, is it correctly configured?",
-				config.Sidecar.RelayerPeerString)
+				sentinelPeerString)
 		}
 	}
 	err = sw.AddUnconditionalPeerIDs(unconditionalPeerIDs)
@@ -994,27 +1011,44 @@ func (n *Node) OnStart() error {
 		time.Sleep(genTime.Sub(now))
 	}
 
+	// Temporarily support both SentinelRPCString and RelayerRPCString
+	sentinelRPCString := n.config.Sidecar.SentinelRPCString
+	if len(sentinelRPCString) == 0 && len(n.config.Sidecar.RelayerRPCString) > 0 {
+		n.Logger.Info(`[mev-tendermint]: WARNING: sentinel_rpc_string not found in config.toml. 
+			relayer_rpc_string is being deprecated for sentinel_rpc_string. Please update your 
+			config.toml to use sentinel_rpc_string.`)
+		sentinelRPCString = n.config.Sidecar.RelayerRPCString
+	}
+
 	// If all required info is set in config, register with sentinel
-	if n.config.Sidecar.APIKey != "" && n.config.Sidecar.RelayerRPCString != "" {
+	if n.config.Sidecar.APIKey != "" && sentinelRPCString != "" {
 		p2p.RegisterWithSentinel(n.Logger, n.config.Sidecar.APIKey,
-			string(n.nodeInfo.ID()), n.config.Sidecar.RelayerRPCString)
+			string(n.nodeInfo.ID()), sentinelRPCString)
 	} else {
-		n.Logger.Info("[node startup]: Not registering with relayer, config has API Key:", n.config.Sidecar.APIKey,
-			"relayer rpc string:", n.config.Sidecar.RelayerRPCString)
+		n.Logger.Info("[node startup]: Not registering with sentinel, config has API Key:", n.config.Sidecar.APIKey,
+			"sentinel rpc string:", sentinelRPCString)
+	}
+
+	// Temporarily support both SentinelPeerString and RelayerPeerString
+	sentinelPeerString := n.config.Sidecar.SentinelPeerString
+	if len(sentinelPeerString) == 0 {
+		n.Logger.Info(`[mev-tendermint]: WARNING: sentinel_peer_string not found in config.toml. 
+			relayer_peer_string is being deprecated for sentinel_peer_string`)
+		sentinelPeerString = n.config.Sidecar.RelayerPeerString
 	}
 
 	// Add private IDs to addrbook to block those peers being added
 	privateIDs := splitAndTrimEmpty(n.config.P2P.PrivatePeerIDs, ",", " ")
-	if n.config.Sidecar.RelayerPeerString != "" {
-		splitStr := strings.Split(n.config.Sidecar.RelayerPeerString, "@")
+	if sentinelPeerString != "" {
+		splitStr := strings.Split(sentinelPeerString, "@")
 		if len(splitStr) > 1 {
-			relayerID := splitStr[0]
-			n.Logger.Info("[node startup]: Adding relayer as a private peer", relayerID)
-			privateIDs = append(privateIDs, relayerID)
+			sentinelID := splitStr[0]
+			n.Logger.Info("[node startup]: Adding sentinel as a private peer", sentinelID)
+			privateIDs = append(privateIDs, sentinelID)
 		} else {
-			n.Logger.Info("[node startup]: ERR Could not parse relayer peer string ",
+			n.Logger.Info("[node startup]: ERR Could not parse sentinel peer string ",
 				"to add as private peer, is it correctly configured?",
-				n.config.Sidecar.RelayerPeerString)
+				sentinelPeerString)
 		}
 	}
 	n.addrBook.AddPrivateIDs(privateIDs)
@@ -1053,16 +1087,16 @@ func (n *Node) OnStart() error {
 
 	// Always connect to persistent peers
 	peersToDialOnStartup := splitAndTrimEmpty(n.config.P2P.PersistentPeers, ",", " ")
-	if n.config.Sidecar.RelayerPeerString != "" {
-		peersToDialOnStartup = append(peersToDialOnStartup, n.config.Sidecar.RelayerPeerString)
+	if sentinelPeerString != "" {
+		peersToDialOnStartup = append(peersToDialOnStartup, sentinelPeerString)
 	} else {
-		n.Logger.Info("[node startup]: No relayer_conn_string specified, not dialing relayer on startup")
+		n.Logger.Info("[node startup]: No sentinel_peer_string specified, not dialing sentinel on startup")
 	}
 	err = n.sw.DialPeersAsync(peersToDialOnStartup)
 	if err != nil {
 		return fmt.Errorf("could not dial peers from persistent_peers field: %w", err)
 	}
-	n.sw.StartRelayerConnectionCheckRoutine()
+	n.sw.StartSentinelConnectionCheckRoutine()
 
 	// Run state sync
 	if n.stateSync {
