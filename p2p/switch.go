@@ -92,13 +92,13 @@ type Switch struct {
 
 	rng *rand.Rand // seed for randomizing dial times and orders
 
-	metrics           *Metrics
-	mevMetrics        *mev.Metrics
-	sidecarPeers      sidecarPeers
-	RelayerPeerString string
-	RelayerNetAddr    *NetAddress
+	metrics            *Metrics
+	mevMetrics         *mev.Metrics
+	sidecarPeers       sidecarPeers
+	SentinelPeerString string
+	SentinelNetAddr    *NetAddress
 
-	relayerReconnectionMtx sync.Mutex
+	sentinelReconnectionMtx sync.Mutex
 }
 
 // NetAddress returns the address the switch is listening on.
@@ -134,7 +134,7 @@ func NewSwitch(
 	cfg *config.P2PConfig,
 	sidecarPeerList []string,
 	transport Transport,
-	relayerPeerString string,
+	sentinelPeerString string,
 	options ...SwitchOption,
 ) *Switch {
 	sw := &Switch{
@@ -150,13 +150,13 @@ func NewSwitch(
 		filterTimeout:        defaultFilterTimeout,
 		persistentPeersAddrs: make([]*NetAddress, 0),
 		unconditionalPeerIDs: make(map[ID]struct{}),
-		RelayerPeerString:    relayerPeerString,
+		SentinelPeerString:   sentinelPeerString,
 	}
 
-	if relayerPeerString != "" {
-		relayerID := strings.Split(relayerPeerString, "@")[0]
-		if !contains(sidecarPeerList, relayerID) {
-			sidecarPeerList = append(sidecarPeerList, relayerID)
+	if sentinelPeerString != "" {
+		sentinelID := strings.Split(sentinelPeerString, "@")[0]
+		if !contains(sidecarPeerList, sentinelID) {
+			sidecarPeerList = append(sidecarPeerList, sentinelID)
 		}
 	}
 	sidecarPeers, err := newSidecarPeers(sidecarPeerList)
@@ -376,10 +376,10 @@ func (sw *Switch) StopPeerForError(peer Peer, reason interface{}) {
 	sw.Logger.Error("Stopping peer for error", "peer", peer, "err", reason)
 	sw.stopAndRemovePeer(peer, reason)
 
-	sw.Logger.Info("Looking to reconnect after StopPeerForError, peer is ", peer, "relayer is ", sw.RelayerNetAddr)
-	if sw.RelayerNetAddr != nil && peer.ID() == sw.RelayerNetAddr.ID {
-		sw.Logger.Info("Relayer peer disconnected, attempting to reconnect")
-		go sw.reconnectToRelayerPeer()
+	sw.Logger.Info("Looking to reconnect after StopPeerForError, peer is ", peer, "sentinel is ", sw.SentinelNetAddr)
+	if sw.SentinelNetAddr != nil && peer.ID() == sw.SentinelNetAddr.ID {
+		sw.Logger.Info("Sentinel peer disconnected, attempting to reconnect")
+		go sw.reconnectToSentinelPeer()
 	} else if peer.IsPersistent() {
 		var addr *NetAddress
 		if peer.IsOutbound() { // socket address for outbound peers
@@ -427,41 +427,41 @@ func (sw *Switch) stopAndRemovePeer(peer Peer, reason interface{}) {
 		sw.Logger.Debug("error on peer removal", ",", "peer", peer.ID())
 
 		// check if we removed sentinel, if so, alert metrics
-		splitStr := strings.Split(sw.RelayerPeerString, "@")
+		splitStr := strings.Split(sw.SentinelPeerString, "@")
 		if len(splitStr) > 1 {
-			relayerIDConv := ID(splitStr[0])
-			if err := validateID(relayerIDConv); err == nil {
-				if peer.ID() == relayerIDConv {
-					sw.mevMetrics.RelayConnected.Set(0)
+			sentinelIDConv := ID(splitStr[0])
+			if err := validateID(sentinelIDConv); err == nil {
+				if peer.ID() == sentinelIDConv {
+					sw.mevMetrics.SentinelConnected.Set(0)
 				}
 			} else {
-				sw.Logger.Error("Error validating relayer ID", "err", err, "is it correctly configured?", sw.RelayerPeerString)
+				sw.Logger.Error("Error validating sentinel ID", "err", err, "is it correctly configured?", sw.SentinelPeerString)
 			}
 		} else {
-			sw.Logger.Error("Error splitting relayer ID", "is it correctly configured?", sw.RelayerPeerString)
+			sw.Logger.Error("Error splitting sentinel ID", "is it correctly configured?", sw.SentinelPeerString)
 		}
 
 	}
 }
 
-func (sw *Switch) reconnectToRelayerPeer() {
-	sw.Logger.Info("[relayer-reconnection]: starting relayer reconnect routine")
+func (sw *Switch) reconnectToSentinelPeer() {
+	sw.Logger.Info("[sentinel-reconnection]: starting sentinel reconnect routine")
 	shouldReturn := func() bool {
-		sw.relayerReconnectionMtx.Lock()
-		defer sw.relayerReconnectionMtx.Unlock()
+		sw.sentinelReconnectionMtx.Lock()
+		defer sw.sentinelReconnectionMtx.Unlock()
 
-		if sw.reconnecting.Has(sw.RelayerPeerString) {
-			sw.Logger.Info("[relayer-reconnection]: already have a reconnection routine for ", sw.RelayerPeerString)
+		if sw.reconnecting.Has(sw.SentinelPeerString) {
+			sw.Logger.Info("[sentinel-reconnection]: already have a reconnection routine for ", sw.SentinelPeerString)
 			return true
 		}
-		sw.reconnecting.Set(sw.RelayerPeerString, struct{}{})
+		sw.reconnecting.Set(sw.SentinelPeerString, struct{}{})
 		return false
 	}()
 	if shouldReturn {
 		return
 	}
 
-	defer sw.reconnecting.Delete(sw.RelayerPeerString)
+	defer sw.reconnecting.Delete(sw.SentinelPeerString)
 
 	i := 0
 	for {
@@ -470,19 +470,19 @@ func (sw *Switch) reconnectToRelayerPeer() {
 		}
 		i++
 
-		// This performs another IP lookup and saves the result in sw.RelayerNetAddr
-		err := sw.SetRelayerPeer(sw.RelayerPeerString)
+		// This performs another IP lookup and saves the result in sw.SentinelNetAddr
+		err := sw.SetSentinelPeer(sw.SentinelPeerString)
 		if err != nil {
 			sw.Logger.Info(
-				"[relayer-reconnection]: Error resolving IP from relayer peer string. Trying again",
+				"[sentinel-reconnection]: Error resolving IP from sentinel peer string. Trying again",
 				"tries", i,
 				"err", err,
-				"relayerPeerString", sw.RelayerPeerString,
+				"sentinelPeerString", sw.SentinelPeerString,
 			)
 			sw.randomSleep(30 * time.Second)
 			continue
 		}
-		addr := sw.RelayerNetAddr
+		addr := sw.SentinelNetAddr
 
 		err = sw.DialPeerWithAddress(addr)
 		if err == nil {
@@ -491,7 +491,7 @@ func (sw *Switch) reconnectToRelayerPeer() {
 			return
 		}
 
-		sw.Logger.Info("[relayer-reconnection]: Error reconnecting to relayer. Trying again", "tries", i, "err", err, "addr", addr)
+		sw.Logger.Info("[sentinel-reconnection]: Error reconnecting to sentinel. Trying again", "tries", i, "err", err, "addr", addr)
 		// sleep a set amount
 		sw.randomSleep(30 * time.Second)
 	}
@@ -683,14 +683,14 @@ func (sw *Switch) IsDialingOrExistingAddress(addr *NetAddress) bool {
 		(!sw.config.AllowDuplicateIP && sw.peers.HasIP(addr.IP))
 }
 
-func (sw *Switch) SetRelayerPeer(addr string) error {
-	sw.Logger.Info("Adding relayer as peer", "addr", addr)
+func (sw *Switch) SetSentinelPeer(addr string) error {
+	sw.Logger.Info("Adding sentinel as peer", "addr", addr)
 	netAddr, err := NewNetAddressString(addr)
 	if err != nil {
-		sw.Logger.Error("Error in relayer's address", "err", err)
+		sw.Logger.Error("Error in sentinel's address", "err", err)
 		return err
 	}
-	sw.RelayerNetAddr = netAddr
+	sw.SentinelNetAddr = netAddr
 	return nil
 }
 
@@ -856,18 +856,17 @@ func (sw *Switch) addOutboundPeerWithConfig(
 	addr *NetAddress,
 	cfg *config.P2PConfig,
 ) error {
-
-	if sw.RelayerNetAddr != nil && addr.ID == sw.RelayerNetAddr.ID {
-		sw.Logger.Info("[relayer-reconnection]: DIALING RELAYER", "address", addr, "time", time.Now())
+	if sw.SentinelNetAddr != nil && addr.ID == sw.SentinelNetAddr.ID {
+		sw.Logger.Info("[sentinel-reconnection]: DIALING SENTINEL", "address", addr, "time", time.Now())
 	} else {
 		sw.Logger.Info("Dialing peer", "address", addr)
 	}
 
 	// XXX(xla): Remove the leakage of test concerns in implementation.
 	if cfg.TestDialFail {
-		if sw.RelayerNetAddr != nil && addr.ID == sw.RelayerNetAddr.ID {
-			go sw.reconnectToRelayerPeer()
-			return fmt.Errorf("dial err relayer (peerConfig.DialFail == true)")
+		if sw.SentinelNetAddr != nil && addr.ID == sw.SentinelNetAddr.ID {
+			go sw.reconnectToSentinelPeer()
+			return fmt.Errorf("dial err sentinel (peerConfig.DialFail == true)")
 		}
 		go sw.reconnectToPeer(addr)
 		return fmt.Errorf("dial err (peerConfig.DialFail == true)")
@@ -895,8 +894,8 @@ func (sw *Switch) addOutboundPeerWithConfig(
 
 		// retry persistent peers after
 		// any dial error besides IsSelf()
-		if sw.RelayerNetAddr != nil && addr.ID == sw.RelayerNetAddr.ID {
-			go sw.reconnectToRelayerPeer()
+		if sw.SentinelNetAddr != nil && addr.ID == sw.SentinelNetAddr.ID {
+			go sw.reconnectToSentinelPeer()
 		} else if sw.IsPeerPersistent(addr) {
 			go sw.reconnectToPeer(addr)
 		}
@@ -910,8 +909,8 @@ func (sw *Switch) addOutboundPeerWithConfig(
 			_ = p.Stop()
 		}
 		return err
-	} else if sw.RelayerNetAddr != nil && addr.ID == sw.RelayerNetAddr.ID {
-		sw.Logger.Info("[relayer-reconnection]: RELAYER RECONNECTED!", "address", addr)
+	} else if sw.SentinelNetAddr != nil && addr.ID == sw.SentinelNetAddr.ID {
+		sw.Logger.Info("[sentinel-reconnection]: SENTINEL RECONNECTED!", "address", addr)
 	}
 
 	return nil
@@ -949,9 +948,9 @@ func (sw *Switch) filterPeer(p Peer) error {
 // the peer is filtered out or failed to start or can't be added.
 func (sw *Switch) addPeer(p Peer) error {
 	if err := sw.filterPeer(p); err != nil {
-		// if peer is relayer, log the error
-		if sw.RelayerNetAddr != nil && p.ID() == sw.RelayerNetAddr.ID {
-			sw.Logger.Error("[relayer-reconnection]: filterPeer filtered relayer", "err", err)
+		// if peer is sentinel, log the error
+		if sw.SentinelNetAddr != nil && p.ID() == sw.SentinelNetAddr.ID {
+			sw.Logger.Error("[sentinel-reconnection]: filterPeer filtered sentinel", "err", err)
 		}
 		return err
 	}
@@ -996,18 +995,18 @@ func (sw *Switch) addPeer(p Peer) error {
 	sw.metrics.Peers.Add(float64(1))
 
 	// check if we removed sentinel, if so, alert metrics
-	splitStr := strings.Split(sw.RelayerPeerString, "@")
+	splitStr := strings.Split(sw.SentinelPeerString, "@")
 	if len(splitStr) > 1 {
-		relayerIDConv := ID(splitStr[0])
-		if err := validateID(relayerIDConv); err == nil {
-			if p.ID() == relayerIDConv {
-				sw.mevMetrics.RelayConnected.Set(1)
+		sentinelIDConv := ID(splitStr[0])
+		if err := validateID(sentinelIDConv); err == nil {
+			if p.ID() == sentinelIDConv {
+				sw.mevMetrics.SentinelConnected.Set(1)
 			}
 		} else {
-			sw.Logger.Error("Error validating relayer ID", "err", err, "is it correctly configured?", sw.RelayerPeerString)
+			sw.Logger.Error("Error validating sentinel ID", "err", err, "is it correctly configured?", sw.SentinelPeerString)
 		}
 	} else {
-		sw.Logger.Error("Error splitting relayer ID", "is it correctly configured?", sw.RelayerPeerString)
+		sw.Logger.Error("Error splitting sentinel ID", "is it correctly configured?", sw.SentinelPeerString)
 	}
 
 	// Start all the reactor protocols on the peer.
@@ -1020,18 +1019,18 @@ func (sw *Switch) addPeer(p Peer) error {
 	return nil
 }
 
-func (sw *Switch) StartRelayerConnectionCheckRoutine() {
+func (sw *Switch) StartSentinelConnectionCheckRoutine() {
 	go func() {
 		for {
 			// Do this check roughly every 5 minutes
 			sw.randomSleep(5 * 60 * time.Second)
 
-			sw.Logger.Info("[relayer-check]: Entering periodic check for relayer peer connection")
-			if !sw.peers.Has(ID(strings.Split(sw.RelayerPeerString, "@")[0])) {
-				sw.Logger.Info("[relayer-check]: Relayer connection check routine didn't find relayer peer, starting reconnection routine")
-				go sw.reconnectToRelayerPeer()
+			sw.Logger.Info("[sentinel-check]: Entering periodic check for sentinel peer connection")
+			if !sw.peers.Has(ID(strings.Split(sw.SentinelPeerString, "@")[0])) {
+				sw.Logger.Info("[sentinel-check]: Sentinel connection check routine didn't find sentinel peer, starting reconnection routine")
+				go sw.reconnectToSentinelPeer()
 			} else {
-				sw.Logger.Info("[relayer-check]: Found existing connection to relayer, going back to sleep")
+				sw.Logger.Info("[sentinel-check]: Found existing connection to sentinel, going back to sleep")
 			}
 		}
 	}()

@@ -544,8 +544,8 @@ namespace = "{{ .Instrumentation.Namespace }}"
 # nodes in your network receive auction-winning
 # txs when when your validator is the proposer)
 personal_peer_ids = "{{ .Sidecar.PersonalPeerIDs }}"
-relayer_peer_string = "{{ .Sidecar.RelayerPeerString }}"
-relayer_rpc_string = "{{ .Sidecar.RelayerRPCString }}"
+sentinel_peer_string = "{{ .Sidecar.SentinelPeerString }}"
+sentinel_rpc_string = "{{ .Sidecar.SentinelRPCString }}"
 api_key = "{{ .Sidecar.APIKey }}"
 `
 
