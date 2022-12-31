@@ -83,8 +83,8 @@ func checkConfig(configFile string) bool {
 		"max",
 		"genesis",
 		"skip",
-		"relayer_rpc_string",
-		"relayer_peer_string",
+		"sentinel_rpc_string",
+		"sentinel_peer_string",
 		"personal_peer_ids",
 	}
 	for _, e := range elems {
