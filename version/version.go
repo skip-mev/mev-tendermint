@@ -23,5 +23,5 @@ var (
 	// This includes validity of blocks and state updates.
 	BlockProtocol uint64 = 11
 
-	MevTMVersion = "v0.34.21-mev.13"
+	MevTMVersion = "v0.34.19-mev.14"
 )
