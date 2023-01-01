@@ -11,7 +11,7 @@ const (
 
 	ABCIVersion = ABCISemVer
 
-	MevTMVersion = "v0.34.22-mev.13"
+	MevTMVersion = "v0.34.22-mev.14"
 )
 
 var (
