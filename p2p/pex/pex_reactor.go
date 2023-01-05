@@ -438,6 +438,7 @@ func (r *Reactor) ensurePeersRoutine() {
 	for {
 		select {
 		case <-ticker.C:
+			r.attemptReconnectToSentinelPeer()
 			r.ensurePeers()
 		case <-r.Quit():
 			ticker.Stop()
@@ -463,14 +464,6 @@ func (r *Reactor) ensurePeers() {
 		"numDialing", dial,
 		"numToDial", numToDial,
 	)
-
-	r.Logger.Info("[sentinel-check]: Entering ensurePeers check for sentinel peer connection")
-	if !r.Switch.Peers().Has(p2p.ID(strings.Split(r.Switch.SentinelPeerString, "@")[0])) {
-		r.Logger.Info("[sentinel-check]: Sentinel connection check routine didn't find sentinel peer, starting reconnection routine")
-		go r.Switch.ReconnectToSentinelPeer()
-	} else {
-		r.Logger.Info("[sentinel-check]: Found existing connection to sentinel peer, no need to reconnect")
-	}
 
 	if numToDial <= 0 {
 		return
@@ -540,6 +533,16 @@ func (r *Reactor) ensurePeers() {
 			r.Logger.Info("No addresses to dial. Falling back to seeds")
 			r.dialSeeds()
 		}
+	}
+}
+
+func (r *Reactor) attemptReconnectToSentinelPeer() {
+	r.Logger.Info("[sentinel-check]: Entering pex_reactor check for sentinel peer connection")
+	if !r.Switch.Peers().Has(p2p.ID(strings.Split(r.Switch.SentinelPeerString, "@")[0])) {
+		r.Logger.Info("[sentinel-check]: Sentinel connection check routine didn't find sentinel peer, starting reconnection routine")
+		go r.Switch.ReconnectToSentinelPeer()
+	} else {
+		r.Logger.Info("[sentinel-check]: Found existing connection to sentinel peer, no need to reconnect")
 	}
 }
 
@@ -676,6 +679,7 @@ func (r *Reactor) crawlPeersRoutine() {
 	for {
 		select {
 		case <-ticker.C:
+			r.attemptReconnectToSentinelPeer()
 			r.attemptDisconnects()
 			r.crawlPeers(r.book.GetSelection())
 			r.cleanupCrawlPeerInfos()

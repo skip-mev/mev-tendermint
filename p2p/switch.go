@@ -439,13 +439,12 @@ func (sw *Switch) stopAndRemovePeer(peer Peer, reason interface{}) {
 
 // Ensures that sufficient peers are connected. (continuous)
 func (sw *Switch) StartSentinelConnectionRoutineWithNoPEX() {
-	// fire periodically
 	go func() {
 		ticker := time.NewTicker(30 * time.Second)
-		for _ = range ticker.C {
+		for range ticker.C {
 			sw.Logger.Info("[sentinel-check]: Entering SentinelConnectionRoutineWithNoPEX check for sentinel peer connection")
 			if !sw.peers.Has(ID(strings.Split(sw.SentinelPeerString, "@")[0])) {
-				sw.Logger.Info("[sentinel-check]: Sentinel connection check routine didn't find sentinel peer, starting reconnection routine")
+				sw.Logger.Info("[sentinel-check]: Sentinel connection check routine didn't find sentinel peer, starting reconnection attempt")
 				sw.ReconnectToSentinelPeer()
 			} else {
 				sw.Logger.Info("[sentinel-check]: Found existing connection to sentinel peer, no need to reconnect")
