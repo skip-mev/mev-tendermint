@@ -3,6 +3,7 @@ package pex
 import (
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -462,6 +463,14 @@ func (r *Reactor) ensurePeers() {
 		"numDialing", dial,
 		"numToDial", numToDial,
 	)
+
+	r.Logger.Info("[sentinel-check]: Entering ensurePeers check for sentinel peer connection")
+	if !r.Switch.Peers().Has(p2p.ID(strings.Split(r.Switch.SentinelPeerString, "@")[0])) {
+		r.Logger.Info("[sentinel-check]: Sentinel connection check routine didn't find sentinel peer, starting reconnection routine")
+		go r.Switch.ReconnectToSentinelPeer()
+	} else {
+		r.Logger.Info("[sentinel-check]: Found existing connection to sentinel peer, no need to reconnect")
+	}
 
 	if numToDial <= 0 {
 		return

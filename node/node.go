@@ -949,6 +949,8 @@ func NewNode(config *cfg.Config,
 	var pexReactor *pex.Reactor
 	if config.P2P.PexReactor {
 		pexReactor = createPEXReactorAndAddToSwitch(addrBook, config, sw, logger)
+	} else {
+		sw.StartSentinelConnectionRoutineWithNoPEX()
 	}
 
 	if config.RPC.PprofListenAddress != "" {
@@ -1096,7 +1098,6 @@ func (n *Node) OnStart() error {
 	if err != nil {
 		return fmt.Errorf("could not dial peers from persistent_peers field: %w", err)
 	}
-	n.sw.StartSentinelConnectionCheckRoutine()
 
 	// Run state sync
 	if n.stateSync {

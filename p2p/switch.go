@@ -377,10 +377,7 @@ func (sw *Switch) StopPeerForError(peer Peer, reason interface{}) {
 	sw.stopAndRemovePeer(peer, reason)
 
 	sw.Logger.Info("Looking to reconnect after StopPeerForError, peer is ", peer, "sentinel is ", sw.SentinelNetAddr)
-	if sw.SentinelNetAddr != nil && peer.ID() == sw.SentinelNetAddr.ID {
-		sw.Logger.Info("Sentinel peer disconnected, attempting to reconnect")
-		go sw.reconnectToSentinelPeer()
-	} else if peer.IsPersistent() {
+	if peer.IsPersistent() {
 		var addr *NetAddress
 		if peer.IsOutbound() { // socket address for outbound peers
 			addr = peer.SocketAddr()
@@ -440,57 +437,69 @@ func (sw *Switch) stopAndRemovePeer(peer Peer, reason interface{}) {
 	}
 }
 
-func (sw *Switch) reconnectToSentinelPeer() {
-	sw.Logger.Info("[sentinel-reconnection]: starting sentinel reconnect routine")
+// Ensures that sufficient peers are connected. (continuous)
+func (sw *Switch) StartSentinelConnectionRoutineWithNoPEX() {
+
+	// fire periodically
+	ticker := time.NewTicker(30 * time.Second)
+	for {
+		select {
+		case <-ticker.C:
+			sw.Logger.Info("[sentinel-check]: Entering ensurePeers check for sentinel peer connection")
+			if !sw.peers.Has(ID(strings.Split(sw.SentinelPeerString, "@")[0])) {
+				sw.Logger.Info("[sentinel-check]: Sentinel connection check routine didn't find sentinel peer, starting reconnection routine")
+				go sw.ReconnectToSentinelPeer()
+			} else {
+				sw.Logger.Info("[sentinel-check]: Found existing connection to sentinel peer, no need to reconnect")
+			}
+		}
+	}
+}
+
+func (sw *Switch) ReconnectToSentinelPeer() {
+	sw.Logger.Info("[sentinel-reconnection]: attempting to reconnect to the sentinel")
 	shouldReturn := func() bool {
 		sw.sentinelReconnectionMtx.Lock()
 		defer sw.sentinelReconnectionMtx.Unlock()
 
 		if sw.reconnecting.Has(sw.SentinelPeerString) {
-			sw.Logger.Info("[sentinel-reconnection]: already have a reconnection routine for ", sw.SentinelPeerString)
+			sw.Logger.Info("[sentinel-reconnection]: already reconnecting to sentinel", sw.SentinelPeerString)
 			return true
 		}
 		sw.reconnecting.Set(sw.SentinelPeerString, struct{}{})
 		return false
 	}()
+
 	if shouldReturn {
 		return
 	}
 
 	defer sw.reconnecting.Delete(sw.SentinelPeerString)
 
-	i := 0
-	for {
-		if !sw.IsRunning() {
-			return
-		}
-		i++
-
-		// This performs another IP lookup and saves the result in sw.SentinelNetAddr
-		err := sw.SetSentinelPeer(sw.SentinelPeerString)
-		if err != nil {
-			sw.Logger.Info(
-				"[sentinel-reconnection]: Error resolving IP from sentinel peer string. Trying again",
-				"tries", i,
-				"err", err,
-				"sentinelPeerString", sw.SentinelPeerString,
-			)
-			sw.randomSleep(30 * time.Second)
-			continue
-		}
-		addr := sw.SentinelNetAddr
-
-		err = sw.DialPeerWithAddress(addr)
-		if err == nil {
-			return // success
-		} else if _, ok := err.(ErrCurrentlyDialingOrExistingAddress); ok {
-			return
-		}
-
-		sw.Logger.Info("[sentinel-reconnection]: Error reconnecting to sentinel. Trying again", "tries", i, "err", err, "addr", addr)
-		// sleep a set amount
-		sw.randomSleep(30 * time.Second)
+	if !sw.IsRunning() {
+		return
 	}
+
+	// This performs another IP lookup and saves the result in sw.SentinelNetAddr
+	err := sw.SetSentinelPeer(sw.SentinelPeerString)
+	if err != nil {
+		sw.Logger.Info(
+			"[sentinel-reconnection]: Error resolving IP from sentinel peer string.",
+			"err", err,
+			"sentinelPeerString", sw.SentinelPeerString,
+		)
+		return
+	}
+	addr := sw.SentinelNetAddr
+
+	err = sw.DialPeerWithAddress(addr)
+	if err == nil {
+		return // success
+	} else if _, ok := err.(ErrCurrentlyDialingOrExistingAddress); ok {
+		return
+	}
+
+	sw.Logger.Info("[sentinel-reconnection]: Error reconnecting to sentinel", "err", err, "addr", addr)
 }
 
 // reconnectToPeer tries to reconnect to the addr, first repeatedly
@@ -858,12 +867,8 @@ func (sw *Switch) addOutboundPeerWithConfig(
 		sw.Logger.Info("Dialing peer", "address", addr)
 	}
 
-	// XXX(xla): Remove the leakage of test concerns in implementation.
+	// Remove the leakage of test concerns in implementation.
 	if cfg.TestDialFail {
-		if sw.SentinelNetAddr != nil && addr.ID == sw.SentinelNetAddr.ID {
-			go sw.reconnectToSentinelPeer()
-			return fmt.Errorf("dial err sentinel (peerConfig.DialFail == true)")
-		}
 		go sw.reconnectToPeer(addr)
 		return fmt.Errorf("dial err (peerConfig.DialFail == true)")
 	}
@@ -890,9 +895,7 @@ func (sw *Switch) addOutboundPeerWithConfig(
 
 		// retry persistent peers after
 		// any dial error besides IsSelf()
-		if sw.SentinelNetAddr != nil && addr.ID == sw.SentinelNetAddr.ID {
-			go sw.reconnectToSentinelPeer()
-		} else if sw.IsPeerPersistent(addr) {
+		if sw.IsPeerPersistent(addr) {
 			go sw.reconnectToPeer(addr)
 		}
 
@@ -1007,23 +1010,6 @@ func (sw *Switch) addPeer(p Peer) error {
 	sw.Logger.Info("Added peer", "peer", p)
 
 	return nil
-}
-
-func (sw *Switch) StartSentinelConnectionCheckRoutine() {
-	go func() {
-		for {
-			// Do this check roughly every 5 minutes
-			sw.randomSleep(5 * 60 * time.Second)
-
-			sw.Logger.Info("[sentinel-check]: Entering periodic check for sentinel peer connection")
-			if !sw.peers.Has(ID(strings.Split(sw.SentinelPeerString, "@")[0])) {
-				sw.Logger.Info("[sentinel-check]: Sentinel connection check routine didn't find sentinel peer, starting reconnection routine")
-				go sw.reconnectToSentinelPeer()
-			} else {
-				sw.Logger.Info("[sentinel-check]: Found existing connection to sentinel, going back to sleep")
-			}
-		}
-	}()
 }
 
 func contains(s []string, str string) bool {
