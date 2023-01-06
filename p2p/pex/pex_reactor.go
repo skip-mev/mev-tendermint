@@ -539,7 +539,7 @@ func (r *Reactor) ensurePeers() {
 func (r *Reactor) attemptReconnectToSentinelPeer() {
 	r.Logger.Info("[sentinel-check]: Entering pex_reactor check for sentinel peer connection")
 	if !r.Switch.Peers().Has(p2p.ID(strings.Split(r.Switch.SentinelPeerString, "@")[0])) {
-		r.Logger.Info("[sentinel-check]: Sentinel connection check routine didn't find sentinel peer, starting reconnection routine")
+		r.Logger.Info("[sentinel-check]: Sentinel connection check routine didn't find sentinel peer, starting reconnection attempt")
 		go r.Switch.ReconnectToSentinelPeer()
 	} else {
 		r.Logger.Info("[sentinel-check]: Found existing connection to sentinel peer, no need to reconnect")
@@ -760,7 +760,7 @@ func (r *Reactor) attemptDisconnects() {
 		if peer.Status().Duration < r.config.SeedDisconnectWaitPeriod {
 			continue
 		}
-		if peer.IsPersistent() {
+		if peer.IsPersistent() || peer.IsSidecarPeer() {
 			continue
 		}
 		r.Switch.StopPeerGracefully(peer)
