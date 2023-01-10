@@ -845,20 +845,3 @@ func BenchmarkSwitchBroadcast(b *testing.B) {
 
 	b.Logf("success: %v, failure: %v", numSuccess, numFailure)
 }
-
-func TestSetSentinelPeer(t *testing.T) {
-	sw := MakeSwitch(cfg, 1, "testing", "123.123.123", initSwitchFunc)
-	sentinelString := "79044d1d81d24a8ff3c7fd7e010f455f7ae9e1ad@1.2.3.4:26656"
-	sentinelNetAddr, _ := NewNetAddressString(sentinelString)
-
-	err := sw.SetSentinelPeer(sentinelString)
-	if err != nil {
-		t.Errorf("Err in SetSentinelPeer: %s", err)
-	}
-
-	assert.Equal(t, sentinelNetAddr, sw.SentinelNetAddr, "Expected SentinelNetAddr %s, got %s", sentinelNetAddr, sw.SentinelNetAddr)
-
-	errSentinelString := "abcd@1.2.3.4:26656"
-	err = sw.SetSentinelPeer(errSentinelString)
-	assert.True(t, err != nil, "Expected err with invalid sentinel string")
-}
