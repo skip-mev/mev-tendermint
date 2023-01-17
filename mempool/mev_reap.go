@@ -1,6 +1,8 @@
 package mempool
 
 import (
+	"encoding/hex"
+
 	"github.com/tendermint/tendermint/libs/log"
 	"github.com/tendermint/tendermint/types"
 )
@@ -44,7 +46,7 @@ func CombineSidecarAndMempoolTxs(memplTxs, sidecarTxs types.ReapedTxs, maxBytes,
 		sidecarTxsMap[sidecarTx.Key()] = struct{}{}
 		logger.Info(
 			"[mev-tendermint]: reaped sidecar",
-			"mev transaction", getLastNumBytesFromTx(sidecarTx, 20),
+			"mev transaction", hex.EncodeToString(sidecarTx.Hash()),
 			"gasWanted", sidecarTxs.GasWanteds[i],
 		)
 	}
@@ -52,7 +54,7 @@ func CombineSidecarAndMempoolTxs(memplTxs, sidecarTxs types.ReapedTxs, maxBytes,
 	for i, memplTx := range memplTxs.Txs {
 		if _, ok := sidecarTxsMap[memplTx.Key()]; ok {
 			// SKIP THIS TRANSACTION, ALREADY SEEN IN SIDECAR
-			logger.Info("[mev-tendermint]: skipped mempool tx, already found in sidecar", getLastNumBytesFromTx(memplTx, 20))
+			logger.Info("[mev-tendermint]: skipped mempool tx, already found in sidecar", hex.EncodeToString(memplTx.Hash()))
 			continue
 		}
 
@@ -76,14 +78,4 @@ func CombineSidecarAndMempoolTxs(memplTxs, sidecarTxs types.ReapedTxs, maxBytes,
 		txs = append(txs, memplTx)
 	}
 	return txs
-}
-
-func getLastNumBytesFromTx(tx types.Tx, numBytes int) string {
-	if len(tx) == 0 {
-		return ""
-	} else if len(tx) < 20 {
-		return tx.String()
-	} else {
-		return tx.String()[len(tx.String())-20:]
-	}
 }
