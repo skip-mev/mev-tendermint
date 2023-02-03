@@ -2,6 +2,32 @@
 
 Friendly reminder, we have a [bug bounty program](https://hackerone.com/cosmos).
 
+## v0.34.25
+
+*Feb 3, 2023*
+
+This is primarily a security patch from the Informal Systems team's public fork
+of Tendermint Core, but additionally includes some minor improvements that were
+not yet released on the `v0.34.x` branch.
+
+Special thanks to @jhernandezb and the Notional team for picking up on this
+issue!
+
+### SECURITY
+
+- `[consensus]`
+  [informalsystems/tendermint\#4](https://github.com/informalsystems/tendermint/issues/4)
+  Fixed a busy loop that happened when sending of a block part failed by
+  sleeping in case of error (@jhernandezb and @sergio-mena)
+
+### IMPROVEMENTS
+
+- `[crypto]` [\#9250](https://github.com/tendermint/tendermint/issues/9250)
+  Update to use btcec v2 and the latest btcutil. (@wcsiu)
+- `[metrics]` [\#9733](https://github.com/tendermint/tendermint/issues/9733) Add
+  metrics for timing the consensus steps and for the progress of block gossip.
+  (@williambanfield)
+
 ## v0.34.24
 
 *Nov 21, 2022*

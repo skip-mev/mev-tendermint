@@ -68,18 +68,11 @@ type Application struct {
 
 	state        State
 	RetainBlocks int64 // blocks to retain after commit (via ResponseCommit.RetainHeight)
-	// If true, the app will generate block events in BeginBlock. Used to test the event indexer
-	// Should be false by default to avoid generating too much data.
-	genBlockEvents bool
 }
 
 func NewApplication() *Application {
 	state := loadState(dbm.NewMemDB())
 	return &Application{state: state}
-}
-
-func (app *Application) SetGenBlockEvents() {
-	app.genBlockEvents = true
 }
 
 func (app *Application) Info(req types.RequestInfo) (resInfo types.ResponseInfo) {
@@ -114,15 +107,6 @@ func (app *Application) DeliverTx(req types.RequestDeliverTx) types.ResponseDeli
 			Attributes: []types.EventAttribute{
 				{Key: []byte("creator"), Value: []byte("Cosmoshi Netowoko"), Index: true},
 				{Key: []byte("key"), Value: key, Index: true},
-				{Key: []byte("index_key"), Value: []byte("index is working"), Index: true},
-				{Key: []byte("noindex_key"), Value: []byte("index is working"), Index: false},
-			},
-		},
-		{
-			Type: "app",
-			Attributes: []types.EventAttribute{
-				{Key: []byte("creator"), Value: []byte("Cosmoshi"), Index: true},
-				{Key: []byte("key"), Value: value, Index: true},
 				{Key: []byte("index_key"), Value: []byte("index is working"), Index: true},
 				{Key: []byte("noindex_key"), Value: []byte("index is working"), Index: false},
 			},
@@ -185,72 +169,4 @@ func (app *Application) Query(reqQuery types.RequestQuery) (resQuery types.Respo
 	resQuery.Height = app.state.Height
 
 	return resQuery
-}
-
-func (app *Application) BeginBlock(req types.RequestBeginBlock) types.ResponseBeginBlock {
-
-	response := types.ResponseBeginBlock{}
-
-	if !app.genBlockEvents {
-		return response
-	}
-
-	if app.state.Height%2 == 0 {
-		response = types.ResponseBeginBlock{
-			Events: []types.Event{
-				{
-					Type: "begin_event",
-					Attributes: []types.EventAttribute{
-						{
-							Key:   []byte("foo"),
-							Value: []byte("100"),
-							Index: true,
-						},
-						{
-							Key:   []byte("bar"),
-							Value: []byte("200"),
-							Index: true,
-						},
-					},
-				},
-				{
-					Type: "begin_event",
-					Attributes: []types.EventAttribute{
-						{
-							Key:   []byte("foo"),
-							Value: []byte("200"),
-							Index: true,
-						},
-						{
-							Key:   []byte("bar"),
-							Value: []byte("300"),
-							Index: true,
-						},
-					},
-				},
-			},
-		}
-	} else {
-		response = types.ResponseBeginBlock{
-			Events: []types.Event{
-				{
-					Type: "begin_event",
-					Attributes: []types.EventAttribute{
-						{
-							Key:   []byte("foo"),
-							Value: []byte("400"),
-							Index: true,
-						},
-						{
-							Key:   []byte("bar"),
-							Value: []byte("300"),
-							Index: true,
-						},
-					},
-				},
-			},
-		}
-	}
-
-	return response
 }
