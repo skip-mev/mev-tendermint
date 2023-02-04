@@ -2,6 +2,19 @@
 
 Friendly reminder, we have a [bug bounty program](https://hackerone.com/cosmos).
 
+## v0.34.26
+
+*Feb 4, 2023*
+
+Some folks have had trouble importing our v0.34.25 release as a dependency,
+seeing a cryptic import error related to the `github.com/btcsuite/btcd/btcec`
+dependency. This release should resolve that error.
+
+### DEPENDENCIES
+
+- Bump tm-load-test to v1.3.0, which removes its dependency on Tendermint Core
+  v0.34.24
+
 ## v0.34.25
 
 *Feb 3, 2023*
