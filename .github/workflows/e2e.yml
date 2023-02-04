@@ -3,10 +3,6 @@ name: e2e
 # and every pull request, but only if any Go files have been changed.
 on:
   pull_request:
-  push:
-    branches:
-      - master
-      - release/**
 
 jobs:
   e2e-test:
