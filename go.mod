@@ -7,6 +7,8 @@ require (
 	github.com/ChainSafe/go-schnorrkel v0.0.0-20200405005733-88cbf1b4c40d
 	github.com/Workiva/go-datastructures v1.0.53
 	github.com/adlio/schema v1.3.3
+	github.com/bufbuild/buf v1.9.0
+	github.com/creachadair/taskgroup v0.3.2
 	github.com/fortytw2/leaktest v1.3.0
 	github.com/go-kit/kit v0.12.0
 	github.com/go-kit/log v0.2.1
@@ -45,11 +47,7 @@ require (
 	github.com/informalsystems/tm-load-test v1.0.0
 )
 
-require (
-	github.com/bufbuild/buf v1.9.0
-	github.com/creachadair/taskgroup v0.3.2
-	github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
-)
+require github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
 
 require (
 	github.com/Masterminds/semver/v3 v3.2.0

@@ -17,6 +17,7 @@ func TestDefaultConfig(t *testing.T) {
 	assert.NotNil(cfg.P2P)
 	assert.NotNil(cfg.Mempool)
 	assert.NotNil(cfg.Consensus)
+	assert.NotNil(cfg.Sidecar)
 
 	// check the root dir stuff...
 	cfg.SetRoot("/foo")

@@ -110,14 +110,14 @@ func Connect2Switches(switches []*Switch, i, j int) {
 
 	doneCh := make(chan struct{})
 	go func() {
-		err := switchI.addPeerWithConnection(c1)
+		err := switchI.addPeerWithConnection(c1, true)
 		if err != nil {
 			panic(err)
 		}
 		doneCh <- struct{}{}
 	}()
 	go func() {
-		err := switchJ.addPeerWithConnection(c2)
+		err := switchJ.addPeerWithConnection(c2, true)
 		if err != nil {
 			panic(err)
 		}
@@ -127,7 +127,33 @@ func Connect2Switches(switches []*Switch, i, j int) {
 	<-doneCh
 }
 
-func (sw *Switch) addPeerWithConnection(conn net.Conn) error {
+func Connect2SwitchesEvensSidecar(switches []*Switch, i, j int) {
+	switchI := switches[i]
+	switchJ := switches[j]
+	skipSetting := (i%2 == 0) && (j%2 == 0)
+
+	c1, c2 := conn.NetPipe()
+
+	doneCh := make(chan struct{})
+	go func() {
+		err := switchI.addPeerWithConnection(c1, skipSetting)
+		if err != nil {
+			panic(err)
+		}
+		doneCh <- struct{}{}
+	}()
+	go func() {
+		err := switchJ.addPeerWithConnection(c2, skipSetting)
+		if err != nil {
+			panic(err)
+		}
+		doneCh <- struct{}{}
+	}()
+	<-doneCh
+	<-doneCh
+}
+
+func (sw *Switch) addPeerWithConnection(conn net.Conn, skip bool) error {
 	pc, err := testInboundPeerConn(conn, sw.config, sw.nodeKey.PrivKey)
 	if err != nil {
 		if err := conn.Close(); err != nil {
@@ -151,6 +177,7 @@ func (sw *Switch) addPeerWithConnection(conn net.Conn) error {
 		sw.reactorsByCh,
 		sw.msgTypeByChID,
 		sw.chDescs,
+		skip,
 		sw.StopPeerForError,
 		sw.mlc,
 	)
@@ -173,6 +200,50 @@ func StartSwitches(switches []*Switch) error {
 		}
 	}
 	return nil
+}
+
+func MakeSwitchWithSidecarPeers(
+	cfg *config.P2PConfig,
+	i int,
+	network, version string,
+	initSwitch func(int, *Switch) *Switch,
+	sp []string,
+	opts ...SwitchOption,
+) *Switch {
+
+	nodeKey := NodeKey{
+		PrivKey: ed25519.GenPrivKey(),
+	}
+	nodeInfo := testNodeInfo(nodeKey.ID(), fmt.Sprintf("node%d", i))
+	addr, err := NewNetAddressString(
+		IDAddressString(nodeKey.ID(), nodeInfo.(DefaultNodeInfo).ListenAddr),
+	)
+	if err != nil {
+		panic(err)
+	}
+
+	t := NewMultiplexTransport(nodeInfo, nodeKey, MConnConfig(cfg))
+
+	if err := t.Listen(*addr); err != nil {
+		panic(err)
+	}
+
+	sw := initSwitch(i, NewSwitch(cfg, sp, t, "", opts...))
+	sw.SetLogger(log.TestingLogger().With("switch", i))
+	sw.SetNodeKey(&nodeKey)
+
+	ni := nodeInfo.(DefaultNodeInfo)
+	for ch := range sw.reactorsByCh {
+		ni.Channels = append(ni.Channels, ch)
+	}
+	nodeInfo = ni
+
+	// TODO: We need to setup reactors ahead of time so the NodeInfo is properly
+	// populated and we don't have to do those awkward overrides and setters.
+	t.nodeInfo = nodeInfo
+	sw.SetNodeInfo(nodeInfo)
+
+	return sw
 }
 
 func MakeSwitch(
@@ -201,7 +272,7 @@ func MakeSwitch(
 	}
 
 	// TODO: let the config be passed in?
-	sw := initSwitch(i, NewSwitch(cfg, t, opts...))
+	sw := initSwitch(i, NewSwitch(cfg, make([]string, 0), t, "", opts...))
 	sw.SetLogger(log.TestingLogger().With("switch", i))
 	sw.SetNodeKey(&nodeKey)
 

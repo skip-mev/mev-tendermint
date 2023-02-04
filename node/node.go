@@ -32,6 +32,7 @@ import (
 	mempl "github.com/tendermint/tendermint/mempool"
 	mempoolv0 "github.com/tendermint/tendermint/mempool/v0"
 	mempoolv1 "github.com/tendermint/tendermint/mempool/v1"
+	"github.com/tendermint/tendermint/mev"
 	"github.com/tendermint/tendermint/p2p"
 	"github.com/tendermint/tendermint/p2p/pex"
 	"github.com/tendermint/tendermint/privval"
@@ -115,19 +116,20 @@ func DefaultNewNode(config *cfg.Config, logger log.Logger) (*Node, error) {
 }
 
 // MetricsProvider returns a consensus, p2p and mempool Metrics.
-type MetricsProvider func(chainID string) (*cs.Metrics, *p2p.Metrics, *mempl.Metrics, *sm.Metrics)
+type MetricsProvider func(chainID string) (*cs.Metrics, *p2p.Metrics, *mempl.Metrics, *sm.Metrics, *mev.Metrics)
 
 // DefaultMetricsProvider returns Metrics build using Prometheus client library
 // if Prometheus is enabled. Otherwise, it returns no-op Metrics.
 func DefaultMetricsProvider(config *cfg.InstrumentationConfig) MetricsProvider {
-	return func(chainID string) (*cs.Metrics, *p2p.Metrics, *mempl.Metrics, *sm.Metrics) {
+	return func(chainID string) (*cs.Metrics, *p2p.Metrics, *mempl.Metrics, *sm.Metrics, *mev.Metrics) {
 		if config.Prometheus {
 			return cs.PrometheusMetrics(config.Namespace, "chain_id", chainID),
 				p2p.PrometheusMetrics(config.Namespace, "chain_id", chainID),
 				mempl.PrometheusMetrics(config.Namespace, "chain_id", chainID),
-				sm.PrometheusMetrics(config.Namespace, "chain_id", chainID)
+				sm.PrometheusMetrics(config.Namespace, "chain_id", chainID),
+				mev.PrometheusMetrics(config.Namespace, "chain_id", chainID)
 		}
-		return cs.NopMetrics(), p2p.NopMetrics(), mempl.NopMetrics(), sm.NopMetrics()
+		return cs.NopMetrics(), p2p.NopMetrics(), mempl.NopMetrics(), sm.NopMetrics(), mev.NopMetrics()
 	}
 }
 
@@ -230,6 +232,8 @@ type Node struct {
 	blockIndexer      indexer.BlockIndexer
 	indexerService    *txindex.IndexerService
 	prometheusSrv     *http.Server
+
+	sidecar *mempl.CListPriorityTxSidecar
 }
 
 func initDBs(config *cfg.Config, dbProvider DBProvider) (blockStore *store.BlockStore, stateDB dbm.DB, err error) {
@@ -365,13 +369,21 @@ func onlyValidatorIsUs(state sm.State, pubKey crypto.PubKey) bool {
 	return bytes.Equal(pubKey.Address(), addr)
 }
 
-func createMempoolAndMempoolReactor(
+func createMempoolAndSidecarAndMempoolReactor(
 	config *cfg.Config,
 	proxyApp proxy.AppConns,
 	state sm.State,
 	memplMetrics *mempl.Metrics,
+	mevMetrics *mev.Metrics,
 	logger log.Logger,
-) (mempl.Mempool, p2p.Reactor) {
+) (mempl.Mempool, p2p.Reactor, mempl.PriorityTxSidecar) {
+
+	sidecar := mempl.NewCListSidecar(
+		state.LastBlockHeight,
+		logger,
+		mevMetrics,
+	)
+
 	switch config.Mempool.Version {
 	case cfg.MempoolV1:
 		mp := mempoolv1.NewTxMempool(
@@ -387,12 +399,13 @@ func createMempoolAndMempoolReactor(
 		reactor := mempoolv1.NewReactor(
 			config.Mempool,
 			mp,
+			sidecar,
 		)
 		if config.Consensus.WaitForTxs() {
 			mp.EnableTxsAvailable()
 		}
 
-		return mp, reactor
+		return mp, reactor, sidecar
 
 	case cfg.MempoolV0:
 		mp := mempoolv0.NewCListMempool(
@@ -409,15 +422,16 @@ func createMempoolAndMempoolReactor(
 		reactor := mempoolv0.NewReactor(
 			config.Mempool,
 			mp,
+			sidecar,
 		)
 		if config.Consensus.WaitForTxs() {
 			mp.EnableTxsAvailable()
 		}
 
-		return mp, reactor
+		return mp, reactor, sidecar
 
 	default:
-		return nil, nil
+		return nil, nil, nil
 	}
 }
 
@@ -567,6 +581,7 @@ func createTransport(
 func createSwitch(config *cfg.Config,
 	transport p2p.Transport,
 	p2pMetrics *p2p.Metrics,
+	mevMetrics *mev.Metrics,
 	peerFilters []p2p.PeerFilterFunc,
 	mempoolReactor p2p.Reactor,
 	bcReactor p2p.Reactor,
@@ -575,12 +590,24 @@ func createSwitch(config *cfg.Config,
 	evidenceReactor *evidence.Reactor,
 	nodeInfo p2p.NodeInfo,
 	nodeKey *p2p.NodeKey,
-	p2pLogger log.Logger,
-) *p2p.Switch {
+	p2pLogger log.Logger) *p2p.Switch {
+	sidecarPeers := splitAndTrimEmpty(config.Sidecar.PersonalPeerIDs, ",", " ")
+
+	// Temporarily support both SentinelPeerString and RelayerPeerString
+	sentinelPeerString := config.Sidecar.SentinelPeerString
+	if len(sentinelPeerString) == 0 {
+		p2pLogger.Info(`[mev-tendermint]: WARNING: sentinel_peer_string not found in config.toml. 
+			relayer_peer_string is being deprecated for sentinel_peer_string`)
+		sentinelPeerString = config.Sidecar.RelayerPeerString
+	}
+
 	sw := p2p.NewSwitch(
 		config.P2P,
+		sidecarPeers,
 		transport,
+		sentinelPeerString,
 		p2p.WithMetrics(p2pMetrics),
+		p2p.WithMevMetrics(mevMetrics),
 		p2p.SwitchPeerFilters(peerFilters...),
 	)
 	sw.SetLogger(p2pLogger)
@@ -793,10 +820,10 @@ func NewNode(config *cfg.Config,
 
 	logNodeStartupInfo(state, pubKey, logger, consensusLogger)
 
-	csMetrics, p2pMetrics, memplMetrics, smMetrics := metricsProvider(genDoc.ChainID)
+	csMetrics, p2pMetrics, memplMetrics, smMetrics, mevMetrics := metricsProvider(genDoc.ChainID)
 
 	// Make MempoolReactor
-	mempool, mempoolReactor := createMempoolAndMempoolReactor(config, proxyApp, state, memplMetrics, logger)
+	mempool, mempoolReactor, sidecar := createMempoolAndSidecarAndMempoolReactor(config, proxyApp, state, memplMetrics, mevMetrics, logger)
 
 	// Make Evidence Reactor
 	evidenceReactor, evidencePool, err := createEvidenceReactor(config, dbProvider, stateDB, blockStore, logger)
@@ -811,6 +838,7 @@ func NewNode(config *cfg.Config,
 		proxyApp.Consensus(),
 		mempool,
 		evidencePool,
+		sidecar,
 		sm.BlockExecutorWithMetrics(smMetrics),
 	)
 
@@ -855,16 +883,48 @@ func NewNode(config *cfg.Config,
 	// Setup Switch.
 	p2pLogger := logger.With("module", "p2p")
 	sw := createSwitch(
-		config, transport, p2pMetrics, peerFilters, mempoolReactor, bcReactor,
+		config, transport, p2pMetrics, mevMetrics, peerFilters, mempoolReactor, bcReactor,
 		stateSyncReactor, consensusReactor, evidenceReactor, nodeInfo, nodeKey, p2pLogger,
 	)
 
-	err = sw.AddPersistentPeers(splitAndTrimEmpty(config.P2P.PersistentPeers, ",", " "))
+	persistentPeers := splitAndTrimEmpty(config.P2P.PersistentPeers, ",", " ")
+	err = sw.AddPersistentPeers(persistentPeers)
 	if err != nil {
 		return nil, fmt.Errorf("could not add peers from persistent_peers field: %w", err)
 	}
 
-	err = sw.AddUnconditionalPeerIDs(splitAndTrimEmpty(config.P2P.UnconditionalPeerIDs, ",", " "))
+	// Temporarily support both SentinelPeerString and RelayerPeerString
+	sentinelPeerString := config.Sidecar.SentinelPeerString
+	if len(sentinelPeerString) == 0 && len(config.Sidecar.RelayerPeerString) > 0 {
+		logger.Info(`[mev-tendermint]: WARNING: sentinel_peer_string not found in config.toml. 
+			relayer_peer_string is being deprecated for sentinel_peer_string. Please update your 
+			config.toml to use sentinel_peer_string.`)
+		sentinelPeerString = config.Sidecar.RelayerPeerString
+	}
+
+	if sentinelPeerString != "" {
+		err = sw.SetSentinelPeer(sentinelPeerString)
+		if err != nil {
+			return nil, fmt.Errorf("could not add sentinel from sentinel_peer_string field: %w", err)
+		}
+	} else {
+		logger.Info("[node startup]: No sentinel_peer_string specified, not adding sentinel as peer")
+	}
+
+	unconditionalPeerIDs := splitAndTrimEmpty(config.P2P.UnconditionalPeerIDs, ",", " ")
+	if sentinelPeerString != "" {
+		splitStr := strings.Split(sentinelPeerString, "@")
+		if len(splitStr) > 0 {
+			sentinelID := splitStr[0]
+			logger.Info("[node startup]: Adding sentinel as an unconditional peer", sentinelID)
+			unconditionalPeerIDs = append(unconditionalPeerIDs, sentinelID)
+		} else {
+			fmt.Println("[node startup]: ERR: Could not parse sentinel peer string",
+				" to add as unconditional peer, is it correctly configured?",
+				sentinelPeerString)
+		}
+	}
+	err = sw.AddUnconditionalPeerIDs(unconditionalPeerIDs)
 	if err != nil {
 		return nil, fmt.Errorf("could not add peer ids from unconditional_peer_ids field: %w", err)
 	}
@@ -899,6 +959,11 @@ func NewNode(config *cfg.Config,
 		}()
 	}
 
+	typeAssertedSidecar, ok := sidecar.(*mempl.CListPriorityTxSidecar)
+	if !ok {
+		logger.Info("[node startup]: Creating node with nil sidecar")
+	}
+
 	node := &Node{
 		config:        config,
 		genesisDoc:    genDoc,
@@ -927,6 +992,7 @@ func NewNode(config *cfg.Config,
 		indexerService:   indexerService,
 		blockIndexer:     blockIndexer,
 		eventBus:         eventBus,
+		sidecar:          typeAssertedSidecar,
 	}
 	node.BaseService = *service.NewBaseService(logger, "Node", node)
 
@@ -946,8 +1012,47 @@ func (n *Node) OnStart() error {
 		time.Sleep(genTime.Sub(now))
 	}
 
+	// Temporarily support both SentinelRPCString and RelayerRPCString
+	sentinelRPCString := n.config.Sidecar.SentinelRPCString
+	if len(sentinelRPCString) == 0 && len(n.config.Sidecar.RelayerRPCString) > 0 {
+		n.Logger.Info(`[mev-tendermint]: WARNING: sentinel_rpc_string not found in config.toml. 
+			relayer_rpc_string is being deprecated for sentinel_rpc_string. Please update your 
+			config.toml to use sentinel_rpc_string.`)
+		sentinelRPCString = n.config.Sidecar.RelayerRPCString
+	}
+
+	// If all required info is set in config, register with sentinel
+	if n.config.Sidecar.APIKey != "" && sentinelRPCString != "" {
+		p2p.RegisterWithSentinel(n.Logger, n.config.Sidecar.APIKey,
+			string(n.nodeInfo.ID()), sentinelRPCString)
+	} else {
+		n.Logger.Info("[node startup]: Not registering with sentinel, config has API Key:", n.config.Sidecar.APIKey,
+			"sentinel rpc string:", sentinelRPCString)
+	}
+
+	// Temporarily support both SentinelPeerString and RelayerPeerString
+	sentinelPeerString := n.config.Sidecar.SentinelPeerString
+	if len(sentinelPeerString) == 0 {
+		n.Logger.Info(`[mev-tendermint]: WARNING: sentinel_peer_string not found in config.toml. 
+			relayer_peer_string is being deprecated for sentinel_peer_string`)
+		sentinelPeerString = n.config.Sidecar.RelayerPeerString
+	}
+
 	// Add private IDs to addrbook to block those peers being added
-	n.addrBook.AddPrivateIDs(splitAndTrimEmpty(n.config.P2P.PrivatePeerIDs, ",", " "))
+	privateIDs := splitAndTrimEmpty(n.config.P2P.PrivatePeerIDs, ",", " ")
+	if sentinelPeerString != "" {
+		splitStr := strings.Split(sentinelPeerString, "@")
+		if len(splitStr) > 1 {
+			sentinelID := splitStr[0]
+			n.Logger.Info("[node startup]: Adding sentinel as a private peer", sentinelID)
+			privateIDs = append(privateIDs, sentinelID)
+		} else {
+			n.Logger.Info("[node startup]: ERR Could not parse sentinel peer string ",
+				"to add as private peer, is it correctly configured?",
+				sentinelPeerString)
+		}
+	}
+	n.addrBook.AddPrivateIDs(privateIDs)
 
 	// Start the RPC server before the P2P server
 	// so we can eg. receive txs for the first block
@@ -982,10 +1087,17 @@ func (n *Node) OnStart() error {
 	}
 
 	// Always connect to persistent peers
-	err = n.sw.DialPeersAsync(splitAndTrimEmpty(n.config.P2P.PersistentPeers, ",", " "))
+	peersToDialOnStartup := splitAndTrimEmpty(n.config.P2P.PersistentPeers, ",", " ")
+	if sentinelPeerString != "" {
+		peersToDialOnStartup = append(peersToDialOnStartup, sentinelPeerString)
+	} else {
+		n.Logger.Info("[node startup]: No sentinel_peer_string specified, not dialing sentinel on startup")
+	}
+	err = n.sw.DialPeersAsync(peersToDialOnStartup)
 	if err != nil {
 		return fmt.Errorf("could not dial peers from persistent_peers field: %w", err)
 	}
+	n.sw.StartSentinelConnectionCheckRoutine()
 
 	// Run state sync
 	if n.stateSync {
@@ -1084,10 +1196,12 @@ func (n *Node) ConfigureRPC() error {
 		ConsensusReactor: n.consensusReactor,
 		EventBus:         n.eventBus,
 		Mempool:          n.mempool,
+		Sidecar:          n.sidecar,
 
 		Logger: n.Logger.With("module", "rpc"),
 
-		Config: *n.config.RPC,
+		Config:        *n.config.RPC,
+		SidecarConfig: *n.config.Sidecar,
 	})
 	if err := rpccore.InitGenesisChunks(); err != nil {
 		return err
@@ -1355,7 +1469,7 @@ func makeNodeInfo(
 		Channels: []byte{
 			bcChannel,
 			cs.StateChannel, cs.DataChannel, cs.VoteChannel, cs.VoteSetBitsChannel,
-			mempl.MempoolChannel,
+			mempl.MempoolChannel, mempl.SidecarChannel, mempl.SidecarLegacyChannel,
 			evidence.EvidenceChannel,
 			statesync.SnapshotChannel, statesync.ChunkChannel,
 		},

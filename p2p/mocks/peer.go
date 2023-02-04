@@ -123,6 +123,20 @@ func (_m *Peer) IsRunning() bool {
 	return r0
 }
 
+// IsSidecarPeer provides a mock function with given fields:
+func (_m *Peer) IsSidecarPeer() bool {
+	ret := _m.Called()
+
+	var r0 bool
+	if rf, ok := ret.Get(0).(func() bool); ok {
+		r0 = rf()
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+
+	return r0
+}
+
 // SendEnvelope provides a mock function with given fields: _a0
 func (_m *Peer) SendEnvelope(_a0 p2p.Envelope) bool {
 	ret := _m.Called(_a0)
@@ -377,13 +391,13 @@ func (_m *Peer) TrySend(_a0 byte, _a1 []byte) bool {
 	return r0
 }
 
-type NewPeerT interface {
+type mockConstructorTestingTNewPeer interface {
 	mock.TestingT
 	Cleanup(func())
 }
 
 // NewPeer creates a new instance of Peer. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
-func NewPeer(t NewPeerT) *Peer {
+func NewPeer(t mockConstructorTestingTNewPeer) *Peer {
 	mock := &Peer{}
 	mock.Mock.Test(t)
 

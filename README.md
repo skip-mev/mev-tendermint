@@ -1,175 +1,230 @@
-# Tendermint
+![banner](https://skip-protocol.notion.site/image/https%3A%2F%2Fs3-us-west-2.amazonaws.com%2Fsecure.notion-static.com%2F33ea763f-bfa3-4c65-ad35-ad0ee1fd312d%2FGroup_6.png?table=block&id=4e75ce44-3f92-482e-a199-4aa75631706b&spaceId=4ee2f125-c8d3-4d79-9a63-1a260c9b8377&width=2000&userId=&cache=v2)
+# mev-tendermint (.8)
 
-![banner](docs/tendermint-core-image.jpg)
+***The purpose of mev-tendermint is to create a private mempool (the “sidecar”) containing atomic bundles of txs and gossip bundles of transactions specifically to the proposer of the next block.***
 
-[Byzantine-Fault Tolerant][bft] [State Machine Replication][smr]. Or
-[Blockchain], for short.
+---
 
-[![Version][version-badge]][version-url]
-[![API Reference][api-badge]][api-url]
-[![Go version][go-badge]][go-url]
-[![Discord chat][discord-badge]][discord-url]
-[![License][license-badge]][license-url]
-[![Sourcegraph][sg-badge]][sg-url]
+# 👨‍💻 How to Integrate [~10min]
 
-| Branch | Tests                              | Linting                         |
-|--------|------------------------------------|---------------------------------|
-| main   | [![Tests][tests-badge]][tests-url] | [![Lint][lint-badge]][lint-url] |
+**NOTE: if you have any questions/issues with integration, please ask us on our discord:  [https://discord.gg/amAgf9Z39w](https://discord.gg/amAgf9Z39w)**
 
-Tendermint Core is a Byzantine Fault Tolerant (BFT) middleware that takes a
-state transition machine - written in any programming language - and securely
-replicates it on many machines.
+---
 
-For protocol details, refer to the [Tendermint Specification](./spec/README.md).
+## 1. Get an API Key  🔑
 
-For detailed analysis of the consensus protocol, including safety and liveness
-proofs, read our paper, "[The latest gossip on BFT
-consensus](https://arxiv.org/abs/1807.04938)".
+**🚨**  If you don’t already have an API Key, **please get one from the [Skip registration site](https://skip.money/register) 🚨**
 
-## Documentation
+💵 **You can also configure your MEV payments on the site.** Remember - Skip takes no fees 🎉
 
-Complete documentation can be found on the
-[website](https://docs.tendermint.com/).
+---
 
-## Releases
+## 2. Tendermint replacement ♻️
 
-Please do not depend on `main` as your production branch. Use
-[releases](https://github.com/tendermint/tendermint/releases) instead.
+In the `go.mod` file of the directory you use to compile your chain binary, add a line into `replace` to import the correct `mev-tendermint` version.
 
-Tendermint has been in the production of private and public environments, most
-notably the blockchains of the Cosmos Network. we haven't released v1.0 yet
-since we are making breaking changes to the protocol and the APIs. See below for
-more details about [versioning](#versioning).
+🚨  **You can find the correct version of the `replace` you should use here:** [⚙️ Skip Configurations By Chain](https://www.notion.so/Skip-Configurations-By-Chain-a6076cfa743f4ab38194096403e62f3c) 
 
-In any case, if you intend to run Tendermint in production, we're happy to help.
-You can contact us [over email](mailto:hello@interchain.io) or [join the
-chat](https://discord.gg/cosmosnetwork).
+```tsx
+// ---------------------------------
+replace (
+    // Other stuff...
+    github.com/tendermint/tendermint => github.com/skip-mev/mev-tendermint <USE CORRECT TAG FOR YOUR CHAIN>
+)
+```
 
-More on how releases are conducted can be found [here](./RELEASES.md).
+🚨 **After modifying the `replace` statement, run `go mod tidy` in your base directory**
 
-## Security
+---
 
-To report a security vulnerability, see our [bug bounty
-program](https://hackerone.com/cosmos). For examples of the kinds of bugs we're
-looking for, see [our security policy](SECURITY.md).
+## 3. Peering Setup 🤝
 
-We also maintain a dedicated mailing list for security updates. We will only
-ever use this mailing list to notify you of vulnerabilities and fixes in
-Tendermint Core. You can subscribe [here](http://eepurl.com/gZ5hQD).
+mev-tendermint introduces a new section of config in `config.toml` called `[sidecar].`
 
-## Minimum requirements
+…by the end, the end of your `config.toml` will look something like this (with different string values). **Make sure to include the line `[sidecar]` at the top of this section in `config.toml`.**
 
-| Requirement | Notes             |
-|-------------|-------------------|
-| Go version  | Go 1.18 or higher |
+🚨 **FIND THE CORRECT VALUES TO USE HERE: [⚙️ Skip Configurations By Chain](https://www.notion.so/Skip-Configurations-By-Chain-a6076cfa743f4ab38194096403e62f3c)** 
 
-### Install
+```bash
+# OTHER CONFIG...
 
-See the [install instructions](./docs/introduction/install.md).
+# **EXAMPLE** below (please use the correct values)
+[sidecar]
+sentinel_peer_string = "d1463b730c6e0dcea59db726836aeaff13a8119f@uni-5-sentinel.skip.money:26656"
+sentinel_rpc_string = "uni-5-gateway.skip.money"
+api_key = "2314ajinashg2389jfjap"
+personal_peer_ids = "557611c7a7307ce023a7d13486b570282521296d,5740acbf39a9ae59953801fe4997421b6736e091"
+```
 
-### Quick Start
+Here’s an explanation of what these are:
 
-- [Single node](./docs/introduction/quick-start.md)
-- [Local cluster using docker-compose](./docs/tools/docker-compose.md)
-- [Remote cluster using Terraform and Ansible](./docs/tools/terraform-and-ansible.md)
+### `sentinel_peer_string`
 
-## Contributing
+- The `p2p@ip:port` for the Skip Sentinel that is used to establish a secret, authenticated handshake between your node and the Skip sentinel
+- For nodes that should not communicate with the sentinel directly (e.g. validator nodes that have sentries), this does not need to be set.
+- **⭐ Find the `sentinel_peer_string` here:** [⚙️ Skip Configurations By Chain](https://www.notion.so/Skip-Configurations-By-Chain-a6076cfa743f4ab38194096403e62f3c)
 
-Please abide by the [Code of Conduct](CODE_OF_CONDUCT.md) in all interactions.
+### `sentinel_rpc_string`
 
-Before contributing to the project, please take a look at the [contributing
-guidelines](CONTRIBUTING.md) and the [style guide](STYLE_GUIDE.md). You may also
-find it helpful to read the [specifications](./spec/README.md), and familiarize
-yourself with our [Architectural Decision Records
-(ADRs)](./docs/architecture/README.md) and
-[Request For Comments (RFCs)](./docs/rfc/README.md).
+- The `api` for the Skip Sentinel that is used to register your node
+- For nodes that should not communicate with the sentinel directly (e.g. validator nodes that have sentries), this does not need to be set.
+- **⭐ Find the `sentinel_rpc_string` here:** [⚙️ Skip Configurations By Chain](https://www.notion.so/Skip-Configurations-By-Chain-a6076cfa743f4ab38194096403e62f3c)
 
-## Versioning
+### `api_key`
 
-### Semantic Versioning
+- This is the unique string key Skip uses to ensure a node establishing a connection with our Sentinel actually belongs to your validator.
+- If you don't have one, please request one from the Skip team on our **[discord](https://discord.gg/amAgf9Z39w)**
 
-Tendermint uses [Semantic Versioning](http://semver.org/) to determine when and
-how the version changes. According to SemVer, anything in the public API can
-change at any time before version 1.0.0
+### `personal_peer_ids`
 
-To provide some stability to users of 0.X.X versions of Tendermint, the MINOR
-version is used to signal breaking changes across Tendermint's API. This API
-includes all publicly exposed types, functions, and methods in non-internal Go
-packages as well as the types and methods accessible via the Tendermint RPC
-interface.
+- **You only need to set this if you use sentries, otherwise leave empty.**
+- This is the list of peer nodes your node will gossip Skip bundles to after receiving them.
+    - For your validator, this should be the `p2p ids` of all your **sentry nodes**
+    - For your sentry nodes, this should be the `p2p ids` of all your **other** sentry nodes, **and your validator**
+- You can find a node’s p2p id using (on the machine for the node):
 
-Breaking changes to these public APIs will be documented in the CHANGELOG.
+```json
+evmosd tendermint show-node-id --home <HOME_DIR>
+```
 
-### Upgrades
+---
 
-In an effort to avoid accumulating technical debt prior to 1.0.0, we do not
-guarantee that breaking changes (ie. bumps in the MINOR version) will work with
-existing Tendermint blockchains. In these cases you will have to start a new
-blockchain, or write something custom to get the old data into the new chain.
-However, any bump in the PATCH version should be compatible with existing
-blockchain histories.
+## 4. Recompile your binary, and start! 🎉
 
-For more information on upgrading, see [UPGRADING.md](./UPGRADING.md).
+That’s it! After making the changes above, you can recompile your binary (e.g. `evmosd`, probably using `make install`),  and restart your node(s)! You will now begin receiving MEV bundles and higher rewards.
 
-### Supported Versions
+---
 
-Because we are a small core team, we only ship patch updates, including security
-updates, to the most recent minor release and the second-most recent minor
-release. Consequently, we strongly recommend keeping Tendermint up-to-date.
-Upgrading instructions can be found in [UPGRADING.md](./UPGRADING.md).
+# ✍️ Monitoring & Troubleshooting
 
-## Resources
+After you have completed the steps above, you can check you connectivity either via:
 
-### Libraries
+- Check if you are peered with the sentinel by calling `curl http://localhost:26657/status`
+    
+    ```jsx
+     ”is_peered_with_sentinel”: true
+    ```
+    
+- Check if you are running `mev-tendermint` by running either:
+    
+    ```bash
+    # by running binary
+    curl -sL localhost:26657/status | jq .result.mev_info
+    
+    # or by checking version detail
+    evmosd version --long | grep mev
+    ```
+    
+- Via the new prometheus metrics exposed on mev-tendermint, in particular `mev_sentinel_connected`
 
-- [Cosmos SDK](http://github.com/cosmos/cosmos-sdk); A framework for building
-  applications in Golang
-- [Tendermint in Rust](https://github.com/informalsystems/tendermint-rs)
-- [ABCI Tower](https://github.com/penumbra-zone/tower-abci)
+---
 
-### Applications
+# ⚙️ Handling Chain Upgrades
 
-- [Cosmos Hub](https://hub.cosmos.network/)
-- [Terra](https://www.terra.money/)
-- [Celestia](https://celestia.org/)
-- [Anoma](https://anoma.network/)
-- [Vocdoni](https://docs.vocdoni.io/)
+Handling chain upgrades is simple:
 
-### Research
+1. Apply the latest patch to your validators & nodes, **without `mev-tendermint`**
+    1. If you have local changes to `go.mod` and `go.sum` that prevent you from pulling the new version, you can run:
+    
+    ```bash
+    git stash
+    git stash apply
+    ```
+    
+    1. to remove them first, then pull again
+2. Recompile your binary with `mev-tendermint` (**same as step 2)**, keeping the same config
+3. Restart your nodes and validators, you’re back up! 🎉
 
-- [The latest gossip on BFT consensus](https://arxiv.org/abs/1807.04938)
-- [Master's Thesis on Tendermint](https://atrium.lib.uoguelph.ca/xmlui/handle/10214/9769)
-- [Original Whitepaper: "Tendermint: Consensus Without Mining"](https://tendermint.com/static/docs/tendermint.pdf)
-- [Tendermint Core Blog](https://medium.com/tendermint/tagged/tendermint-core)
-- [Cosmos Blog](https://blog.cosmos.network/tendermint/home)
+---
 
-## Join us!
+# 🤿 About `mev-tendermint`
 
-Tendermint Core is maintained by [Interchain GmbH](https://interchain.berlin).
-If you'd like to work full-time on Tendermint Core,
-[we're hiring](https://interchain-gmbh.breezy.hr/)!
+## ✅  Design
 
-Funding for Tendermint Core development comes primarily from the
-[Interchain Foundation](https://interchain.io), a Swiss non-profit. The
-Tendermint trademark is owned by [Tendermint Inc.](https://tendermint.com), the
-for-profit entity that also maintains [tendermint.com](https://tendermint.com).
+The design goals of MEV-Tendermint is to allow & preserve:
 
-[bft]: https://en.wikipedia.org/wiki/Byzantine_fault_tolerance
-[smr]: https://en.wikipedia.org/wiki/State_machine_replication
-[Blockchain]: https://en.wikipedia.org/wiki/Blockchain
-[version-badge]: https://img.shields.io/github/tag/tendermint/tendermint.svg
-[version-url]: https://github.com/tendermint/tendermint/releases/latest
-[api-badge]: https://camo.githubusercontent.com/915b7be44ada53c290eb157634330494ebe3e30a/68747470733a2f2f676f646f632e6f72672f6769746875622e636f6d2f676f6c616e672f6764646f3f7374617475732e737667
-[api-url]: https://pkg.go.dev/github.com/tendermint/tendermint
-[go-badge]: https://img.shields.io/badge/go-1.18-blue.svg
-[go-url]: https://github.com/moovweb/gvm
-[discord-badge]: https://img.shields.io/discord/669268347736686612.svg
-[discord-url]: https://discord.gg/cosmosnetwork
-[license-badge]: https://img.shields.io/github/license/tendermint/tendermint.svg
-[license-url]: https://github.com/tendermint/tendermint/blob/main/LICENSE
-[sg-badge]: https://sourcegraph.com/github.com/tendermint/tendermint/-/badge.svg
-[sg-url]: https://sourcegraph.com/github.com/tendermint/tendermint?badge
-[tests-url]: https://github.com/tendermint/tendermint/actions/workflows/tests.yml
-[tests-badge]: https://github.com/tendermint/tendermint/actions/workflows/tests.yml/badge.svg?branch=main
-[lint-badge]: https://github.com/tendermint/tendermint/actions/workflows/lint.yml/badge.svg
-[lint-url]: https://github.com/tendermint/tendermint/actions/workflows/lint.yml
+1. 🔒  **Privacy** for users submitting bundles
+2. 🎁  **Atomicity** for bundles of transactions
+3. 🐎  **Priority** guaranteed for highest paying bundles
+4. 🏛  **No new security assumptions** for validators and nodes running MEV-Tendermint, including removing the need for ingress or egress for locked-down validators. No new network assumptions are made
+5. 🔄  **On-chain transaction submission** via gossip, no need for off-chain submission like HTTP endpoints, endpoint querying, etc
+6. 💨  **Impossible to slow down block time**, i.e. no part of mev-tendermint introduces consensus delays
+
+## 🔎  Basic Functionality Overview
+
+🏦  **Auction**
+
+- Prior to the creation of the first proposal for height `n+1` , the Skip Sentinel infrastructure selects an auction-winning bundle (or bundles) to include at the top of block `n+1`
+- The auction-winning bundle is defined as the bundle that pays the highest gas price ( sum(txFee)/sum(gasWanted) ) and doesn’t include any reverting transactions
+- The sentinel ensures it’s simulations of the bundle are accurate by simulating it against the version of state where it will actually run (by optimistically applying the proposals produced for height `n` )
+
+🗣️  **Gossip**
+
+- Before the first proposal for height `n+1` is created, the Skip sentinel gossips the auction-winning bundle(s) to whichever nodes belonging to that proposer it can access (e.g. sentries if the validator is using a sentry configuration, or validator replicas if it’s using horcrux)
+- The nodes that receive the winning bundle(s) gossip it to the other nodes belonging to that proposer to ensure the bundle(s) reach the validator
+- This selective gossiping is powered by new config options (`personal_peer_ids`) and takes place over a new channel, but it is secured using the same authentication handshake Tendermint uses to secure all other forms of p2p communication
+
+[reinforce that we have different channels on the same reactor]
+
+🏒  **Handling Transactions**
+
+- Ordinary transactions received over traditional gossip are handled exactly the same way they are today in the mempool
+- Transactions received as part of bundles sent from the Skip sentinel are handled and stored in a new data structure called the `sidecar`
+- These transactions have additional metadata about the bundle in which they should be included (e.g. bundleOrder, bundleSize). The sidecar uses this data to reconstruct bundles as it receives individual transactions over gossip
+
+[reinforce that we have a new transaction data structure]
+
+🚜  **Reaping** 
+
+- On reap, mev-tendermint first checks whether there are any fully-constructed bundles in the sidecar then reaps these first.
+- Next, it reaps from the ordinary mempool, with some additional checks to ensure that transactions reaped from the sidecar don’t get reaped again if they are also present in the standard mempool
+
+[reinforce reaping of bundle goes to top if available]
+
+## 🧱 Components
+
+### **#1 The Sidecar**
+
+- A separate, private mempool that respects `bundles` of transactions
+    - Relevant files: `mempool/clist_sidecar.go`
+- Has **selective gossiping**, meaning it only gossips:
+    - Over its own `SidecarChannel`
+    - **Only** to peers that are added as its `personal_peers`
+        - In practice, `personal_peers` for each node are set to be:
+            - Sentry node →  **Skip sentinel** & **the other nodes you’re running that the sentry is aware of (e.g. validator or a layer of sentries closer to the validator)**
+            - Validator node → **only its sentries**
+
+**#2 The Mempool Reactor**
+
+- The mempool reactor now supports a `SidecarChannel` over which only gossip for `SidecarTxs` can be handled
+    - Relevant files: `mempool/reactor.go`
+    - `SidecarTxs` have new metadata that is transmitted over gossip, including
+        - `BundleId` - the **global** order of the bundle this `SidecarTx` is in, per height
+        - `BundleOrder` - the **local** order of this `SidecarTx` within its bundle
+        - `DesiredHeight` - the height of the bundle this `SidecarTx` was submitted for
+        - `BundleSize` - the total size of the bundle this `SidecarcarTx` is in
+        - `TotalFee` - the total fee of the bundle this `SidecarTx` is in
+    - This metadata is submitted at a transaction level as **tendermint currently is not designed to broadcast batches of transactions**
+
+**#3 Selective Reaping**
+
+- The regular mempool now considers `sidecarTxs` (i.e. bundles) in addition to regular txs, and orders the former before the latter
+    - Relevant files: `mempool/clist_mempool.go`, `state/execution.go`
+
+---
+
+## ䷾ Metrics
+
+`mev-tendermint` exposes new **[prometheus metrics](https://docs.tendermint.com/v0.34/tendermint-core/metrics.html)** that you can use to supplement your dashboards (e.g. with Grafana)
+
+**Metrics exposed:**
+
+| Name | Type | Description |
+| --- | --- | --- |
+| mev_tx_size_bytes | Histogram | Histogram of mev transaction sizes, in bytes |
+| mev_bundle_mempool_size | Gauge | Size of the MEV bundle mempool |
+| mev_num_bundles_total | Counter | Number of MEV bundles received in total |
+| mev_num_bundles_last_block | Gauge | Number of mev bundles received during the last block |
+| mev_num_txs_total | Counter | Number of mev transactions added in total |
+| mev_num_txs_last_block | Gauge | Number of mev transactions received in the last block |
+| mev_sentinel_connected | Gauge | Whether or not a node is connected to the sentinel, 1 if connected, 0 if not. |

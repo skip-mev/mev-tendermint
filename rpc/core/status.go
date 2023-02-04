@@ -1,6 +1,7 @@
 package core
 
 import (
+	"strings"
 	"time"
 
 	tmbytes "github.com/tendermint/tendermint/libs/bytes"
@@ -51,6 +52,24 @@ func Status(ctx *rpctypes.Context) (*ctypes.ResultStatus, error) {
 		votingPower = val.VotingPower
 	}
 
+	var (
+		isPeeredWithSentinel     bool
+		lastReceivedBundleHeight int64
+	)
+
+	// Temporarily support both SentinelPeerString and RelayerPeerString
+	sentinel := env.SidecarConfig.SentinelPeerString
+	if len(sentinel) == 0 {
+		sentinel = env.SidecarConfig.RelayerPeerString
+	}
+	if sentinel != "" {
+		isPeeredWithSentinel = env.P2PPeers.Peers().Has(p2p.ID(strings.Split(sentinel, "@")[0]))
+	}
+
+	if env.Sidecar != nil {
+		lastReceivedBundleHeight = env.Sidecar.GetLastBundleHeight()
+	}
+
 	result := &ctypes.ResultStatus{
 		NodeInfo: env.P2PTransport.NodeInfo().(p2p.DefaultNodeInfo),
 		SyncInfo: ctypes.SyncInfo{
@@ -68,6 +87,10 @@ func Status(ctx *rpctypes.Context) (*ctypes.ResultStatus, error) {
 			Address:     env.PubKey.Address(),
 			PubKey:      env.PubKey,
 			VotingPower: votingPower,
+		},
+		MevInfo: ctypes.MevInfo{
+			IsPeeredWithSentinel:     isPeeredWithSentinel,
+			LastReceivedBundleHeight: lastReceivedBundleHeight,
 		},
 	}
 
