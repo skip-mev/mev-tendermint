@@ -91,11 +91,17 @@ type ValidatorInfo struct {
 	VotingPower int64          `json:"voting_power"`
 }
 
+type MevInfo struct {
+	IsPeeredWithSentinel     bool  `json:"is_peered_with_sentinel"`
+	LastReceivedBundleHeight int64 `json:"last_received_bundle_height"`
+}
+
 // Node Status
 type ResultStatus struct {
 	NodeInfo      p2p.DefaultNodeInfo `json:"node_info"`
 	SyncInfo      SyncInfo            `json:"sync_info"`
 	ValidatorInfo ValidatorInfo       `json:"validator_info"`
+	MevInfo       MevInfo             `json:"mev_info"`
 }
 
 // Is TxIndexing enabled

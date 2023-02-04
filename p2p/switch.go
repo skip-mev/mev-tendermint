@@ -3,6 +3,7 @@ package p2p
 import (
 	"fmt"
 	"math"
+	"strings"
 	"sync"
 	"time"
 
@@ -11,6 +12,7 @@ import (
 	"github.com/tendermint/tendermint/libs/cmap"
 	"github.com/tendermint/tendermint/libs/rand"
 	"github.com/tendermint/tendermint/libs/service"
+	"github.com/tendermint/tendermint/mev"
 	"github.com/tendermint/tendermint/p2p/conn"
 )
 
@@ -91,8 +93,14 @@ type Switch struct {
 
 	rng *rand.Rand // seed for randomizing dial times and orders
 
-	metrics *Metrics
-	mlc     *metricsLabelCache
+	metrics            *Metrics
+	mlc               *metricsLabelCache
+	mevMetrics         *mev.Metrics
+	sidecarPeers       sidecarPeers
+	SentinelPeerString string
+	SentinelNetAddr    *NetAddress
+
+	sentinelReconnectionMtx sync.Mutex
 }
 
 // NetAddress returns the address the switch is listening on.
@@ -104,10 +112,31 @@ func (sw *Switch) NetAddress() *NetAddress {
 // SwitchOption sets an optional parameter on the Switch.
 type SwitchOption func(*Switch)
 
+type sidecarPeers map[ID]struct{}
+
+// create map of sidecar peers that will privately gossip
+// auction-winning txs among themselves
+func newSidecarPeers(pl []string) (sidecarPeers, error) {
+	sp := make(sidecarPeers)
+	for _, pid := range pl {
+		if pid == "" {
+			continue
+		}
+		vid := ID(pid)
+		if err := validateID(vid); err != nil {
+			return nil, err
+		}
+		sp[vid] = struct{}{}
+	}
+	return sp, nil
+}
+
 // NewSwitch creates a new Switch with the given config.
 func NewSwitch(
 	cfg *config.P2PConfig,
+	sidecarPeerList []string,
 	transport Transport,
+	sentinelPeerString string,
 	options ...SwitchOption,
 ) *Switch {
 
@@ -126,7 +155,20 @@ func NewSwitch(
 		persistentPeersAddrs: make([]*NetAddress, 0),
 		unconditionalPeerIDs: make(map[ID]struct{}),
 		mlc:                  newMetricsLabelCache(),
+		SentinelPeerString:   sentinelPeerString,
 	}
+
+	if sentinelPeerString != "" {
+		sentinelID := strings.Split(sentinelPeerString, "@")[0]
+		if !contains(sidecarPeerList, sentinelID) {
+			sidecarPeerList = append(sidecarPeerList, sentinelID)
+		}
+	}
+	sidecarPeers, err := newSidecarPeers(sidecarPeerList)
+	if err != nil {
+		panic(fmt.Sprintln("Problem with peer initialization", err))
+	}
+	sw.sidecarPeers = sidecarPeers
 
 	// Ensure we have a completely undeterministic PRNG.
 	sw.rng = rand.NewRand()
@@ -153,6 +195,10 @@ func SwitchPeerFilters(filters ...PeerFilterFunc) SwitchOption {
 // WithMetrics sets the metrics.
 func WithMetrics(metrics *Metrics) SwitchOption {
 	return func(sw *Switch) { sw.metrics = metrics }
+}
+
+func WithMevMetrics(metrics *mev.Metrics) SwitchOption {
+	return func(sw *Switch) { sw.mevMetrics = metrics }
 }
 
 //---------------------------------------------------------------------
@@ -372,7 +418,11 @@ func (sw *Switch) StopPeerForError(peer Peer, reason interface{}) {
 	sw.Logger.Error("Stopping peer for error", "peer", peer, "err", reason)
 	sw.stopAndRemovePeer(peer, reason)
 
-	if peer.IsPersistent() {
+	sw.Logger.Info("Looking to reconnect after StopPeerForError, peer is ", peer, "sentinel is ", sw.SentinelNetAddr)
+	if sw.SentinelNetAddr != nil && peer.ID() == sw.SentinelNetAddr.ID {
+		sw.Logger.Info("Sentinel peer disconnected, attempting to reconnect")
+		go sw.reconnectToSentinelPeer()
+	} else if peer.IsPersistent() {
 		var addr *NetAddress
 		if peer.IsOutbound() { // socket address for outbound peers
 			addr = peer.SocketAddr()
@@ -387,6 +437,7 @@ func (sw *Switch) StopPeerForError(peer Peer, reason interface{}) {
 		}
 		go sw.reconnectToPeer(addr)
 	}
+
 }
 
 // StopPeerGracefully disconnects from a peer gracefully.
@@ -416,6 +467,75 @@ func (sw *Switch) stopAndRemovePeer(peer Peer, reason interface{}) {
 		// Removal of the peer has failed. The function above sets a flag within the peer to mark this.
 		// We keep this message here as information to the developer.
 		sw.Logger.Debug("error on peer removal", ",", "peer", peer.ID())
+
+		// check if we removed sentinel, if so, alert metrics
+		splitStr := strings.Split(sw.SentinelPeerString, "@")
+		if len(splitStr) > 1 {
+			sentinelIDConv := ID(splitStr[0])
+			if err := validateID(sentinelIDConv); err == nil {
+				if peer.ID() == sentinelIDConv {
+					sw.mevMetrics.SentinelConnected.Set(0)
+				}
+			} else {
+				sw.Logger.Error("Error validating sentinel ID", "err", err, "is it correctly configured?", sw.SentinelPeerString)
+			}
+		} else {
+			sw.Logger.Error("Error splitting sentinel ID", "is it correctly configured?", sw.SentinelPeerString)
+		}
+
+	}
+}
+
+func (sw *Switch) reconnectToSentinelPeer() {
+	sw.Logger.Info("[sentinel-reconnection]: starting sentinel reconnect routine")
+	shouldReturn := func() bool {
+		sw.sentinelReconnectionMtx.Lock()
+		defer sw.sentinelReconnectionMtx.Unlock()
+
+		if sw.reconnecting.Has(sw.SentinelPeerString) {
+			sw.Logger.Info("[sentinel-reconnection]: already have a reconnection routine for ", sw.SentinelPeerString)
+			return true
+		}
+		sw.reconnecting.Set(sw.SentinelPeerString, struct{}{})
+		return false
+	}()
+	if shouldReturn {
+		return
+	}
+
+	defer sw.reconnecting.Delete(sw.SentinelPeerString)
+
+	i := 0
+	for {
+		if !sw.IsRunning() {
+			return
+		}
+		i++
+
+		// This performs another IP lookup and saves the result in sw.SentinelNetAddr
+		err := sw.SetSentinelPeer(sw.SentinelPeerString)
+		if err != nil {
+			sw.Logger.Info(
+				"[sentinel-reconnection]: Error resolving IP from sentinel peer string. Trying again",
+				"tries", i,
+				"err", err,
+				"sentinelPeerString", sw.SentinelPeerString,
+			)
+			sw.randomSleep(30 * time.Second)
+			continue
+		}
+		addr := sw.SentinelNetAddr
+
+		err = sw.DialPeerWithAddress(addr)
+		if err == nil {
+			return // success
+		} else if _, ok := err.(ErrCurrentlyDialingOrExistingAddress); ok {
+			return
+		}
+
+		sw.Logger.Info("[sentinel-reconnection]: Error reconnecting to sentinel. Trying again", "tries", i, "err", err, "addr", addr)
+		// sleep a set amount
+		sw.randomSleep(30 * time.Second)
 	}
 }
 
@@ -605,6 +725,17 @@ func (sw *Switch) IsDialingOrExistingAddress(addr *NetAddress) bool {
 		(!sw.config.AllowDuplicateIP && sw.peers.HasIP(addr.IP))
 }
 
+func (sw *Switch) SetSentinelPeer(addr string) error {
+	sw.Logger.Info("Adding sentinel as peer", "addr", addr)
+	netAddr, err := NewNetAddressString(addr)
+	if err != nil {
+		sw.Logger.Error("Error in sentinel's address", "err", err)
+		return err
+	}
+	sw.SentinelNetAddr = netAddr
+	return nil
+}
+
 // AddPersistentPeers allows you to set persistent peers. It ignores
 // ErrNetAddressLookup. However, if there are other errors, first encounter is
 // returned.
@@ -653,6 +784,13 @@ func (sw *Switch) AddPrivatePeerIDs(ids []string) error {
 	return nil
 }
 
+// Check whether a particular PID is a skip peer
+// and should receive private auction-winning txs
+func (sw *Switch) IsSidecarPeer(pid ID) bool {
+	_, isPeer := sw.sidecarPeers[pid]
+	return isPeer
+}
+
 func (sw *Switch) IsPeerPersistent(na *NetAddress) bool {
 	for _, pa := range sw.persistentPeersAddrs {
 		if pa.Equals(na) {
@@ -672,6 +810,7 @@ func (sw *Switch) acceptRoutine() {
 			metrics:       sw.metrics,
 			mlc:           sw.mlc,
 			isPersistent:  sw.IsPeerPersistent,
+			isSidecarPeer: sw.IsSidecarPeer,
 		})
 		if err != nil {
 			switch err := err.(type) {
@@ -761,10 +900,18 @@ func (sw *Switch) addOutboundPeerWithConfig(
 	addr *NetAddress,
 	cfg *config.P2PConfig,
 ) error {
-	sw.Logger.Debug("Dialing peer", "address", addr)
+	if sw.SentinelNetAddr != nil && addr.ID == sw.SentinelNetAddr.ID {
+		sw.Logger.Info("[sentinel-reconnection]: DIALING SENTINEL", "address", addr, "time", time.Now())
+	} else {
+		sw.Logger.Info("Dialing peer", "address", addr)
+	}
 
 	// XXX(xla): Remove the leakage of test concerns in implementation.
 	if cfg.TestDialFail {
+		if sw.SentinelNetAddr != nil && addr.ID == sw.SentinelNetAddr.ID {
+			go sw.reconnectToSentinelPeer()
+			return fmt.Errorf("dial err sentinel (peerConfig.DialFail == true)")
+		}
 		go sw.reconnectToPeer(addr)
 		return fmt.Errorf("dial err (peerConfig.DialFail == true)")
 	}
@@ -775,8 +922,9 @@ func (sw *Switch) addOutboundPeerWithConfig(
 		isPersistent:  sw.IsPeerPersistent,
 		reactorsByCh:  sw.reactorsByCh,
 		msgTypeByChID: sw.msgTypeByChID,
-		metrics:       sw.metrics,
 		mlc:           sw.mlc,
+		isSidecarPeer: sw.IsSidecarPeer,
+		metrics:       sw.metrics,
 	})
 	if err != nil {
 		if e, ok := err.(ErrRejected); ok {
@@ -792,7 +940,9 @@ func (sw *Switch) addOutboundPeerWithConfig(
 
 		// retry persistent peers after
 		// any dial error besides IsSelf()
-		if sw.IsPeerPersistent(addr) {
+		if sw.SentinelNetAddr != nil && addr.ID == sw.SentinelNetAddr.ID {
+			go sw.reconnectToSentinelPeer()
+		} else if sw.IsPeerPersistent(addr) {
 			go sw.reconnectToPeer(addr)
 		}
 
@@ -805,6 +955,8 @@ func (sw *Switch) addOutboundPeerWithConfig(
 			_ = p.Stop()
 		}
 		return err
+	} else if sw.SentinelNetAddr != nil && addr.ID == sw.SentinelNetAddr.ID {
+		sw.Logger.Info("[sentinel-reconnection]: SENTINEL RECONNECTED!", "address", addr)
 	}
 
 	return nil
@@ -842,6 +994,10 @@ func (sw *Switch) filterPeer(p Peer) error {
 // the peer is filtered out or failed to start or can't be added.
 func (sw *Switch) addPeer(p Peer) error {
 	if err := sw.filterPeer(p); err != nil {
+		// if peer is sentinel, log the error
+		if sw.SentinelNetAddr != nil && p.ID() == sw.SentinelNetAddr.ID {
+			sw.Logger.Error("[sentinel-reconnection]: filterPeer filtered sentinel", "err", err)
+		}
 		return err
 	}
 
@@ -884,6 +1040,21 @@ func (sw *Switch) addPeer(p Peer) error {
 	}
 	sw.metrics.Peers.Add(float64(1))
 
+	// check if we removed sentinel, if so, alert metrics
+	splitStr := strings.Split(sw.SentinelPeerString, "@")
+	if len(splitStr) > 1 {
+		sentinelIDConv := ID(splitStr[0])
+		if err := validateID(sentinelIDConv); err == nil {
+			if p.ID() == sentinelIDConv {
+				sw.mevMetrics.SentinelConnected.Set(1)
+			}
+		} else {
+			sw.Logger.Error("Error validating sentinel ID", "err", err, "is it correctly configured?", sw.SentinelPeerString)
+		}
+	} else {
+		sw.Logger.Error("Error splitting sentinel ID", "is it correctly configured?", sw.SentinelPeerString)
+	}
+
 	// Start all the reactor protocols on the peer.
 	for _, reactor := range sw.reactors {
 		reactor.AddPeer(p)
@@ -892,4 +1063,31 @@ func (sw *Switch) addPeer(p Peer) error {
 	sw.Logger.Debug("Added peer", "peer", p)
 
 	return nil
+}
+
+func (sw *Switch) StartSentinelConnectionCheckRoutine() {
+	go func() {
+		for {
+			// Do this check roughly every 5 minutes
+			sw.randomSleep(5 * 60 * time.Second)
+
+			sw.Logger.Info("[sentinel-check]: Entering periodic check for sentinel peer connection")
+			if !sw.peers.Has(ID(strings.Split(sw.SentinelPeerString, "@")[0])) {
+				sw.Logger.Info("[sentinel-check]: Sentinel connection check routine didn't find sentinel peer, starting reconnection routine")
+				go sw.reconnectToSentinelPeer()
+			} else {
+				sw.Logger.Info("[sentinel-check]: Found existing connection to sentinel, going back to sleep")
+			}
+		}
+	}()
+}
+
+func contains(s []string, str string) bool {
+	for _, v := range s {
+		if v == str {
+			return true
+		}
+	}
+
+	return false
 }

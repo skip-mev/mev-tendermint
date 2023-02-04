@@ -64,7 +64,7 @@ func TestEnsureTestRoot(t *testing.T) {
 }
 
 func checkConfig(configFile string) bool {
-	var valid bool
+	valid := true
 
 	// list of words we expect in the config
 	elems := []string{
@@ -82,12 +82,14 @@ func checkConfig(configFile string) bool {
 		"propose",
 		"max",
 		"genesis",
+		"skip",
+		"sentinel_rpc_string",
+		"sentinel_peer_string",
+		"personal_peer_ids",
 	}
 	for _, e := range elems {
 		if !strings.Contains(configFile, e) {
 			valid = false
-		} else {
-			valid = true
 		}
 	}
 	return valid

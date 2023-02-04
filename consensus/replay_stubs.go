@@ -27,8 +27,10 @@ func (txmp emptyMempool) RemoveTxByKey(txKey types.TxKey) error {
 	return nil
 }
 
-func (emptyMempool) ReapMaxBytesMaxGas(_, _ int64) types.Txs { return types.Txs{} }
-func (emptyMempool) ReapMaxTxs(n int) types.Txs              { return types.Txs{} }
+func (emptyMempool) ReapMaxBytesMaxGas(_, _ int64) types.ReapedTxs {
+	return types.ReapedTxs{}
+}
+func (emptyMempool) ReapMaxTxs(n int) types.Txs { return types.Txs{} }
 func (emptyMempool) Update(
 	_ int64,
 	_ types.Txs,
@@ -49,6 +51,37 @@ func (emptyMempool) TxsWaitChan() <-chan struct{} { return nil }
 
 func (emptyMempool) InitWAL() error { return nil }
 func (emptyMempool) CloseWAL()      {}
+
+//-----------------------------------------------------------------------------
+
+type emptySidecar struct{}
+
+var _ mempl.PriorityTxSidecar = emptySidecar{}
+
+func (emptySidecar) AddTx(_ types.Tx, _ mempl.TxInfo) error { return nil }
+func (emptySidecar) ReapMaxTxs() types.ReapedTxs            { return types.ReapedTxs{} }
+
+func (emptySidecar) Lock()   {}
+func (emptySidecar) Unlock() {}
+
+func (emptySidecar) HeightForFiringAuction() int64 { return 0 }
+
+func (emptySidecar) Flush() {}
+func (emptySidecar) Update(
+	blockHeight int64,
+	blockTxs types.Txs,
+	_ []*abci.ResponseDeliverTx,
+) error {
+	return nil
+}
+
+func (emptySidecar) TxsAvailable() <-chan struct{} { return make(chan struct{}) }
+func (emptySidecar) EnableTxsAvailable()           {}
+
+func (emptySidecar) Size() int       { return 0 }
+func (emptySidecar) TxsBytes() int64 { return 0 }
+
+func (emptySidecar) GetLastBundleHeight() int64 { return 0 }
 
 //-----------------------------------------------------------------------------
 // mockProxyApp uses ABCIResponses to give the right results.

@@ -37,6 +37,7 @@ func TestValidateBlockHeader(t *testing.T) {
 		proxyApp.Consensus(),
 		memmock.Mempool{},
 		sm.EmptyEvidencePool{},
+		memmock.PriorityTxSidecar{},
 	)
 	lastCommit := types.NewCommit(0, 0, types.BlockID{}, nil)
 
@@ -110,6 +111,7 @@ func TestValidateBlockCommit(t *testing.T) {
 		proxyApp.Consensus(),
 		memmock.Mempool{},
 		sm.EmptyEvidencePool{},
+		memmock.PriorityTxSidecar{},
 	)
 	lastCommit := types.NewCommit(0, 0, types.BlockID{}, nil)
 	wrongSigsCommit := types.NewCommit(1, 0, types.BlockID{}, nil)
@@ -235,6 +237,7 @@ func TestValidateBlockEvidence(t *testing.T) {
 		proxyApp.Consensus(),
 		memmock.Mempool{},
 		evpool,
+		memmock.PriorityTxSidecar{},
 	)
 	lastCommit := types.NewCommit(0, 0, types.BlockID{}, nil)
 

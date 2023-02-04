@@ -93,10 +93,12 @@ type Environment struct {
 	ConsensusReactor *consensus.Reactor
 	EventBus         *types.EventBus // thread safe
 	Mempool          mempl.Mempool
+	Sidecar          mempl.PriorityTxSidecar
 
 	Logger log.Logger
 
-	Config cfg.RPCConfig
+	Config        cfg.RPCConfig
+	SidecarConfig cfg.SidecarConfig
 
 	// cache of chunked genesis data.
 	genChunks []string

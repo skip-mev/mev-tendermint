@@ -11,11 +11,11 @@ import (
 
 type Peer struct {
 	*service.BaseService
-	ip                   net.IP
-	id                   p2p.ID
-	addr                 *p2p.NetAddress
-	kv                   map[string]interface{}
-	Outbound, Persistent bool
+	ip                                net.IP
+	id                                p2p.ID
+	addr                              *p2p.NetAddress
+	kv                                map[string]interface{}
+	Outbound, Persistent, SidecarPeer bool
 }
 
 // NewPeer creates and starts a new mock peer. If the ip
@@ -30,10 +30,11 @@ func NewPeer(ip net.IP) *Peer {
 	nodeKey := p2p.NodeKey{PrivKey: ed25519.GenPrivKey()}
 	netAddr.ID = nodeKey.ID()
 	mp := &Peer{
-		ip:   ip,
-		id:   nodeKey.ID(),
-		addr: netAddr,
-		kv:   make(map[string]interface{}),
+		ip:          ip,
+		id:          nodeKey.ID(),
+		addr:        netAddr,
+		kv:          make(map[string]interface{}),
+		SidecarPeer: true,
 	}
 	mp.BaseService = service.NewBaseService(nil, "MockPeer", mp)
 	if err := mp.Start(); err != nil {
@@ -72,3 +73,4 @@ func (mp *Peer) RemoteAddr() net.Addr        { return &net.TCPAddr{IP: mp.ip, Po
 func (mp *Peer) CloseConn() error            { return nil }
 func (mp *Peer) SetRemovalFailed()           {}
 func (mp *Peer) GetRemovalFailed() bool      { return false }
+func (mp *Peer) IsSidecarPeer() bool         { return mp.SidecarPeer }
