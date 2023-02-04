@@ -34,6 +34,7 @@ import (
 	mempl "github.com/tendermint/tendermint/mempool"
 	mempoolv0 "github.com/tendermint/tendermint/mempool/v0"
 	mempoolv1 "github.com/tendermint/tendermint/mempool/v1"
+	"github.com/tendermint/tendermint/mev"
 	"github.com/tendermint/tendermint/p2p"
 	"github.com/tendermint/tendermint/p2p/pex"
 	"github.com/tendermint/tendermint/privval"
@@ -144,19 +145,20 @@ func DefaultNewNode(config *cfg.Config, logger log.Logger, misbehaviors map[int6
 }
 
 // MetricsProvider returns a consensus, p2p and mempool Metrics.
-type MetricsProvider func(chainID string) (*consensus.Metrics, *p2p.Metrics, *mempl.Metrics, *sm.Metrics)
+type MetricsProvider func(chainID string) (*consensus.Metrics, *p2p.Metrics, *mempl.Metrics, *sm.Metrics, *mev.Metrics)
 
 // DefaultMetricsProvider returns Metrics build using Prometheus client library
 // if Prometheus is enabled. Otherwise, it returns no-op Metrics.
 func DefaultMetricsProvider(config *cfg.InstrumentationConfig) MetricsProvider {
-	return func(chainID string) (*consensus.Metrics, *p2p.Metrics, *mempl.Metrics, *sm.Metrics) {
+	return func(chainID string) (*consensus.Metrics, *p2p.Metrics, *mempl.Metrics, *sm.Metrics, *mev.Metrics) {
 		if config.Prometheus {
 			return consensus.PrometheusMetrics(config.Namespace, "chain_id", chainID),
 				p2p.PrometheusMetrics(config.Namespace, "chain_id", chainID),
 				mempl.PrometheusMetrics(config.Namespace, "chain_id", chainID),
-				sm.PrometheusMetrics(config.Namespace, "chain_id", chainID)
+				sm.PrometheusMetrics(config.Namespace, "chain_id", chainID),
+				mev.PrometheusMetrics(config.Namespace, "chain_id", chainID)
 		}
-		return consensus.NopMetrics(), p2p.NopMetrics(), mempl.NopMetrics(), sm.NopMetrics()
+		return consensus.NopMetrics(), p2p.NopMetrics(), mempl.NopMetrics(), sm.NopMetrics(), mev.NopMetrics()
 	}
 }
 
@@ -379,9 +381,19 @@ func onlyValidatorIsUs(state sm.State, pubKey crypto.PubKey) bool {
 	return bytes.Equal(pubKey.Address(), addr)
 }
 
-func createMempoolAndMempoolReactor(config *cfg.Config, proxyApp proxy.AppConns,
-	state sm.State, memplMetrics *mempl.Metrics, logger log.Logger,
-) (p2p.Reactor, mempl.Mempool) {
+func createMempoolAndSidecarAndMempoolReactor(config *cfg.Config,
+	proxyApp proxy.AppConns,
+	state sm.State,
+	memplMetrics *mempl.Metrics,
+	mevMetrics *mev.Metrics,
+	logger log.Logger,
+) (mempl.Mempool, p2p.Reactor, mempl.PriorityTxSidecar) {
+	sidecar := mempl.NewCListSidecar(
+		state.LastBlockHeight,
+		logger,
+		mevMetrics,
+	)
+
 	switch config.Mempool.Version {
 	case cfg.MempoolV1:
 		mp := mempoolv1.NewTxMempool(
@@ -397,12 +409,13 @@ func createMempoolAndMempoolReactor(config *cfg.Config, proxyApp proxy.AppConns,
 		reactor := mempoolv1.NewReactor(
 			config.Mempool,
 			mp,
+			sidecar,
 		)
 		if config.Consensus.WaitForTxs() {
 			mp.EnableTxsAvailable()
 		}
 
-		return reactor, mp
+		return mp, reactor, sidecar
 
 	case cfg.MempoolV0:
 		mp := mempoolv0.NewCListMempool(
@@ -415,20 +428,20 @@ func createMempoolAndMempoolReactor(config *cfg.Config, proxyApp proxy.AppConns,
 		)
 
 		mp.SetLogger(logger)
-		mp.SetLogger(logger)
 
 		reactor := mempoolv0.NewReactor(
 			config.Mempool,
 			mp,
+			sidecar,
 		)
 		if config.Consensus.WaitForTxs() {
 			mp.EnableTxsAvailable()
 		}
 
-		return reactor, mp
+		return mp, reactor, sidecar
 
 	default:
-		return nil, nil
+		return nil, nil, nil
 	}
 }
 
@@ -581,6 +594,7 @@ func createTransport(
 func createSwitch(config *cfg.Config,
 	transport p2p.Transport,
 	p2pMetrics *p2p.Metrics,
+	mevMetrics *mev.Metrics,
 	peerFilters []p2p.PeerFilterFunc,
 	mempoolReactor p2p.Reactor,
 	bcReactor p2p.Reactor,
@@ -593,8 +607,11 @@ func createSwitch(config *cfg.Config,
 ) *p2p.Switch {
 	sw := p2p.NewSwitch(
 		config.P2P,
+		make([]string, 0),
 		transport,
+		"",
 		p2p.WithMetrics(p2pMetrics),
+		p2p.WithMevMetrics(mevMetrics),
 		p2p.SwitchPeerFilters(peerFilters...),
 	)
 	sw.SetLogger(p2pLogger)
@@ -805,10 +822,10 @@ func NewNode(config *cfg.Config,
 
 	logNodeStartupInfo(state, pubKey, logger, consensusLogger)
 
-	csMetrics, p2pMetrics, memplMetrics, smMetrics := metricsProvider(genDoc.ChainID)
+	csMetrics, p2pMetrics, memplMetrics, smMetrics, mevMetrics := metricsProvider(genDoc.ChainID)
 
 	// Make MempoolReactor
-	mempoolReactor, mempool := createMempoolAndMempoolReactor(config, proxyApp, state, memplMetrics, logger)
+	mempool, mempoolReactor, sidecar := createMempoolAndSidecarAndMempoolReactor(config, proxyApp, state, memplMetrics, mevMetrics, logger)
 
 	// Make Evidence Reactor
 	evidenceReactor, evidencePool, err := createEvidenceReactor(config, dbProvider, stateDB, blockStore, logger)
@@ -823,6 +840,7 @@ func NewNode(config *cfg.Config,
 		proxyApp.Consensus(),
 		mempool,
 		evidencePool,
+		sidecar,
 		sm.BlockExecutorWithMetrics(smMetrics),
 	)
 
@@ -868,7 +886,7 @@ func NewNode(config *cfg.Config,
 	// Setup Switch.
 	p2pLogger := logger.With("module", "p2p")
 	sw := createSwitch(
-		config, transport, p2pMetrics, peerFilters, mempoolReactor, bcReactor,
+		config, transport, p2pMetrics, mevMetrics, peerFilters, mempoolReactor, bcReactor,
 		stateSyncReactor, consensusReactor, evidenceReactor, nodeInfo, nodeKey, p2pLogger,
 	)
 
@@ -1352,7 +1370,7 @@ func makeNodeInfo(
 		Channels: []byte{
 			bcChannel,
 			cs.StateChannel, cs.DataChannel, cs.VoteChannel, cs.VoteSetBitsChannel,
-			mempl.MempoolChannel,
+			mempl.MempoolChannel, mempl.SidecarChannel, mempl.SidecarLegacyChannel,
 			evidence.EvidenceChannel,
 			statesync.SnapshotChannel, statesync.ChunkChannel,
 		},

@@ -10,5 +10,26 @@ message Txs {
 message Message {
   oneof sum {
     Txs txs = 1;
+    MEVTxs mev_txs = 2;
   }
+}
+
+message MEVMessage {
+  oneof sum {
+    Txs txs = 1;
+  }
+  int64 desired_height = 2;
+  int64 bundle_id = 3;
+  int64 bundle_order = 4;
+  int64 bundle_size = 5;
+  int64 gas_wanted = 6;
+}
+
+message MEVTxs {
+  repeated bytes txs = 1;
+  int64 desired_height = 2;
+  int64 bundle_id = 3;
+  int64 bundle_order = 4;
+  int64 bundle_size = 5;
+  int64 gas_wanted = 6;
 }

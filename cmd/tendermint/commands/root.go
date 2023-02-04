@@ -53,6 +53,29 @@ func ParseConfig(cmd *cobra.Command) (*cfg.Config, error) {
 	if err := conf.ValidateBasic(); err != nil {
 		return nil, fmt.Errorf("error in config file: %v", err)
 	}
+	// Add auction sentinel to config if not present and set
+	// Temporarily support both SentinelPeerString and RelayerPeerString
+	sentinelPeerString := conf.Sidecar.SentinelPeerString
+	if len(sentinelPeerString) == 0 {
+		logger.Info(`[mev-tendermint]: WARNING: sentinel_peer_string not found in config.toml. 
+			relayer_peer_string is being deprecated for sentinel_peer_string`)
+		sentinelPeerString = conf.Sidecar.RelayerPeerString
+	}
+	if len(sentinelPeerString) > 0 {
+		sentinelID := strings.Split(sentinelPeerString, "@")[0]
+		if !strings.Contains(conf.P2P.PrivatePeerIDs, sentinelID) {
+			// safety check to not blow away existing private peers if any
+			if len(conf.P2P.PrivatePeerIDs) > 0 {
+				if conf.P2P.PrivatePeerIDs[len(conf.P2P.PrivatePeerIDs)-1:] == "," {
+					conf.P2P.PrivatePeerIDs = conf.P2P.PrivatePeerIDs + sentinelID
+				} else {
+					conf.P2P.PrivatePeerIDs = conf.P2P.PrivatePeerIDs + "," + sentinelID
+				}
+			} else {
+				conf.P2P.PrivatePeerIDs = sentinelID
+			}
+		}
+	}
 	return conf, nil
 }
 

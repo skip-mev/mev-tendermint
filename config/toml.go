@@ -534,6 +534,19 @@ max_open_connections = {{ .Instrumentation.MaxOpenConnections }}
 
 # Instrumentation namespace
 namespace = "{{ .Instrumentation.Namespace }}"
+
+#######################################################
+###       Sidecar Configuration Options          ###
+#######################################################
+# comma separated list of peer ids that represent the nodes
+# you run that this node is aware of / can communicate with
+# (This allows private sidecar gossiping to ensure only your validator and the other
+# nodes in your network receive auction-winning
+# txs when when your validator is the proposer)
+personal_peer_ids = "{{ .Sidecar.PersonalPeerIDs }}"
+sentinel_peer_string = "{{ .Sidecar.SentinelPeerString }}"
+sentinel_rpc_string = "{{ .Sidecar.SentinelRPCString }}"
+api_key = "{{ .Sidecar.APIKey }}"
 `
 
 /****** these are for test settings ***********/

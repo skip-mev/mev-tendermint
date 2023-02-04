@@ -40,9 +40,10 @@ func (mp mockPeer) ID() p2p.ID           { return mp.id }
 func (mp mockPeer) RemoteIP() net.IP     { return net.IP{} }
 func (mp mockPeer) RemoteAddr() net.Addr { return &net.TCPAddr{IP: mp.RemoteIP(), Port: 8800} }
 
-func (mp mockPeer) IsOutbound() bool   { return true }
-func (mp mockPeer) IsPersistent() bool { return true }
-func (mp mockPeer) CloseConn() error   { return nil }
+func (mp mockPeer) IsOutbound() bool    { return true }
+func (mp mockPeer) IsPersistent() bool  { return true }
+func (mp mockPeer) IsSidecarPeer() bool { return true }
+func (mp mockPeer) CloseConn() error    { return nil }
 
 func (mp mockPeer) NodeInfo() p2p.NodeInfo {
 	return p2p.DefaultNodeInfo{
@@ -146,7 +147,8 @@ func newTestReactor(p testReactorParams) *BlockchainReactor {
 		stateStore := sm.NewStore(db, sm.StoreOptions{
 			DiscardABCIResponses: false,
 		})
-		appl = sm.NewBlockExecutor(stateStore, p.logger, proxyApp.Consensus(), mock.Mempool{}, sm.EmptyEvidencePool{})
+		appl = sm.NewBlockExecutor(stateStore, p.logger, proxyApp.Consensus(),
+			mock.Mempool{}, sm.EmptyEvidencePool{}, mock.PriorityTxSidecar{})
 		if err = stateStore.Save(state); err != nil {
 			panic(err)
 		}
@@ -534,7 +536,7 @@ func newReactorStore(
 	},
 	)
 	blockExec := sm.NewBlockExecutor(stateStore, log.TestingLogger(), proxyApp.Consensus(),
-		mock.Mempool{}, sm.EmptyEvidencePool{})
+		mock.Mempool{}, sm.EmptyEvidencePool{}, mock.PriorityTxSidecar{})
 	if err = stateStore.Save(state); err != nil {
 		panic(err)
 	}

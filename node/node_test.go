@@ -23,6 +23,7 @@ import (
 	mempl "github.com/tendermint/tendermint/mempool"
 	mempoolv0 "github.com/tendermint/tendermint/mempool/v0"
 	mempoolv1 "github.com/tendermint/tendermint/mempool/v1"
+	"github.com/tendermint/tendermint/mev"
 	"github.com/tendermint/tendermint/p2p"
 	"github.com/tendermint/tendermint/p2p/conn"
 	p2pmock "github.com/tendermint/tendermint/p2p/mock"
@@ -248,6 +249,7 @@ func TestCreateProposalBlock(t *testing.T) {
 	// Make Mempool
 	memplMetrics := mempl.NopMetrics()
 	var mempool mempl.Mempool
+	sidecar := mempl.NewCListSidecar(state.LastBlockHeight, log.NewNopLogger(), mev.NopMetrics())
 
 	switch config.Mempool.Version {
 	case cfg.MempoolV0:
@@ -304,6 +306,7 @@ func TestCreateProposalBlock(t *testing.T) {
 		proxyApp.Consensus(),
 		mempool,
 		evidencePool,
+		sidecar,
 	)
 
 	commit := types.NewCommit(height-1, 0, types.BlockID{}, nil)
@@ -353,6 +356,7 @@ func TestMaxProposalBlockSize(t *testing.T) {
 	// Make Mempool
 	memplMetrics := mempl.NopMetrics()
 	var mempool mempl.Mempool
+	sidecar := mempl.NewCListSidecar(state.LastBlockHeight, log.NewNopLogger(), mev.NopMetrics())
 	switch config.Mempool.Version {
 	case cfg.MempoolV0:
 		mempool = mempoolv0.NewCListMempool(config.Mempool,
@@ -384,6 +388,7 @@ func TestMaxProposalBlockSize(t *testing.T) {
 		proxyApp.Consensus(),
 		mempool,
 		sm.EmptyEvidencePool{},
+		sidecar,
 	)
 
 	commit := types.NewCommit(height-1, 0, types.BlockID{}, nil)
