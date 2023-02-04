@@ -2,6 +2,34 @@
 
 Friendly reminder, we have a [bug bounty program](https://hackerone.com/cosmos).
 
+## v0.34.26
+
+*Feb 4, 2023*
+
+This is a very minor release for anyone who ends up struggling to update to
+v0.34.25 due to the `github.com/btcsuite/btcd/btcec/v2` dependency update in
+Tendermint Core: Tendermint Core v0.34.25 implicitly depends on tm-load-test
+v1.0.0, which implicitly depends on Tendermint Core v0.34.14, which implicitly
+depends on a pre-modularized version of `github.com/btcsuite/btcd/btcec`.
+
+This type of error sometimes shows up when attempting to import Tendermint Core
+as a Go dependency, with error messages like:
+
+```
+no required module provides package github.com/btcsuite/btcd/btcec; to add it:
+	go get github.com/btcsuite/btcd/btcec
+```
+
+This could also be a sign that your project, or one of your dependencies,
+depends on an older version of btcd and need to upgrade.
+
+### DEPENDENCIES
+
+- [informalsystems/tendermint\#11](https://github.com/informalsystems/tendermint/pull/11)
+  Bump tm-load-test to v1.3.0 to remove implicit dependency on Tendermint Core,
+  which can sometimes cause problems for folks importing the Informal Systems
+  fork as a library
+
 ## v0.34.25
 
 *Feb 3, 2023*
