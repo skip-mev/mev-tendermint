@@ -20,7 +20,6 @@ import (
 // be efficiently accessed by multiple concurrent readers.
 type CListPriorityTxSidecar struct {
 	// Atomic integers
-	height                 int64 // the last block Update()'d to
 	heightForFiringAuction int64 // the height of the block to fire the auction for
 	txsBytes               int64 // total size of sidecar, in bytes
 	lastBundleHeight       int64 // height of last accepted bundle tx, for status rpc purposes
@@ -71,7 +70,6 @@ func NewCListSidecar(
 ) *CListPriorityTxSidecar {
 	sidecar := &CListPriorityTxSidecar{
 		txs:                    clist.New(),
-		height:                 height,
 		heightForFiringAuction: height + 1,
 		logger:                 memLogger,
 		metrics:                mevMetrics,
@@ -134,7 +132,6 @@ func (sc *CListPriorityTxSidecar) notifyTxsAvailable() {
 func (sc *CListPriorityTxSidecar) AddTx(tx types.Tx, txInfo TxInfo) error {
 
 	sc.updateMtx.RLock()
-	// use defer to unlock mutex because application (*local client*) might panic
 	defer sc.updateMtx.RUnlock()
 
 	// don't add any txs already in cache
@@ -230,7 +227,7 @@ func (sc *CListPriorityTxSidecar) AddTx(tx types.Tx, txInfo TxInfo) error {
 	if txInfo.BundleSize != bundle.EnforcedSize {
 		sc.logger.Info(
 			"failed adding sidecarTx",
-			"reason", "trying to insert a tx for bundle at an order greater than the size of the bundle...",
+			"reason", "tx's bundle size doesn't match bundle's expected size...",
 			"bundle id", txInfo.BundleID,
 			"bundle size", txInfo.BundleSize,
 			"gasWanted", txInfo.GasWanted,
@@ -251,7 +248,7 @@ func (sc *CListPriorityTxSidecar) AddTx(tx types.Tx, txInfo TxInfo) error {
 		defer sc.bundleSizeMtx.Unlock()
 		// Can't add transactions if the bundle is already full
 		// check if the current size of this bundle is greater than the expected size for the bundle, if so skip
-		if bundle.CurrSize >= bundle.EnforcedSize {
+		if bundle.CurrSize == bundle.EnforcedSize {
 			sc.logger.Info(
 				"failed adding sidecarTx",
 				"reason", "bundle already full for this BundleID...",
@@ -299,7 +296,7 @@ func (sc *CListPriorityTxSidecar) AddTx(tx types.Tx, txInfo TxInfo) error {
 	func() {
 		sc.maxBundleIDMtx.Lock()
 		defer sc.maxBundleIDMtx.Unlock()
-		if txInfo.BundleID >= sc.maxBundleID {
+		if txInfo.BundleID > sc.maxBundleID {
 			sc.maxBundleID = txInfo.BundleID
 		}
 	}()
@@ -368,9 +365,6 @@ func (sc *CListPriorityTxSidecar) Update(
 	txs types.Txs,
 	deliverTxResponses []*abci.ResponseDeliverTx,
 ) error {
-
-	// Set height for block last updated to (i.e. block last committed)
-	sc.height = height
 	sc.notifiedTxsAvailable = false
 	sc.heightForFiringAuction = height + 1
 
