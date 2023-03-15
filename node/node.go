@@ -907,7 +907,11 @@ func NewNode(config *cfg.Config,
 	if sentinelPeerString != "" {
 		err = sw.SetSentinelPeer(sentinelPeerString)
 		if err != nil {
-			return nil, fmt.Errorf("could not add sentinel from sentinel_peer_string field: %w", err)
+			logger.Error(
+				"Error resolving IP from sentinel peer string. Trying again",
+				"err", err,
+				"sentinelPeerString", sentinelPeerString,
+			)
 		}
 	} else {
 		logger.Info("[node startup]: No sentinel_peer_string specified, not adding sentinel as peer")
