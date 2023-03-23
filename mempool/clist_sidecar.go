@@ -145,9 +145,7 @@ func (sc *CListPriorityTxSidecar) AddTx(tx types.Tx, txInfo TxInfo) error {
 		)
 		// Record a new sender for a tx we've already seen.
 		// Note it's possible a tx is still in the cache but no longer in the mempool
-		// (eg. after committing a block, txs are removed from mempool but not cache),
 		// so we only record the sender for txs still in the mempool.
-		// Record a new sender for a tx we've already seen.
 
 		if e, ok := sc.txsMap.Load(tx.Key()); ok {
 			scTx := e.(*clist.CElement).Value.(*SidecarTx)
@@ -215,8 +213,6 @@ func (sc *CListPriorityTxSidecar) AddTx(tx types.Tx, txInfo TxInfo) error {
 		BundleID:      txInfo.BundleID,
 		CurrSize:      int64(0),
 		EnforcedSize:  txInfo.BundleSize,
-		// TODO: add from gossip info?
-		GasWanted:     int64(0),
 		OrderedTxsMap: &sync.Map{},
 	})
 	bundle = existingBundle.(*Bundle)
@@ -293,13 +289,11 @@ func (sc *CListPriorityTxSidecar) AddTx(tx types.Tx, txInfo TxInfo) error {
 
 	// -------- UPDATE MAX BUNDLE ---------
 
-	func() {
-		sc.maxBundleIDMtx.Lock()
-		defer sc.maxBundleIDMtx.Unlock()
-		if txInfo.BundleID > sc.maxBundleID {
-			sc.maxBundleID = txInfo.BundleID
-		}
-	}()
+	sc.maxBundleIDMtx.Lock()
+	if txInfo.BundleID > sc.maxBundleID {
+		sc.maxBundleID = txInfo.BundleID
+	}
+	sc.maxBundleIDMtx.Unlock()
 
 	// -------- TX INSERTION INTO MAIN TXS LIST ---------
 	// -------- TODO: In the future probably want to refactor to not have txs clist ---------
