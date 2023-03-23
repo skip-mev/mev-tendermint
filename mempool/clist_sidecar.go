@@ -581,6 +581,7 @@ func (sc *CListPriorityTxSidecar) ReapMaxTxs() types.ReapedTxs {
 						"bundleOrder", bundleOrderIter,
 						"height", sc.heightForFiringAuction,
 					)
+					break
 				}
 			}
 
