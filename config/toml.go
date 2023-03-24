@@ -543,6 +543,8 @@ namespace = "{{ .Instrumentation.Namespace }}"
 #######################################################
 ###       Sidecar Configuration Options          ###
 #######################################################
+[sidecar]
+
 # comma separated list of peer ids that represent the nodes
 # you run that this node is aware of / can communicate with
 # (This allows private sidecar gossiping to ensure only your validator and the other
