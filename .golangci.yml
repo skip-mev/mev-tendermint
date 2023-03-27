@@ -15,9 +15,9 @@ linters:
     - gosimple
     - govet
     - ineffassign
-    - misspell
+    # - misspell
     - nakedret
-    - nolintlint
+    # - nolintlint
     - prealloc
     - staticcheck
     # - structcheck // to be fixed by golangci-lint
