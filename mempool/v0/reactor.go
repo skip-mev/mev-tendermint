@@ -383,7 +383,7 @@ func (memR *Reactor) broadcastSidecarTxRoutine(peer p2p.Peer) {
 						GasWanted:     scTx.GasWanted,
 					}
 
-					success := p2p.SendEnvelopeShim(peer, p2p.Envelope{
+					success := p2p.SendEnvelopeShim(peer, p2p.Envelope{ //nolint: staticcheck
 						ChannelID: mempool.SidecarLegacyChannel,
 						Message:   msg,
 					}, memR.Logger)
@@ -392,14 +392,6 @@ func (memR *Reactor) broadcastSidecarTxRoutine(peer p2p.Peer) {
 						continue
 					}
 				}
-			} else {
-				memR.Logger.Info(
-					"broadcasting sidecarTx to peer failed",
-					"peer", peerID,
-					"was considered sidecarPeer", isSidecarPeer,
-					"was converted to sidecarTx", okConv,
-					"tx", scTx.Tx.Hash(),
-				)
 			}
 		}
 
@@ -454,7 +446,7 @@ func (memR *Reactor) broadcastMempoolTxRoutine(peer p2p.Peer) {
 
 		// Allow for a lag of 1 block.
 		memTx := next.Value.(*mempoolTx)
-		if peerState.GetHeight() < memTx.height-1 {
+		if peerState.GetHeight() < memTx.Height()-1 {
 			time.Sleep(mempool.PeerCatchupSleepIntervalMS * time.Millisecond)
 			continue
 		}
