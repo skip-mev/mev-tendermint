@@ -224,7 +224,9 @@ func (blockExec *BlockExecutor) Commit(
 	deliverTxResponses []*abci.ResponseDeliverTx,
 ) ([]byte, int64, error) {
 	blockExec.mempool.Lock()
+	blockExec.sidecar.Lock()
 	defer blockExec.mempool.Unlock()
+	defer blockExec.sidecar.Unlock()
 
 	// while mempool is Locked, flush to ensure all async requests have completed
 	// in the ABCI app before Commit.
@@ -258,7 +260,6 @@ func (blockExec *BlockExecutor) Commit(
 		)
 		if err != nil {
 			blockExec.logger.Error("error while updating sidecar", "err", err)
-			return nil, 0, err
 		}
 	}
 
@@ -270,10 +271,6 @@ func (blockExec *BlockExecutor) Commit(
 		TxPreCheck(state),
 		TxPostCheck(state),
 	)
-	if err != nil {
-		blockExec.logger.Error("error while updating mempool", "err", err)
-		return nil, 0, err
-	}
 
 	return res.Data, res.RetainHeight, err
 }

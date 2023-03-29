@@ -302,6 +302,5 @@ type Bundle struct {
 	CurrSize      int64 // total size of bundle
 	EnforcedSize  int64 // total size of bundle
 
-	GasWanted     int64     // amount of gas this tx states it will require
 	OrderedTxsMap *sync.Map // map from bundleOrder to *mempoolTx
 }
