@@ -395,14 +395,6 @@ func (memR *Reactor) broadcastSidecarTxRoutine(peer p2p.Peer) {
 						continue
 					}
 				}
-			} else {
-				memR.Logger.Info(
-					"broadcasting sidecarTx to peer failed",
-					"peer", peerID,
-					"was considered sidecarPeer", isSidecarPeer,
-					"was converted to sidecarTx", okConv,
-					"tx", scTx.Tx.Hash(),
-				)
 			}
 		}
 

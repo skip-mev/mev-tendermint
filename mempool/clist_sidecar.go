@@ -39,7 +39,7 @@ type CListPriorityTxSidecar struct {
 	// // sync.Map bundleOrder -> *SidecarTx
 	// }
 	bundles     sync.Map
-	maxBundleID int64
+	maxBundleID map[int64]int64 // map of height -> max bundle ID
 
 	updateMtx tmsync.RWMutex
 
@@ -73,6 +73,7 @@ func NewCListSidecar(
 		heightForFiringAuction: height + 1,
 		logger:                 memLogger,
 		metrics:                mevMetrics,
+		maxBundleID:            make(map[int64]int64),
 	}
 	sidecar.cache = NewLRUTxCache(10000)
 	return sidecar
@@ -80,7 +81,7 @@ func NewCListSidecar(
 
 func (sc *CListPriorityTxSidecar) PrettyPrintBundles() {
 	fmt.Println("-------------")
-	for bundleIDIter := 0; bundleIDIter <= int(sc.maxBundleID); bundleIDIter++ {
+	for bundleIDIter := 0; bundleIDIter <= int(sc.maxBundleID[sc.heightForFiringAuction]); bundleIDIter++ {
 		bundleIDIter := int64(bundleIDIter)
 		if bundle, ok := sc.bundles.Load(Key{sc.heightForFiringAuction, bundleIDIter}); ok {
 			bundle := bundle.(*Bundle)
@@ -145,9 +146,7 @@ func (sc *CListPriorityTxSidecar) AddTx(tx types.Tx, txInfo TxInfo) error {
 		)
 		// Record a new sender for a tx we've already seen.
 		// Note it's possible a tx is still in the cache but no longer in the mempool
-		// (eg. after committing a block, txs are removed from mempool but not cache),
 		// so we only record the sender for txs still in the mempool.
-		// Record a new sender for a tx we've already seen.
 
 		if e, ok := sc.txsMap.Load(tx.Key()); ok {
 			scTx := e.(*clist.CElement).Value.(*SidecarTx)
@@ -215,8 +214,6 @@ func (sc *CListPriorityTxSidecar) AddTx(tx types.Tx, txInfo TxInfo) error {
 		BundleID:      txInfo.BundleID,
 		CurrSize:      int64(0),
 		EnforcedSize:  txInfo.BundleSize,
-		// TODO: add from gossip info?
-		GasWanted:     int64(0),
 		OrderedTxsMap: &sync.Map{},
 	})
 	bundle = existingBundle.(*Bundle)
@@ -293,13 +290,11 @@ func (sc *CListPriorityTxSidecar) AddTx(tx types.Tx, txInfo TxInfo) error {
 
 	// -------- UPDATE MAX BUNDLE ---------
 
-	func() {
-		sc.maxBundleIDMtx.Lock()
-		defer sc.maxBundleIDMtx.Unlock()
-		if txInfo.BundleID > sc.maxBundleID {
-			sc.maxBundleID = txInfo.BundleID
-		}
-	}()
+	sc.maxBundleIDMtx.Lock()
+	if txInfo.BundleID > sc.maxBundleID[txInfo.DesiredHeight] {
+		sc.maxBundleID[txInfo.DesiredHeight] = txInfo.BundleID
+	}
+	sc.maxBundleIDMtx.Unlock()
 
 	// -------- TX INSERTION INTO MAIN TXS LIST ---------
 	// -------- TODO: In the future probably want to refactor to not have txs clist ---------
@@ -390,7 +385,7 @@ func (sc *CListPriorityTxSidecar) Update(
 	}
 
 	sc.cache.Reset()
-	sc.maxBundleID = 0
+	delete(sc.maxBundleID, height)
 
 	// remove from txs list and txmap
 	for e := sc.txs.Front(); e != nil; e = e.Next() {
@@ -438,7 +433,7 @@ func (sc *CListPriorityTxSidecar) Flush() {
 	sc.cache.Reset()
 
 	sc.notifiedTxsAvailable = false
-	sc.maxBundleID = 0
+	delete(sc.maxBundleID, sc.heightForFiringAuction)
 
 	_ = atomic.SwapInt64(&sc.txsBytes, 0)
 
@@ -475,7 +470,7 @@ func (sc *CListPriorityTxSidecar) NumBundles() int {
 
 // Safe for concurrent use by multiple goroutines.
 func (sc *CListPriorityTxSidecar) MaxBundleID() int64 {
-	return sc.maxBundleID
+	return sc.maxBundleID[sc.heightForFiringAuction]
 }
 
 func (sc *CListPriorityTxSidecar) HeightForFiringAuction() int64 {
@@ -551,7 +546,7 @@ func (sc *CListPriorityTxSidecar) ReapMaxTxs() types.ReapedTxs {
 	// iterate over all BundleIDs up to the max we've seen
 	// CONTRACT: this assumes that bundles don't care about previous bundles,
 	// so still want to execute if any missing between
-	for bundleIDIter := 0; bundleIDIter <= int(sc.maxBundleID); bundleIDIter++ {
+	for bundleIDIter := 0; bundleIDIter <= int(sc.maxBundleID[sc.heightForFiringAuction]); bundleIDIter++ {
 		bundleIDIter := int64(bundleIDIter)
 
 		if bundle, ok := sc.bundles.Load(Key{sc.heightForFiringAuction, bundleIDIter}); ok {
@@ -587,6 +582,7 @@ func (sc *CListPriorityTxSidecar) ReapMaxTxs() types.ReapedTxs {
 						"bundleOrder", bundleOrderIter,
 						"height", sc.heightForFiringAuction,
 					)
+					break
 				}
 			}
 

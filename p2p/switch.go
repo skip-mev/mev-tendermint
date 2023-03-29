@@ -94,7 +94,7 @@ type Switch struct {
 	rng *rand.Rand // seed for randomizing dial times and orders
 
 	metrics            *Metrics
-	mlc               *metricsLabelCache
+	mlc                *metricsLabelCache
 	mevMetrics         *mev.Metrics
 	sidecarPeers       sidecarPeers
 	SentinelPeerString string
@@ -463,10 +463,6 @@ func (sw *Switch) stopAndRemovePeer(peer Peer, reason interface{}) {
 	// https://github.com/tendermint/tendermint/issues/3338
 	if sw.peers.Remove(peer) {
 		sw.metrics.Peers.Add(float64(-1))
-	} else {
-		// Removal of the peer has failed. The function above sets a flag within the peer to mark this.
-		// We keep this message here as information to the developer.
-		sw.Logger.Debug("error on peer removal", ",", "peer", peer.ID())
 
 		// check if we removed sentinel, if so, alert metrics
 		splitStr := strings.Split(sw.SentinelPeerString, "@")
@@ -482,7 +478,10 @@ func (sw *Switch) stopAndRemovePeer(peer Peer, reason interface{}) {
 		} else {
 			sw.Logger.Error("Error splitting sentinel ID", "is it correctly configured?", sw.SentinelPeerString)
 		}
-
+	} else {
+		// Removal of the peer has failed. The function above sets a flag within the peer to mark this.
+		// We keep this message here as information to the developer.
+		sw.Logger.Debug("error on peer removal", ",", "peer", peer.ID())
 	}
 }
 
