@@ -436,7 +436,10 @@ func (sw *Switch) stopAndRemovePeer(peer Peer, reason interface{}) {
 		} else {
 			sw.Logger.Error("Error splitting sentinel ID", "is it correctly configured?", sw.SentinelPeerString)
 		}
-
+	} else {
+		// Removal of the peer has failed. The function above sets a flag within the peer to mark this.
+		// We keep this message here as information to the developer.
+		sw.Logger.Debug("error on peer removal", ",", "peer", peer.ID())
 	}
 }
 
